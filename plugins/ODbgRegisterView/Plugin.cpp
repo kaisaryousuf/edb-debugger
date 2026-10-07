@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Plugin.h"
 #include "ArchProcessor.h"
@@ -29,13 +18,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QSettings>
 
 namespace ODbgRegisterView {
-//Q_DECLARE_NAMESPACE_TR(ODbgRegisterView)
+// Q_DECLARE_NAMESPACE_TR(ODbgRegisterView)
 
 namespace {
-const auto pluginName             = QLatin1String("ODbgRegisterView");
-const auto dockNameSuffixTemplate = QString(" <%1>");
-const auto dockObjectNameTemplate = QString(pluginName + "-%1");
-const auto views                  = QLatin1String("views");
+const auto pluginName             = QStringLiteral("ODbgRegisterView");
+const auto dockNameSuffixTemplate = QStringLiteral(" <%1>");
+const auto dockObjectNameTemplate = pluginName + QStringLiteral("-%1");
+const auto views                  = QStringLiteral("views");
 }
 
 Plugin::Plugin(QObject *parent)
@@ -52,7 +41,7 @@ void Plugin::setupDocks() {
 	QSettings settings;
 	settings.beginGroup(pluginName);
 
-	if (settings.value(views + "/size").isValid()) {
+	if (settings.value(views + QStringLiteral("/size")).isValid()) {
 		const int size = settings.beginReadArray(views);
 		for (int i = 0; i < size; ++i) {
 			settings.setArrayIndex(i);
@@ -65,8 +54,8 @@ void Plugin::setupDocks() {
 
 void Plugin::saveSettings() const {
 	QSettings settings;
-	const int size      = registerViews_.size();
-	const auto arrayKey = pluginName + "/" + views;
+	const auto size     = static_cast<int>(registerViews_.size());
+	const auto arrayKey = pluginName + QStringLiteral("/") + views;
 	settings.remove(arrayKey);
 	settings.beginWriteArray(arrayKey, size);
 	for (int i = 0; i < size; ++i) {
@@ -76,19 +65,19 @@ void Plugin::saveSettings() const {
 }
 
 void Plugin::createRegisterView() {
-	createRegisterView("");
+	createRegisterView(QString());
 }
 
 void Plugin::createRegisterView(const QString &settingsGroup) {
 
-	if (const auto mainWindow = edb::v1::debugger_ui->findChild<QMainWindow *>(QLatin1String("dockingRoot"))) {
+	if (const auto mainWindow = edb::v1::debugger_ui->findChild<QMainWindow *>(QStringLiteral("dockingRoot"))) {
 		const auto regView = new ODBRegView(settingsGroup, mainWindow);
 		registerViews_.emplace_back(regView);
 		regView->setModel(&edb::v1::arch_processor().registerViewModel());
 
-		const QString suffix          = registerViews_.size() > 1 ? dockNameSuffixTemplate.arg(registerViews_.size()) : "";
-		auto *const regViewDockWidget = new QDockWidget(dockName() + suffix, mainWindow);
-		const auto viewNumber         = registerViews_.size();
+		const QString suffix         = registerViews_.size() > 1 ? dockNameSuffixTemplate.arg(registerViews_.size()) : QString();
+		const auto regViewDockWidget = new QDockWidget(dockName() + suffix, mainWindow);
+		const auto viewNumber        = registerViews_.size();
 		regViewDockWidget->setObjectName(dockObjectNameTemplate.arg(viewNumber));
 		regViewDockWidget->setWidget(regView);
 
@@ -127,7 +116,7 @@ void Plugin::renumerateDocks() const {
 		Q_ASSERT(dynamic_cast<QDockWidget *>(view->parentWidget()));
 		QWidget *dock = view->parentWidget();
 		dock->setObjectName(dockObjectNameTemplate.arg(i + 1));
-		dock->setWindowTitle(dockName() + (i ? dockNameSuffixTemplate.arg(i + 1) : ""));
+		dock->setWindowTitle(dockName() + (i ? dockNameSuffixTemplate.arg(i + 1) : QString()));
 	}
 }
 
@@ -186,7 +175,7 @@ QMenu *Plugin::menu(QWidget *parent) {
 			menu_->addAction(newRegisterView);
 		}
 		// FIXME: setChecked calls currently don't really work, since at this stage mainWindow hasn't yet restored its state
-		if (auto *const mainWindow = qobject_cast<QMainWindow *>(edb::v1::debugger_ui)) {
+		if (const auto mainWindow = qobject_cast<QMainWindow *>(edb::v1::debugger_ui)) {
 			{
 				const auto expandLeftSideUp = new QAction(tr("Expand Left-Hand Side Dock Up"), menu_);
 				expandLeftSideUp->setCheckable(true);

@@ -1,13 +1,23 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef UTIL_MATH_H_2020227_
 #define UTIL_MATH_H_2020227_
 
 namespace util {
 
-//------------------------------------------------------------------------------
-// Name: percentage
-// Desc: calculates how much of a multi-region byte search we have completed
-//------------------------------------------------------------------------------
+/**
+ * @brief Calculates the percentage of a multi-region byte search that has been completed.
+ *
+ * @param regions_finished The number of regions that have been completed.
+ * @param regions_total The total number of regions.
+ * @param bytes_done The number of bytes that have been processed in the current region.
+ * @param bytes_total The total number of bytes in the current region.
+ * @return The percentage of the search that has been completed.
+ */
 template <class N1, class N2, class N3, class N4>
 int percentage(N1 regions_finished, N2 regions_total, N3 bytes_done, N4 bytes_total) {
 
@@ -15,7 +25,7 @@ int percentage(N1 regions_finished, N2 regions_total, N3 bytes_done, N4 bytes_to
 	const auto region_step = 1.0f / static_cast<float>(regions_total) * 100.0f;
 
 	// how many regions are done?
-	const float regions_complete = region_step * regions_finished;
+	const float regions_complete = region_step * static_cast<float>(regions_finished);
 
 	// how much of the current region is done?
 	const float region_percent = region_step * static_cast<float>(bytes_done) / static_cast<float>(bytes_total);
@@ -23,10 +33,13 @@ int percentage(N1 regions_finished, N2 regions_total, N3 bytes_done, N4 bytes_to
 	return static_cast<int>(regions_complete + region_percent);
 }
 
-//------------------------------------------------------------------------------
-// Name: percentage
-// Desc: calculates how much of a single-region byte search we have completed
-//------------------------------------------------------------------------------
+/**
+ * @brief Calculates the percentage of a single-region byte search that has been completed.
+ *
+ * @param bytes_done The number of bytes that have been processed.
+ * @param bytes_total The total number of bytes in the region.
+ * @return The percentage of the search that has been completed.
+ */
 template <class N1, class N2>
 int percentage(N1 bytes_done, N2 bytes_total) {
 	return percentage(0, 1, bytes_done, bytes_total);

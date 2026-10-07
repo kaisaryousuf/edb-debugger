@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2019 Evan Teran
-						  evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ResultsModel.h"
 #include "edb.h"
@@ -23,19 +11,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace ROPToolPlugin {
 
 /**
- * @brief ResultsModel::ResultsModel
- * @param parent
+ * @brief Constructs a ResultsModel with the specified parent object.
+ *
+ * @param parent The parent object for this model.
  */
 ResultsModel::ResultsModel(QObject *parent)
 	: QAbstractItemModel(parent) {
 }
 
 /**
- * @brief ResultsModel::headerData
- * @param section
- * @param orientation
- * @param role
- * @return
+ * @brief Returns the header data for the specified section, orientation, and role.
+ *
+ * @param section The section for which to retrieve header data.
+ * @param orientation The orientation of the header.
+ * @param role The role for which to retrieve data.
+ * @return The header data for the specified section and role.
  */
 QVariant ResultsModel::headerData(int section, Qt::Orientation orientation, int role) const {
 
@@ -52,10 +42,11 @@ QVariant ResultsModel::headerData(int section, Qt::Orientation orientation, int 
 }
 
 /**
- * @brief ResultsModel::data
- * @param index
- * @param role
- * @return
+ * @brief Returns the data for the specified index and role.
+ *
+ * @param index The index for which to retrieve data.
+ * @param role The role for which to retrieve data.
+ * @return The data for the specified index and role.
  */
 QVariant ResultsModel::data(const QModelIndex &index, int role) const {
 
@@ -80,8 +71,9 @@ QVariant ResultsModel::data(const QModelIndex &index, int role) const {
 }
 
 /**
- * @brief ResultsModel::addResult
- * @param r
+ * @brief Adds a result to the model.
+ *
+ * @param r The result to add.
  */
 void ResultsModel::addResult(const Result &r) {
 	beginInsertRows(QModelIndex(), rowCount(), rowCount());
@@ -90,11 +82,12 @@ void ResultsModel::addResult(const Result &r) {
 }
 
 /**
- * @brief ResultsModel::index
- * @param row
- * @param column
- * @param parent
- * @return
+ * @brief Returns the index of the item in the model specified by the given row, column and parent index.
+ *
+ * @param row The row of the item.
+ * @param column The column of the item.
+ * @param parent The parent index.
+ * @return The index of the item.
  */
 QModelIndex ResultsModel::index(int row, int column, const QModelIndex &parent) const {
 
@@ -110,15 +103,16 @@ QModelIndex ResultsModel::index(int row, int column, const QModelIndex &parent) 
 
 	if (row >= 0) {
 		return createIndex(row, column, const_cast<Result *>(&results_[row]));
-	} else {
-		return createIndex(row, column);
 	}
+
+	return createIndex(row, column);
 }
 
 /**
- * @brief ResultsModel::parent
- * @param index
- * @return
+ * @brief Returns the parent index of the specified index.
+ *
+ * @param index The index for which to retrieve the parent.
+ * @return The parent index.
  */
 QModelIndex ResultsModel::parent(const QModelIndex &index) const {
 	Q_UNUSED(index)
@@ -126,29 +120,30 @@ QModelIndex ResultsModel::parent(const QModelIndex &index) const {
 }
 
 /**
- * @brief ResultsModel::rowCount
- * @param parent
- * @return
+ * @brief Returns the number of rows in the model.
+ *
+ * @param parent The parent index.
+ * @return The number of rows in the model.
  */
-int ResultsModel::rowCount(const QModelIndex &parent) const {
-	Q_UNUSED(parent)
-	return results_.size();
+int ResultsModel::rowCount(const QModelIndex & /*parent*/) const {
+	return static_cast<int>(results_.size());
 }
 
 /**
- * @brief ResultsModel::columnCount
- * @param parent
- * @return
+ * @brief Returns the number of columns in the model.
+ *
+ * @param parent The parent index.
+ * @return The number of columns in the model.
  */
-int ResultsModel::columnCount(const QModelIndex &parent) const {
-	Q_UNUSED(parent)
+int ResultsModel::columnCount(const QModelIndex & /*parent*/) const {
 	return 2;
 }
 
 /**
- * @brief ResultsModel::sort
- * @param column
- * @param order
+ * @brief Sorts the model by the specified column and order.
+ *
+ * @param column The column by which to sort.
+ * @param order The sort order.
  */
 void ResultsModel::sort(int column, Qt::SortOrder order) {
 

@@ -1,24 +1,16 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Bookmarks.h"
 #include "BookmarkWidget.h"
+#include "IDebugger.h"
+#include "IProcess.h"
+#include "Module.h"
 #include "edb.h"
+
 #include <QDockWidget>
 #include <QMainWindow>
 #include <QMenu>
@@ -28,7 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace BookmarksPlugin {
 
 /**
- * @brief Bookmarks::Bookmarks
+ * @brief Constructs the Bookmarks plugin object.
+ *
  * @param parent
  */
 Bookmarks::Bookmarks(QObject *parent)
@@ -36,7 +29,8 @@ Bookmarks::Bookmarks(QObject *parent)
 }
 
 /**
- * @brief Bookmarks::menu
+ * @brief Creates the Bookmarks dock widget, registers Ctrl+0–9 shortcuts, and builds the menu on first call.
+ *
  * @param parent
  * @return
  */
@@ -48,7 +42,7 @@ QMenu *Bookmarks::menu(QWidget *parent) {
 
 		// if we are dealing with a main window (and we are...)
 		// add the dock object
-		if (const auto main_window = edb::v1::debugger_ui->findChild<QMainWindow *>(QLatin1String("dockingRoot"))) {
+		if (const auto main_window = edb::v1::debugger_ui->findChild<QMainWindow *>(QStringLiteral("dockingRoot"))) {
 			bookmarkWidget_ = new BookmarkWidget;
 
 			// make the dock widget and _name_ it, it is important to name it so
@@ -92,65 +86,112 @@ QMenu *Bookmarks::menu(QWidget *parent) {
 }
 
 /**
- * @brief Bookmarks::cpuContextMenu
+ * @brief Returns the CPU context menu actions contributed by the Bookmarks plugin.
+ *
  * @return
  */
 QList<QAction *> Bookmarks::cpuContextMenu() {
 
-	QList<QAction *> ret;
-
 	auto action_bookmark = new QAction(tr("Add &Bookmark"), this);
 	connect(action_bookmark, &QAction::triggered, this, &Bookmarks::addBookmarkMenu);
-	ret << action_bookmark;
-
-	return ret;
+	return {action_bookmark};
 }
 
 /**
- * @brief Bookmarks::addBookmarkMenu
+ * @brief Adds the currently selected CPU address as a bookmark.
  */
 void Bookmarks::addBookmarkMenu() {
 	bookmarkWidget_->addAddress(edb::v1::cpu_selected_address());
 }
 
 /**
- * @brief Bookmarks::saveState
+ * @brief Serializes the current bookmark list to a QVariantMap for session state persistence.
+ *
  * @return
  */
 QVariantMap Bookmarks::saveState() const {
 	QVariantMap state;
 	QVariantList bookmarks;
+
 	for (auto &bookmark : bookmarkWidget_->entries()) {
 
 		QVariantMap entry;
-		entry["address"] = bookmark.address.toHexString();
-		entry["type"]    = BookmarksModel::bookmarkTypeToString(bookmark.type);
-		entry["comment"] = bookmark.comment;
+		entry[QStringLiteral("type")]    = BookmarksModel::bookmarkTypeToString(bookmark.type);
+		entry[QStringLiteral("comment")] = bookmark.comment;
+		entry[QStringLiteral("module")]  = bookmark.module ? bookmark.module->name : QString();
+		entry[QStringLiteral("offset")]  = (bookmark.module) ? (bookmark.address - bookmark.module->baseAddress).toHexString() : QString();
 
 		bookmarks.push_back(entry);
 	}
 
-	state["bookmarks"] = bookmarks;
+	state[QStringLiteral("bookmarks")] = bookmarks;
 	return state;
 }
 
 /**
- * @brief Bookmarks::restoreState
+ * @brief Restores the bookmark list from a previously serialized QVariantMap session state.
+ *
  * @param state
  */
 void Bookmarks::restoreState(const QVariantMap &state) {
 
-	QVariantList bookmarks = state["bookmarks"].toList();
+	IProcess *process = edb::v1::debugger_core->process();
+	Q_ASSERT(process);
+
+	std::set<Module> modules = process->loadedModules();
+
+	QVariantList bookmarks = state[QStringLiteral("bookmarks")].toList();
 	for (auto &entry : bookmarks) {
 		auto bookmark = entry.value<QVariantMap>();
 
-		edb::address_t address = edb::address_t::fromHexString(bookmark["address"].toString());
-		QString type           = bookmark["type"].toString();
-		QString comment        = bookmark["comment"].toString();
+		QString module_name = bookmark[QStringLiteral("module")].toString();
+		QString offset_str  = bookmark[QStringLiteral("offset")].toString();
+		QString type        = bookmark[QStringLiteral("type")].toString();
+		QString comment     = bookmark[QStringLiteral("comment")].toString();
 
-		qDebug() << "Restoring bookmark with address: " << address.toHexString();
+		edb::address_t offset = edb::address_t::fromHexString(offset_str);
 
-		bookmarkWidget_->addAddress(address, type, comment);
+		// Figure out which module this bookmark belongs to and add it if the module is loaded
+		auto it = std::find_if(modules.begin(), modules.end(), [&module_name](const Module &module) {
+			return edb::v2::compare_module_names(module.name, module_name);
+		});
+
+		if (it != modules.end()) {
+			edb::address_t address = offset + it->baseAddress;
+			bookmarkWidget_->addAddress(address, type, comment);
+			continue;
+		} else {
+
+			// If the module is not loaded, store the bookmark entry for later restoration when the module is loaded
+			BookmarkEntry entry;
+			entry.type    = type;
+			entry.comment = comment;
+			entry.module  = module_name;
+			entry.offset  = offset_str;
+			deferredBookmarks_.push_back(entry);
+		}
+	}
+}
+
+/**
+ * @brief Handles library load/unload events to restore bookmarks for newly loaded modules.
+ *
+ * @param module The module that was loaded or unloaded.
+ * @param loaded True if the module was loaded, false if it was unloaded.
+ */
+void Bookmarks::libraryEvent(const Module &module, bool loaded) {
+	if (loaded) {
+		auto it = std::remove_if(deferredBookmarks_.begin(), deferredBookmarks_.end(), [&module, this](const BookmarkEntry &entry) {
+			if (edb::v2::compare_module_names(entry.module, module.name)) {
+				edb::address_t offset  = edb::address_t::fromHexString(entry.offset);
+				edb::address_t address = offset + module.baseAddress;
+				bookmarkWidget_->addAddress(address, entry.type, entry.comment);
+				return true;
+			}
+
+			return false;
+		});
+		deferredBookmarks_.erase(it, deferredBookmarks_.end());
 	}
 }
 

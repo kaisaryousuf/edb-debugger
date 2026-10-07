@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 #include "EntryGridKeyUpDownEventFilter.h"
 
 #include <QKeyEvent>
@@ -19,8 +24,9 @@ bool entry_grid_key_event_filter(QWidget *parent, QObject *obj, QEvent *event) {
 	auto keyEvent = static_cast<QKeyEvent *>(event);
 
 	const auto key = keyEvent->key();
-	if (key != Qt::Key_Up && key != Qt::Key_Down)
+	if (key != Qt::Key_Up && key != Qt::Key_Down) {
 		return false;
+	}
 
 	// subtraction of 1 from x prevents selection of entry to the right-top/bottom instead directly top/bottom
 	const auto pos      = entry->pos() - QPoint(1, 0);
@@ -28,13 +34,16 @@ bool entry_grid_key_event_filter(QWidget *parent, QObject *obj, QEvent *event) {
 
 	// Find the neighbors above/below the current entry
 	std::vector<QLineEdit *> neighbors;
-	for (auto *const child : children) {
-		if (!child->isVisible())
+	for (const auto child : children) {
+		if (!child->isVisible()) {
 			continue;
-		if (key == Qt::Key_Up && child->y() >= pos.y())
+		}
+		if (key == Qt::Key_Up && child->y() >= pos.y()) {
 			continue;
-		if (key == Qt::Key_Down && child->y() <= pos.y())
+		}
+		if (key == Qt::Key_Down && child->y() <= pos.y()) {
 			continue;
+		}
 		neighbors.emplace_back(child);
 	}
 

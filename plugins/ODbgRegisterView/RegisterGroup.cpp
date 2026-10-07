@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "RegisterGroup.h"
 #include "ODbgRV_Util.h"
@@ -11,7 +16,7 @@ namespace ODbgRegisterView {
 RegisterGroup::RegisterGroup(const QString &name, QWidget *parent, Qt::WindowFlags f)
 	: QWidget(parent, f), name_(name) {
 
-	setObjectName("RegisterGroup_" + name);
+	setObjectName(QStringLiteral("RegisterGroup_") + name);
 	{
 		menuItems_.push_back(new_action_separator(this));
 		menuItems_.push_back(new_action(tr("Hide %1", "register group").arg(name), this, [this]() {
@@ -25,10 +30,11 @@ void RegisterGroup::adjustWidth() {
 
 	int widthNeeded = 0;
 
-	Q_FOREACH (FieldWidget *field, fields()) {
+	for (FieldWidget *field : fields()) {
 		const auto widthToRequire = field->pos().x() + field->width();
-		if (widthToRequire > widthNeeded)
+		if (widthToRequire > widthNeeded) {
 			widthNeeded = widthToRequire;
+		}
 	}
 
 	setMinimumWidth(widthNeeded);
@@ -39,10 +45,15 @@ void RegisterGroup::showMenu(const QPoint &position, const QList<QAction *> &add
 }
 
 void RegisterGroup::mousePressEvent(QMouseEvent *event) {
-	if (event->button() == Qt::RightButton)
+	if (event->button() == Qt::RightButton) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		showMenu(event->globalPosition().toPoint(), menuItems_);
+#else
 		showMenu(event->globalPos(), menuItems_);
-	else
+#endif
+	} else {
 		event->ignore();
+	}
 }
 
 ODBRegView *RegisterGroup::regView() const {
@@ -152,7 +163,7 @@ QList<FieldWidget *> RegisterGroup::fields() const {
 QList<ValueField *> RegisterGroup::valueFields() const {
 	QList<ValueField *> allValues;
 
-	Q_FOREACH (FieldWidget *field, fields()) {
+	for (FieldWidget *field : fields()) {
 		const auto value = qobject_cast<ValueField *>(field);
 		if (value) {
 			allValues.push_back(value);

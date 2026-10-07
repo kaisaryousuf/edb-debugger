@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2017 - 2017 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "BookmarksModel.h"
 #include "edb.h"
@@ -22,15 +10,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace BookmarksPlugin {
 
 /**
- * @brief BookmarksModel::BookmarksModel
+ * @brief Constructs the bookmarks model and loads the breakpoint and current-instruction indicator icons.
+ *
  * @param parent
  */
 BookmarksModel::BookmarksModel(QObject *parent)
-	: QAbstractItemModel(parent) {
+	: QAbstractItemModel(parent),
+	  breakpointIcon_(QStringLiteral(":/debugger/images/breakpoint.svg")),
+	  currentIcon_(QStringLiteral(":/debugger/images/arrow-right.svg")),
+	  currentBpIcon_(QStringLiteral(":/debugger/images/arrow-right-red.svg")) {
 }
 
 /**
- * @brief BookmarksModel::headerData
+ * @brief Returns the column header labels: Address, Type, and Comment.
+ *
  * @param section
  * @param orientation
  * @param role
@@ -53,7 +46,8 @@ QVariant BookmarksModel::headerData(int section, Qt::Orientation orientation, in
 }
 
 /**
- * @brief BookmarksModel::data
+ * @brief Returns display text and decoration icons for each bookmark cell based on the role.
+ *
  * @param index
  * @param role
  * @return
@@ -68,8 +62,17 @@ QVariant BookmarksModel::data(const QModelIndex &index, int role) const {
 
 	if (role == Qt::DisplayRole) {
 		switch (index.column()) {
-		case 0:
-			return edb::v1::format_pointer(bookmark.address);
+		case 0: {
+			// Return the address with symbol name, if there is one
+			const QString symname = edb::v1::find_function_symbol(bookmark.address);
+			const QString address = edb::v1::format_pointer(bookmark.address);
+
+			if (!symname.isEmpty()) {
+				return tr("%1 <%2>").arg(address, symname);
+			}
+
+			return address;
+		}
 		case 1:
 			switch (bookmark.type) {
 			case Bookmark::Code:
@@ -87,21 +90,52 @@ QVariant BookmarksModel::data(const QModelIndex &index, int role) const {
 		}
 	}
 
+	if (role == Qt::DecorationRole) {
+		switch (index.column()) {
+		case 0: {
+			// Puts the correct icon (BP, current BP, current instruction) next to the address
+
+			// TODO: This is mostly copied from QDisassemblyView::drawSidebarElements, and both
+			// should really be factored out into a common location (although this uses icons
+			// and the other uses SVG renderers and painting).
+			const bool is_eip         = (bookmark.address == edb::v1::instruction_pointer_address());
+			const bool has_breakpoint = (edb::v1::find_breakpoint(bookmark.address) != nullptr);
+
+			const QIcon *icon = nullptr;
+			if (is_eip) {
+				icon = has_breakpoint ? &currentBpIcon_ : &currentIcon_;
+			} else if (has_breakpoint) {
+				icon = &breakpointIcon_;
+			}
+
+			if (icon) {
+				return *icon;
+			}
+
+			// This acts as a dummy icon so even addresses with no icon will be aligned properly
+			return QColor(0, 0, 0, 0);
+		}
+		default:
+			return QVariant();
+		}
+	}
+
 	return QVariant();
 }
 
 /**
- * @brief BookmarksModel::addBookmark
+ * @brief Appends a new bookmark entry to the list and notifies the view.
+ *
  * @param r
  */
-void BookmarksModel::addBookmark(const Bookmark &r) {
+void BookmarksModel::addBookmark(const Bookmark &bookmark) {
 	beginInsertRows(QModelIndex(), rowCount(), rowCount());
-	bookmarks_.push_back(r);
+	bookmarks_.push_back(bookmark);
 	endInsertRows();
 }
 
 /**
- * @brief BookmarksModel::clearBookmarks
+ * @brief Removes all bookmarks from the model and notifies the view.
  */
 void BookmarksModel::clearBookmarks() {
 	beginResetModel();
@@ -110,7 +144,8 @@ void BookmarksModel::clearBookmarks() {
 }
 
 /**
- * @brief BookmarksModel::index
+ * @brief Returns the model index for the given row and column, embedding a pointer to the bookmark entry.
+ *
  * @param row
  * @param column
  * @param parent
@@ -130,13 +165,14 @@ QModelIndex BookmarksModel::index(int row, int column, const QModelIndex &parent
 
 	if (row >= 0) {
 		return createIndex(row, column, const_cast<Bookmark *>(&bookmarks_[row]));
-	} else {
-		return createIndex(row, column);
 	}
+
+	return createIndex(row, column);
 }
 
 /**
- * @brief BookmarksModel::parent
+ * @brief Returns an invalid index since bookmarks form a flat list with no hierarchical parent.
+ *
  * @param index
  * @return
  */
@@ -146,27 +182,28 @@ QModelIndex BookmarksModel::parent(const QModelIndex &index) const {
 }
 
 /**
- * @brief BookmarksModel::rowCount
- * @param parent
- * @return
+ * @brief Returns the number of bookmarks currently stored in the model.
+ *
+ * @param parent The parent index.
+ * @return The number of bookmarks in the model.
  */
-int BookmarksModel::rowCount(const QModelIndex &parent) const {
-	Q_UNUSED(parent)
-	return bookmarks_.size();
+int BookmarksModel::rowCount(const QModelIndex & /*parent*/) const {
+	return static_cast<int>(bookmarks_.size());
 }
 
 /**
- * @brief BookmarksModel::columnCount
- * @param parent
- * @return
+ * @brief Returns 3, representing the fixed Address, Type, and Comment columns.
+ *
+ * @param parent The parent index.
+ * @return The number of columns in the model.
  */
-int BookmarksModel::columnCount(const QModelIndex &parent) const {
-	Q_UNUSED(parent)
+int BookmarksModel::columnCount(const QModelIndex & /*parent*/) const {
 	return 3;
 }
 
 /**
- * @brief BookmarksModel::setComment
+ * @brief Updates the comment string for the bookmark at the given index and notifies the view.
+ *
  * @param index
  * @param comment
  */
@@ -183,7 +220,8 @@ void BookmarksModel::setComment(const QModelIndex &index, const QString &comment
 }
 
 /**
- * @brief BookmarksModel::setType
+ * @brief Updates the bookmark type for the entry at the given index and notifies the view.
+ *
  * @param index
  * @param type
  */
@@ -201,7 +239,22 @@ void BookmarksModel::setType(const QModelIndex &index, const QString &type) {
 }
 
 /**
- * @brief BookmarksModel::deleteBookmark
+ * @brief Invalidates all displayed bookmark data and triggers a full view refresh.
+ */
+void BookmarksModel::updateList() {
+	// Every time the disassembly view changes, all the bookmark data is invalidated.
+	// This is not super expensive (unless you have a million bookmarks) but is not
+	// optimal either. Ideally we could factor out eip updates with the signalUpdated
+	// signal, and breakpoint updates with the toggleBreakPoint signal, but the latter
+	// can't use the SIGNAL/SLOT macros which means Debugger.h would need to be moved
+	// into the include directory.
+	beginResetModel();
+	endResetModel();
+}
+
+/**
+ * @brief Removes the bookmark at the given index from the model and notifies the view.
+ *
  * @param index
  */
 void BookmarksModel::deleteBookmark(const QModelIndex &index) {

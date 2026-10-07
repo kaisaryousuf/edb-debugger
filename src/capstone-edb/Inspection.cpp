@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Instruction.h"
 #include "util/Container.h"
@@ -5,14 +10,32 @@
 namespace CapstoneEDB {
 
 bool is_repeat(const Instruction &insn) {
-	if (!insn)
+	if (!insn) {
 		return false;
+	}
 	const auto &prefixes = insn->detail->x86.prefix;
 	return (prefixes[0] == X86_PREFIX_REP || prefixes[0] == X86_PREFIX_REPNE);
 }
 
+bool is_ud(const Instruction &insn) {
+	if (!insn) {
+		return false;
+	}
+
+	switch (insn.operation()) {
+	case X86_INS_UD0:
+	case X86_INS_UD2:
+#if CS_API_MAJOR < 5
+	case X86_INS_UD2B:
+#endif
+		return true;
+	default:
+		return false;
+	}
+}
+
 bool is_terminator(const Instruction &insn) {
-	return is_halt(insn) || is_jump(insn) || is_return(insn);
+	return is_halt(insn) || is_jump(insn) || is_return(insn) || is_ud(insn);
 }
 
 bool is_register(const Operand &operand) {
@@ -40,8 +63,10 @@ bool is_syscall(const Instruction &insn) {
 }
 
 bool is_interrupt(const Instruction &insn) {
-	if (!insn) return false;
-	const int op = insn.operation();
+	if (!insn) {
+		return false;
+	}
+	const unsigned int op = insn.operation();
 	return op == X86_INS_INT || op == X86_INS_INT1 || op == X86_INS_INT3 || op == X86_INS_INTO;
 }
 
@@ -54,12 +79,16 @@ bool is_int(const Instruction &insn) {
 }
 
 bool is_nop(const Instruction &insn) {
-	if (!insn) return false;
+	if (!insn) {
+		return false;
+	}
 	return insn.operation() == X86_INS_NOP;
 }
 
 bool is_conditional_set(const Instruction &insn) {
-	if (!insn) return false;
+	if (!insn) {
+		return false;
+	}
 
 	switch (insn.operation()) {
 	case X86_INS_SETAE:
@@ -89,7 +118,9 @@ bool is_unconditional_jump(const Instruction &insn) {
 }
 
 bool is_conditional_jump(const Instruction &insn) {
-	if (!insn) return false;
+	if (!insn) {
+		return false;
+	}
 
 	switch (insn.operation()) {
 	case X86_INS_JAE:
@@ -118,7 +149,9 @@ bool is_conditional_jump(const Instruction &insn) {
 }
 
 bool is_conditional_fpu_move(const Instruction &insn) {
-	if (!insn) return false;
+	if (!insn) {
+		return false;
+	}
 
 	switch (insn.operation()) {
 	case X86_INS_FCMOVBE:
@@ -136,7 +169,9 @@ bool is_conditional_fpu_move(const Instruction &insn) {
 }
 
 bool is_conditional_gpr_move(const Instruction &insn) {
-	if (!insn) return false;
+	if (!insn) {
+		return false;
+	}
 
 	switch (insn.operation()) {
 	case X86_INS_CMOVA:
@@ -170,16 +205,19 @@ bool is_conditional_move(const Instruction &insn) {
 }
 
 bool is_fpu_taking_float(const Instruction &insn) {
-	if (!insn)
+	if (!insn) {
 		return false;
+	}
 
-	if (!is_fpu(insn))
+	if (!is_fpu(insn)) {
 		return false;
+	}
 
 	const auto modrm = insn->detail->x86.modrm;
 
-	if (modrm > 0xbf)
+	if (modrm > 0xbf) {
 		return true; // always works with st(i) in this case
+	}
 
 	const auto ro = (modrm >> 3) & 7;
 	switch (insn->detail->x86.opcode[0]) {
@@ -197,15 +235,18 @@ bool is_fpu_taking_float(const Instruction &insn) {
 }
 
 bool is_fpu_taking_integer(const Instruction &insn) {
-	if (!insn)
+	if (!insn) {
 		return false;
-	if (!is_fpu(insn))
+	}
+	if (!is_fpu(insn)) {
 		return false;
+	}
 
 	const auto modrm = insn->detail->x86.modrm;
 
-	if (modrm > 0xbf)
+	if (modrm > 0xbf) {
 		return false; // always works with st(i) in this case
+	}
 
 	const auto ro = (modrm >> 3) & 7;
 
@@ -226,22 +267,26 @@ bool is_fpu_taking_integer(const Instruction &insn) {
 }
 
 bool is_fpu_taking_bcd(const Instruction &insn) {
-	if (!insn)
+	if (!insn) {
 		return false;
-	if (!is_fpu(insn))
+	}
+	if (!is_fpu(insn)) {
 		return false;
+	}
 
 	const auto modrm = insn->detail->x86.modrm;
-	if (modrm > 0xbf)
+	if (modrm > 0xbf) {
 		return false; // always works with st(i) in this case
+	}
 
 	const auto ro = (modrm >> 3) & 7;
 	return insn->detail->x86.opcode[0] == 0xdf && (ro == 4 || ro == 6);
 }
 
 bool is_simd(const Instruction &insn) {
-	if (!insn)
+	if (!insn) {
 		return false;
+	}
 
 	const x86_insn_group simdGroups[] = {
 		X86_GRP_3DNOW,

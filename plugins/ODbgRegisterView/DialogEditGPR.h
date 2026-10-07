@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DIALOG_EDIT_GPR_H_20151011_
 #define DIALOG_EDIT_GPR_H_20151011_
@@ -37,7 +26,7 @@ public:
 	explicit DialogEditGPR(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
 
 public:
-	Register value() const;
+	[[nodiscard]] Register value() const;
 	void setValue(const Register &reg);
 
 private Q_SLOTS:
@@ -88,8 +77,8 @@ private:
 	void setupFocus();
 
 private:
-	std::array<QLabel *, ENTRY_COLS + ENTRY_ROWS> labels_                    = {{nullptr}};
-	std::array<GprEdit *, FULL_LENGTH_ROWS *ENTRY_COLS + CHAR_COLS> entries_ = {{nullptr}};
+	std::array<QLabel *, ENTRY_COLS + ENTRY_ROWS> labels_                     = {{nullptr}};
+	std::array<GprEdit *, FULL_LENGTH_ROWS * ENTRY_COLS + CHAR_COLS> entries_ = {{nullptr}};
 	std::uint64_t value_;
 	std::size_t bitSize_ = 0;
 	Register reg_;

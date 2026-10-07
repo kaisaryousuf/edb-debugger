@@ -1,45 +1,43 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef EXPRESSION_20070402_TCC_
 #define EXPRESSION_20070402_TCC_
 
 namespace detail {
 
+/**
+ * @brief Checks if the given character is a delimiter.
+ *
+ * @param ch The character to check.
+ * @return True if the character is a delimiter, false otherwise.
+ */
 inline bool is_delim(QChar ch) {
-	return QString("[]!()=+-*/%&|^~<>\t\n\r ").contains(ch);
+	return QStringLiteral("[]!()=+-*/%&|^~<>\t\n\r ").contains(ch);
 }
 
 }
 
-//------------------------------------------------------------------------------
-// Name: Expression
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Constructs a new Expression instance.
+ *
+ * @param s The expression string.
+ * @param vg The variable getter function.
+ * @param mr The memory reader function.
+ */
 template <class T>
 Expression<T>::Expression(const QString &s, variable_getter_t vg, memoryReader_t mr)
 	: expression_(s), expressionPtr_(expression_.begin()), variableReader_(vg), memoryReader_(mr) {
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp
-// Desc: private entry point with sanity check
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression and stores the result in the provided variable.
+ *
+ * @param result The variable to store the result in.
+ */
 template <class T>
 void Expression<T>::evalExp(T &result) {
 	if (token_.type_ == Token::UNKNOWN) {
@@ -69,10 +67,12 @@ void Expression<T>::evalExp(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp0
-// Desc: logic
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the top level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles logical operations.
+ */
 template <class T>
 void Expression<T>::evalExp0(T &result) {
 	evalExp1(result);
@@ -97,10 +97,12 @@ void Expression<T>::evalExp0(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp1
-// Desc: binary logic
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the binary logic level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles binary logic operations.
+ */
 template <class T>
 void Expression<T>::evalExp1(T &result) {
 	evalExp2(result);
@@ -128,10 +130,12 @@ void Expression<T>::evalExp1(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp2
-// Desc: comparisons
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the comparison level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles comparison operations.
+ */
 template <class T>
 void Expression<T>::evalExp2(T &result) {
 	evalExp3(result);
@@ -168,10 +172,12 @@ void Expression<T>::evalExp2(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp3
-// Desc: shifts
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the shift level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles shift operations.
+ */
 template <class T>
 void Expression<T>::evalExp3(T &result) {
 	evalExp4(result);
@@ -196,10 +202,12 @@ void Expression<T>::evalExp3(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp4
-// Desc: addition/subtraction
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the addition/subtraction level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles addition and subtraction operations.
+ */
 template <class T>
 void Expression<T>::evalExp4(T &result) {
 	evalExp5(result);
@@ -232,10 +240,12 @@ void Expression<T>::evalExp4(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp5
-// Desc: multiplication/division
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the multiplication/division level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles multiplication, division, and modulus operations.
+ */
 template <class T>
 void Expression<T>::evalExp5(T &result) {
 	evalExp6(result);
@@ -269,10 +279,12 @@ void Expression<T>::evalExp5(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp6
-// Desc: unary expressions
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the unary level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles unary operations.
+ */
 template <class T>
 void Expression<T>::evalExp6(T &result) {
 
@@ -310,10 +322,12 @@ void Expression<T>::evalExp6(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalExp7
-// Desc: sub-expressions
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the sub-expression level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles sub-expressions.
+ */
 template <class T>
 void Expression<T>::evalExp7(T &result) {
 
@@ -369,10 +383,12 @@ void Expression<T>::evalExp7(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evalAtom
-// Desc: atoms (variables/constants)
-//------------------------------------------------------------------------------
+/**
+ * @brief Evaluates the expression at the atom level.
+ *
+ * @param result The variable to store the result in.
+ * @note This handles variables and constants.
+ */
 template <class T>
 void Expression<T>::evalAtom(T &result) {
 
@@ -404,10 +420,11 @@ void Expression<T>::evalAtom(T &result) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: getToken
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Gets the next token from the expression.
+ *
+ * @note This function advances the expression pointer and sets the current token.
+ */
 template <class T>
 void Expression<T>::getToken() {
 
@@ -425,106 +442,105 @@ void Expression<T>::getToken() {
 		switch (expressionPtr_->toLatin1()) {
 		case '(':
 			++expressionPtr_;
-			token_.set("(", Token::LPAREN, Token::OPERATOR);
+			token_.set(QStringLiteral("("), Token::LPAREN, Token::OPERATOR);
 			break;
 		case ')':
 			++expressionPtr_;
-			token_.set(")", Token::RPAREN, Token::OPERATOR);
+			token_.set(QStringLiteral(")"), Token::RPAREN, Token::OPERATOR);
 			break;
 		case '[':
 			++expressionPtr_;
-			token_.set("[", Token::LBRACE, Token::OPERATOR);
+			token_.set(QStringLiteral("["), Token::LBRACE, Token::OPERATOR);
 			break;
 		case ']':
 			++expressionPtr_;
-			token_.set("]", Token::RBRACE, Token::OPERATOR);
+			token_.set(QStringLiteral("]"), Token::RBRACE, Token::OPERATOR);
 			break;
 		case '!':
 			++expressionPtr_;
-			if (expressionPtr_ != expression_.end() && *expressionPtr_ == '=') {
+			if (expressionPtr_ != expression_.end() && *expressionPtr_ == QLatin1Char('=')) {
 				++expressionPtr_;
-				token_.set("!=", Token::NE, Token::OPERATOR);
+				token_.set(QStringLiteral("!="), Token::NE, Token::OPERATOR);
 			} else {
-				token_.set("!", Token::NOT, Token::OPERATOR);
+				token_.set(QStringLiteral("!"), Token::NOT, Token::OPERATOR);
 			}
 			break;
 		case '+':
 			++expressionPtr_;
-			token_.set("+", Token::PLUS, Token::OPERATOR);
+			token_.set(QStringLiteral("+"), Token::PLUS, Token::OPERATOR);
 			break;
 		case '-':
 			++expressionPtr_;
-			token_.set("-", Token::MINUS, Token::OPERATOR);
+			token_.set(QStringLiteral("-"), Token::MINUS, Token::OPERATOR);
 			break;
 		case '*':
 			++expressionPtr_;
-			token_.set("*", Token::MUL, Token::OPERATOR);
+			token_.set(QStringLiteral("*"), Token::MUL, Token::OPERATOR);
 			break;
 		case '/':
 			++expressionPtr_;
-			token_.set("/", Token::DIV, Token::OPERATOR);
+			token_.set(QStringLiteral("/"), Token::DIV, Token::OPERATOR);
 			break;
 		case '%':
 			++expressionPtr_;
-			token_.set("%", Token::MOD, Token::OPERATOR);
+			token_.set(QStringLiteral("%"), Token::MOD, Token::OPERATOR);
 			break;
 		case '&':
 			++expressionPtr_;
-			if (expressionPtr_ != expression_.end() && *expressionPtr_ == '&') {
+			if (expressionPtr_ != expression_.end() && *expressionPtr_ == QLatin1Char('&')) {
 				++expressionPtr_;
-				token_.set("&&", Token::LOGICAL_AND, Token::OPERATOR);
+				token_.set(QStringLiteral("&&"), Token::LOGICAL_AND, Token::OPERATOR);
 			} else {
-				token_.set("&", Token::AND, Token::OPERATOR);
+				token_.set(QStringLiteral("&"), Token::AND, Token::OPERATOR);
 			}
 			break;
 		case '|':
 			++expressionPtr_;
-			if (expressionPtr_ != expression_.end() && *expressionPtr_ == '|') {
+			if (expressionPtr_ != expression_.end() && *expressionPtr_ == QLatin1Char('|')) {
 				++expressionPtr_;
-				token_.set("||", Token::LOGICAL_OR, Token::OPERATOR);
+				token_.set(QStringLiteral("||"), Token::LOGICAL_OR, Token::OPERATOR);
 			} else {
-				token_.set("|", Token::OR, Token::OPERATOR);
+				token_.set(QStringLiteral("|"), Token::OR, Token::OPERATOR);
 			}
 			break;
 		case '^':
 			++expressionPtr_;
-			token_.set("^", Token::XOR, Token::OPERATOR);
+			token_.set(QStringLiteral("^"), Token::XOR, Token::OPERATOR);
 			break;
 		case '~':
 			++expressionPtr_;
-			token_.set("~", Token::CMP, Token::OPERATOR);
 			break;
 		case '=':
 			++expressionPtr_;
-			if (expressionPtr_ != expression_.end() && *expressionPtr_ == '=') {
+			if (expressionPtr_ != expression_.end() && *expressionPtr_ == QLatin1Char('=')) {
 				++expressionPtr_;
-				token_.set("==", Token::EQ, Token::OPERATOR);
+				token_.set(QStringLiteral("=="), Token::EQ, Token::OPERATOR);
 			} else {
 				throw ExpressionError(ExpressionError::Syntax);
 			}
 			break;
 		case '<':
 			++expressionPtr_;
-			if (expressionPtr_ != expression_.end() && *expressionPtr_ == '<') {
+			if (expressionPtr_ != expression_.end() && *expressionPtr_ == QLatin1Char('<')) {
 				++expressionPtr_;
-				token_.set("<<", Token::LSHFT, Token::OPERATOR);
-			} else if (expressionPtr_ != expression_.end() && *expressionPtr_ == '=') {
+				token_.set(QStringLiteral("<<"), Token::LSHFT, Token::OPERATOR);
+			} else if (expressionPtr_ != expression_.end() && *expressionPtr_ == QLatin1Char('=')) {
 				++expressionPtr_;
-				token_.set("<=", Token::LE, Token::OPERATOR);
+				token_.set(QStringLiteral("<="), Token::LE, Token::OPERATOR);
 			} else {
-				token_.set("<", Token::LT, Token::OPERATOR);
+				token_.set(QStringLiteral("<"), Token::LT, Token::OPERATOR);
 			}
 			break;
 		case '>':
 			++expressionPtr_;
-			if (expressionPtr_ != expression_.end() && *expressionPtr_ == '>') {
+			if (expressionPtr_ != expression_.end() && *expressionPtr_ == QLatin1Char('>')) {
 				++expressionPtr_;
-				token_.set(">>", Token::RSHFT, Token::OPERATOR);
-			} else if (expressionPtr_ != expression_.end() && *expressionPtr_ == '=') {
+				token_.set(QStringLiteral(">>"), Token::RSHFT, Token::OPERATOR);
+			} else if (expressionPtr_ != expression_.end() && *expressionPtr_ == QLatin1Char('=')) {
 				++expressionPtr_;
-				token_.set(">=", Token::GE, Token::OPERATOR);
+				token_.set(QStringLiteral(">="), Token::GE, Token::OPERATOR);
 			} else {
-				token_.set(">", Token::GT, Token::OPERATOR);
+				token_.set(QStringLiteral(">"), Token::GT, Token::OPERATOR);
 			}
 			break;
 		case '"':
@@ -533,13 +549,13 @@ void Expression<T>::getToken() {
 			{
 				QString temp_string;
 
-				while (expressionPtr_ != expression_.end() && *expressionPtr_ != '"') {
+				while (expressionPtr_ != expression_.end() && *expressionPtr_ != QLatin1Char('"')) {
 					temp_string += *expressionPtr_++;
 				}
 				if (expressionPtr_ == expression_.end()) {
-					token_.set("\"" + temp_string, Token::NONE, Token::VARIABLE);
+					token_.set(QStringLiteral("\"") + temp_string, Token::NONE, Token::VARIABLE);
 				} else {
-					token_.set(temp_string, Token::NONE, Token::VARIABLE);
+					token_.set(QStringLiteral("\"") + temp_string + QStringLiteral("\""), Token::NONE, Token::VARIABLE);
 				}
 			}
 			break;
@@ -562,7 +578,7 @@ void Expression<T>::getToken() {
 					// nonsense AND we want to allow a name to have a "!" in
 					// the middle of it since we want to support symbols with
 					// module notation
-					if (detail::is_delim(*expressionPtr_) && *expressionPtr_ != '!') {
+					if (detail::is_delim(*expressionPtr_) && *expressionPtr_ != QLatin1Char('!')) {
 						break;
 					}
 

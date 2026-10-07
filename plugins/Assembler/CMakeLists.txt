@@ -1,15 +1,11 @@
-cmake_minimum_required (VERSION 3.1)
-include("GNUInstallDirs")
+cmake_minimum_required (VERSION 3.15)
+include("BuildPlugin")
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
+set(PLUGIN_NAME "Assembler")
 
-set(PluginName "Assembler")
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED Widgets Xml)
 
-find_package(Qt5 5.0.0 REQUIRED Widgets Xml XmlPatterns)
-
-qt5_add_resources(QRC_SOURCES 
+qt_add_resources(QRC_SOURCES
 	Assembler.qrc
 )
 
@@ -17,7 +13,7 @@ foreach(FILE IN LISTS QRC_SOURCES)
 	set_property(SOURCE ${FILE} PROPERTY SKIP_UNITY_BUILD_INCLUSION ON)
 endforeach()
 
-add_library(${PluginName} SHARED
+add_library(${PLUGIN_NAME} SHARED
 	${QRC_SOURCES}
 	Assembler.cpp
 	Assembler.h
@@ -29,14 +25,6 @@ add_library(${PluginName} SHARED
 	OptionsPage.ui
 )
 
-target_link_libraries(${PluginName} Qt5::Widgets Qt5::Xml Qt5::XmlPatterns edb)
+target_link_libraries(${PLUGIN_NAME} Qt::Widgets Qt::Xml edb)
 
-install (TARGETS ${PluginName} DESTINATION ${CMAKE_INSTALL_LIBDIR}/edb)
-
-target_add_warnings(${PluginName})
-
-set_property(TARGET ${PluginName} PROPERTY CXX_EXTENSIONS OFF)
-set_property(TARGET ${PluginName} PROPERTY CXX_STANDARD 17)
-set_property(TARGET ${PluginName} PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET ${PluginName} PROPERTY LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
-set_property(TARGET ${PluginName} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+build_plugin(${PLUGIN_NAME})

@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "CommentServer.h"
 #include "Configuration.h"
@@ -35,25 +23,27 @@ constexpr int CallMinSize = 2;
 }
 
 /**
- * @brief CommentServer::setComment
- * @param address
- * @param comment
+ * @brief Sets a comment for the specified address.
+ *
+ * @param address The address to set the comment for.
+ * @param comment The comment to set for the specified address.
  */
 void CommentServer::setComment(edb::address_t address, const QString &comment) {
 	customComments_[address] = comment;
 }
 
 /**
- * @brief CommentServer::clear
+ * @brief Clears all custom comments.
  */
 void CommentServer::clear() {
 	customComments_.clear();
 }
 
 /**
- * @brief CommentServer::resolveFunctionCall
- * @param address
- * @return
+ * @brief Resolves a function call at the specified address and returns a comment string.
+ *
+ * @param address The address of the function call to resolve.
+ * @return A Result containing the comment string if successful, or an error message if failed.
  */
 Result<QString, QString> CommentServer::resolveFunctionCall(edb::address_t address) const {
 
@@ -73,9 +63,9 @@ Result<QString, QString> CommentServer::resolveFunctionCall(edb::address_t addre
 
 					if (!symname.isEmpty()) {
 						return tr("return to %1 <%2>").arg(edb::v1::format_pointer(address), symname);
-					} else {
-						return tr("return to %1").arg(edb::v1::format_pointer(address));
 					}
+
+					return tr("return to %1").arg(edb::v1::format_pointer(address));
 				}
 			}
 		}
@@ -85,9 +75,10 @@ Result<QString, QString> CommentServer::resolveFunctionCall(edb::address_t addre
 }
 
 /**
- * @brief CommentServer::resolveString
- * @param address
- * @return
+ * @brief Resolves a string at the specified address and returns a comment string.
+ *
+ * @param address The address of the string to resolve.
+ * @return A Result containing the comment string if successful, or an error message if failed.
  */
 Result<QString, QString> CommentServer::resolveString(edb::address_t address) const {
 
@@ -99,7 +90,9 @@ Result<QString, QString> CommentServer::resolveString(edb::address_t address) co
 
 	if (edb::v1::get_ascii_string_at_address(address, temp, min_string_length, MaxStringLength, stringLen)) {
 		return tr("ASCII \"%1\"").arg(temp);
-	} else if (edb::v1::get_utf16_string_at_address(address, temp, min_string_length, MaxStringLength, stringLen)) {
+	}
+
+	if (edb::v1::get_utf16_string_at_address(address, temp, min_string_length, MaxStringLength, stringLen)) {
 		return tr("UTF16 \"%1\"").arg(temp);
 	}
 
@@ -107,10 +100,11 @@ Result<QString, QString> CommentServer::resolveString(edb::address_t address) co
 }
 
 /**
- * @brief CommentServer::comment
- * @param address
- * @param size
- * @return
+ * @brief Gets the comment for the specified address and size.
+ *
+ * @param address The address to get the comment for.
+ * @param size The size of the data at the address.
+ * @return The comment for the specified address, or an empty string if no comment is found.
  */
 QString CommentServer::comment(edb::address_t address, int size) const {
 
@@ -123,13 +117,15 @@ QString CommentServer::comment(edb::address_t address, int size) const {
 
 				auto it = customComments_.find(value);
 				if (it != customComments_.end()) {
-					return it.value();
-				} else {
-					if (Result<QString, QString> ret = resolveFunctionCall(value)) {
-						return *ret;
-					} else if (Result<QString, QString> ret = resolveString(value)) {
-						return *ret;
-					}
+					return it->second;
+				}
+
+				if (Result<QString, QString> ret = resolveFunctionCall(value)) {
+					return *ret;
+				}
+
+				if (Result<QString, QString> ret = resolveString(value)) {
+					return *ret;
 				}
 			}
 		}

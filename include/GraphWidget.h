@@ -1,25 +1,14 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef GRAPH_WIDGET_H_20090903_
 #define GRAPH_WIDGET_H_20090903_
 
 #include <QGraphicsView>
+#include <chrono>
 #include <graphviz/cgraph.h>
 #include <graphviz/gvcext.h>
 
@@ -37,7 +26,7 @@ class GraphWidget final : public QGraphicsView {
 
 public:
 	GraphWidget(QWidget *parent = nullptr);
-	GraphWidget(const GraphWidget &) = delete;
+	GraphWidget(const GraphWidget &)            = delete;
 	GraphWidget &operator=(const GraphWidget &) = delete;
 	~GraphWidget() override;
 
@@ -47,7 +36,7 @@ public:
 
 public Q_SLOTS:
 	void setScale(qreal factor);
-	void setHUDNotification(const QString &s, int duration = 1000);
+	void setHUDNotification(const QString &s, std::chrono::milliseconds duration = std::chrono::milliseconds(1000));
 
 Q_SIGNALS:
 	void backgroundContextMenuEvent(QContextMenuEvent *event);
@@ -63,9 +52,9 @@ protected:
 	void mouseDoubleClickEvent(QMouseEvent *event) override;
 
 private:
-	void setGraphAttribute(const QString name, const QString value);
-	void setNodeAttribute(const QString name, const QString value);
-	void setEdgeAttribute(const QString name, const QString value);
+	void setGraphAttribute(QString name, QString value);
+	void setNodeAttribute(QString name, QString value);
+	void setEdgeAttribute(QString name, QString value);
 
 private:
 	bool inLayout_      = false;

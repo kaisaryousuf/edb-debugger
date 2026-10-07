@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef FLOAT_X_H_20151108_
 #define FLOAT_X_H_20151108_
@@ -8,6 +13,8 @@
 #include <cmath>
 #include <limits>
 #include <type_traits>
+
+class QString;
 
 // Only class, nothing about sign
 enum class FloatValueClass {
@@ -47,7 +54,7 @@ constexpr int max_printed_length() {
 
 	constexpr bool isInteger        = Limits::is_integer;
 	constexpr int mantissaChars     = isInteger ? 1 + Limits::digits10 : Limits::max_digits10;
-	constexpr int signChars         = std::is_signed<T>::value;
+	constexpr int signChars         = std::is_signed_v<T>;
 	constexpr int expSignChars      = !isInteger;
 	constexpr int decimalPointChars = !isInteger;
 	constexpr int expSymbol         = !isInteger; // 'e' for floating-point value in scientific format

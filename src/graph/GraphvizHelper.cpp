@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "GraphvizHelper.h"
 
@@ -20,13 +25,14 @@ Agraph_t *_agopen(QString name, Agdesc_t kind) {
 
 /// Add an alternative value parameter to the method for getting an object's attribute
 QString _agget(void *object, QString attr, QString alt) {
-	QString str = agget(object, attr.toLocal8Bit().data());
+	auto str = QString::fromLatin1(agget(object, attr.toLocal8Bit().data()));
 
 	// TODO(eteran): use isNull()?
-	if (str == QString())
+	if (str == QString()) {
 		return alt;
-	else
-		return str;
+	}
+
+	return str;
 }
 
 Agsym_t *_agnodeattr(Agraph_t *g, QString name, QString value) {

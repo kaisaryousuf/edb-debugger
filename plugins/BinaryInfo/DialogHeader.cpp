@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogHeader.h"
 #include "ELFXX.h"
@@ -16,7 +21,7 @@ QTreeWidgetItem *create_elf_magic(const Header *header) {
 	auto item = new QTreeWidgetItem;
 
 	item->setText(0, tr("Magic"));
-	item->setText(1, QString("0x%1, %2, %3, %4")
+	item->setText(1, QStringLiteral("0x%1, %2, %3, %4")
 						 .arg(header->e_ident[EI_MAG0], 0, 16)
 						 .arg(static_cast<char>(header->e_ident[EI_MAG1]))
 						 .arg(static_cast<char>(header->e_ident[EI_MAG2]))
@@ -90,7 +95,7 @@ QTreeWidgetItem *create_elf_abi(const Header *header) {
 	item->setText(0, tr("ABI"));
 	switch (header->e_ident[EI_OSABI]) {
 	case ELFOSABI_SYSV:
-		//case ELFOSABI_NONE: // alias
+		// case ELFOSABI_NONE: // alias
 		item->setText(1, tr("UNIX System V ABI"));
 		break;
 	case ELFOSABI_HPUX:
@@ -146,7 +151,7 @@ QTreeWidgetItem *create_elf_abi_version(const Header *header) {
 	auto item = new QTreeWidgetItem;
 
 	item->setText(0, tr("ABI Version"));
-	item->setText(1, QString("%1").arg(header->e_ident[EI_MAG0], 0, 10));
+	item->setText(1, QStringLiteral("%1").arg(header->e_ident[EI_MAG0], 0, 10));
 
 	return item;
 }
@@ -325,7 +330,7 @@ QTreeWidgetItem *create_elf_machine(const Header *header) {
 		item->setText(1, tr("Sony DSP Processor"));
 		break;
 	case EM_FX66:
-		item->setText(1, tr("Siemens FX66 microcontroller"));
+		item->setText(1, tr("Siemens FX66 micro-controller"));
 		break;
 	case EM_ST9PLUS:
 		item->setText(1, tr("STMicroelectronics ST9+ 8/16 mc"));
@@ -334,16 +339,16 @@ QTreeWidgetItem *create_elf_machine(const Header *header) {
 		item->setText(1, tr("STmicroelectronics ST7 8 bit mc"));
 		break;
 	case EM_68HC16:
-		item->setText(1, tr("Motorola MC68HC16 microcontroller"));
+		item->setText(1, tr("Motorola MC68HC16 micro-controller"));
 		break;
 	case EM_68HC11:
-		item->setText(1, tr("Motorola MC68HC11 microcontroller"));
+		item->setText(1, tr("Motorola MC68HC11 micro-controller"));
 		break;
 	case EM_68HC08:
-		item->setText(1, tr("Motorola MC68HC08 microcontroller"));
+		item->setText(1, tr("Motorola MC68HC08 micro-controller"));
 		break;
 	case EM_68HC05:
-		item->setText(1, tr("Motorola MC68HC05 microcontroller"));
+		item->setText(1, tr("Motorola MC68HC05 micro-controller"));
 		break;
 	case EM_SVX:
 		item->setText(1, tr("Silicon Graphics SVx"));
@@ -376,7 +381,7 @@ QTreeWidgetItem *create_elf_machine(const Header *header) {
 		item->setText(1, tr("SiTera Prism"));
 		break;
 	case EM_AVR:
-		item->setText(1, tr("Atmel AVR 8-bit microcontroller"));
+		item->setText(1, tr("Atmel AVR 8-bit micro-controller"));
 		break;
 	case EM_FR30:
 		item->setText(1, tr("Fujitsu FR30"));
@@ -424,7 +429,7 @@ QTreeWidgetItem *create_elf_object_version(const Header *header) {
 	auto item = new QTreeWidgetItem;
 
 	item->setText(0, tr("Object File Version"));
-	item->setText(1, QString("%1").arg(header->e_version, 0, 10));
+	item->setText(1, QString::number(header->e_version));
 
 	return item;
 }
@@ -435,7 +440,7 @@ QTreeWidgetItem *create_elf_entry_point(const Header *header) {
 	auto item = new QTreeWidgetItem;
 
 	item->setText(0, tr("Entry Point"));
-	item->setText(1, QString("0x%1").arg(header->e_entry, 0, 16));
+	item->setText(1, QStringLiteral("0x%1").arg(header->e_entry, 0, 16));
 
 	return item;
 }
@@ -450,7 +455,7 @@ DialogHeader::DialogHeader(const std::shared_ptr<IRegion> &region, QWidget *pare
 
 		if (auto elf32 = dynamic_cast<ELF32 *>(binary_info.get())) {
 
-			auto header = reinterpret_cast<const elf32_header *>(elf32->header());
+			auto header = static_cast<const elf32_header *>(elf32->header());
 
 			auto root = new QTreeWidgetItem;
 			root->setText(0, tr("ELF32"));
@@ -471,7 +476,7 @@ DialogHeader::DialogHeader(const std::shared_ptr<IRegion> &region, QWidget *pare
 
 		if (auto elf64 = dynamic_cast<ELF64 *>(binary_info.get())) {
 
-			auto header = reinterpret_cast<const elf64_header *>(elf64->header());
+			auto header = static_cast<const elf64_header *>(elf64->header());
 
 			auto root = new QTreeWidgetItem;
 			root->setText(0, tr("ELF64"));
@@ -493,7 +498,7 @@ DialogHeader::DialogHeader(const std::shared_ptr<IRegion> &region, QWidget *pare
 		if (auto pe32 = dynamic_cast<PE32 *>(binary_info.get())) {
 			Q_UNUSED(pe32)
 #if 0
-			auto header = reinterpret_cast<const pe32_header *>(pe32->header());
+			auto header = static_cast<const pe32_header *>(pe32->header());
 #endif
 			auto root = new QTreeWidgetItem;
 			root->setText(0, tr("PE32"));

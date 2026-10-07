@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2017 - 2017 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef X86_REGISTER_VIEW_MODEL_H_20151213_
 #define X86_REGISTER_VIEW_MODEL_H_20151213_
@@ -58,20 +46,20 @@ public:
 		};
 	};
 
-	explicit RegisterViewModel(int CPUFeaturesPresent, QObject *parent = nullptr);
-	QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+	explicit RegisterViewModel(int cpuSuppFlags, QObject *parent = nullptr);
+	[[nodiscard]] QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 	void setCpuMode(CpuMode mode);
 
 	// NOTE: all these functions only change data, they don't emit dataChanged!
 	// Use dataUpdateFinished() to have dataChanged emitted.
-	void updateGPR(std::size_t i, edb::value32 val, const QString &comment = QString());
-	void updateGPR(std::size_t i, edb::value64 val, const QString &comment = QString());
+	void updateGPR(int i, edb::value32 val, const QString &comment = QString());
+	void updateGPR(int i, edb::value64 val, const QString &comment = QString());
 	void updateIP(edb::value32, const QString &comment = QString());
 	void updateIP(edb::value64, const QString &comment = QString());
 	void updateFlags(edb::value32, const QString &comment = QString());
 	void updateFlags(edb::value64, const QString &comment = QString());
-	void updateSegReg(std::size_t i, edb::value16, const QString &comment = QString());
-	void updateFPUReg(std::size_t i, edb::value80, const QString &comment = QString());
+	void updateSegReg(int i, edb::value16, const QString &comment = QString());
+	void updateFPUReg(int i, edb::value80, const QString &comment = QString());
 	void updateFCR(edb::value16, const QString &comment = QString());
 	void updateFSR(edb::value16, const QString &comment = QString());
 	void updateFTR(edb::value16, const QString &comment = QString());
@@ -87,14 +75,14 @@ public:
 	void updateFIS(edb::value16, const QString &comment = QString());
 	void updateFDS(edb::value16, const QString &comment = QString());
 	void updateFOP(edb::value16, const QString &comment = QString());
-	void updateDR(std::size_t i, edb::value32, const QString &comment = QString());
-	void updateDR(std::size_t i, edb::value64, const QString &comment = QString());
-	void updateMMXReg(std::size_t i, edb::value64, const QString &comment = QString());
-	void invalidateMMXReg(std::size_t i);
-	void updateSSEReg(std::size_t i, edb::value128, const QString &comment = QString());
-	void invalidateSSEReg(std::size_t i);
-	void updateAVXReg(std::size_t i, edb::value256, const QString &comment = QString());
-	void invalidateAVXReg(std::size_t i);
+	void updateDR(int i, edb::value32, const QString &comment = QString());
+	void updateDR(int i, edb::value64, const QString &comment = QString());
+	void updateMMXReg(int i, edb::value64, const QString &comment = QString());
+	void invalidateMMXReg(int i);
+	void updateSSEReg(int i, edb::value128, const QString &comment = QString());
+	void invalidateSSEReg(int i);
+	void updateAVXReg(int i, edb::value256, const QString &comment = QString());
+	void invalidateAVXReg(int i);
 	void updateMXCSR(edb::value32, const QString &comment = QString());
 	void invalidateMXCSR();
 
@@ -105,8 +93,10 @@ private:
 	void show32BitModeCategories();
 	void hideGenericCategories();
 	void showGenericCategories();
-	std::tuple<RegisterViewModelBase::Category * /*sse*/, RegisterViewModelBase::Category * /*avx*/, unsigned /*maxRegs*/> getSSEparams() const;
-	RegisterViewModelBase::FPUCategory *getFPUcat() const;
+	[[nodiscard]] std::tuple<RegisterViewModelBase::Category * /*sse*/, RegisterViewModelBase::Category * /*avx*/, int /*maxRegs*/> getSSEparams() const;
+	[[nodiscard]] RegisterViewModelBase::FPUCategory *getFPUcat() const;
+
+private:
 	CpuMode mode = static_cast<CpuMode>(-1); // TODO(eteran): why not CpuMode::UNKNOWN?
 };
 

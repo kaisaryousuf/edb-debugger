@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "SymbolManager.h"
 #include "Configuration.h"
@@ -32,10 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 #include <istream>
 
-//------------------------------------------------------------------------------
-// Name: clear
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Clears all symbols and labels from the symbol manager.
+ */
 void SymbolManager::clear() {
 	symbolFiles_.clear();
 	symbols_.clear();
@@ -43,20 +30,22 @@ void SymbolManager::clear() {
 	symbolsByFile_.clear();
 	symbolsByName_.clear();
 	labels_.clear();
-	labelsByName_.clear();
+	labelNames_.clear();
 }
 
-//------------------------------------------------------------------------------
-// Name: loadSymbolFile
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Loads a symbol file and processes its contents.
+ *
+ * @param filename The path to the symbol file.
+ * @param base The base address for the symbols.
+ */
 void SymbolManager::loadSymbolFile(const QString &filename, edb::address_t base) {
 
 	const QString symbol_directory = edb::v1::config().symbol_path;
 
 	if (symbol_directory.isEmpty()) {
 		if (showPathNotice_) {
-			qDebug() << "No symbol path specified. Please set it in the preferences to enable symbols.";
+			qDebug("No symbol path specified. Please set it in the preferences to enable symbols.");
 			showPathNotice_ = false;
 		}
 		return;
@@ -73,14 +62,14 @@ void SymbolManager::loadSymbolFile(const QString &filename, edb::address_t base)
 			info.makeAbsolute();
 		}
 
-		const QString path = QString("%1/%2").arg(symbol_directory, info.absolutePath());
+		const auto path    = QStringLiteral("%1/%2").arg(symbol_directory, info.absolutePath());
 		const QString name = info.fileName();
 
 		// ensure that the sub-directory exists
 		QDir().mkpath(path);
 
 		if (!symbolFiles_.contains(info.absoluteFilePath())) {
-			const QString map_file = QString("%1/%2.map").arg(path, name);
+			const auto map_file = QStringLiteral("%1/%2.map").arg(path, name);
 
 			if (processSymbolFile(map_file, base, filename, true)) {
 				symbolFiles_.insert(info.absoluteFilePath());
@@ -89,11 +78,13 @@ void SymbolManager::loadSymbolFile(const QString &filename, edb::address_t base)
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: find
-// Desc:
-//------------------------------------------------------------------------------
-const std::shared_ptr<Symbol> SymbolManager::find(const QString &name) const {
+/**
+ * @brief Finds a symbol by its name.
+ *
+ * @param name The name of the symbol to find.
+ * @return An optional containing the symbol if found, or std::nullopt if not found.
+ */
+std::optional<Symbol> SymbolManager::find(const QString &name) const {
 
 	auto it = symbolsByName_.find(name);
 	if (it != symbolsByName_.end()) {
@@ -103,71 +94,102 @@ const std::shared_ptr<Symbol> SymbolManager::find(const QString &name) const {
 	// slow path... look for any symbol which matches the name, but skipping the prefix
 	// we can make this faster later at the cost of yet another hash table if we
 	// feel the need
-	auto it2 = std::find_if(symbols_.begin(), symbols_.end(), [&name](const std::shared_ptr<Symbol> &symbol) {
-		return symbol->name_no_prefix == name;
+	auto it2 = std::find_if(symbols_.begin(), symbols_.end(), [&name](const Symbol &symbol) {
+		return symbol.name_no_prefix == name;
 	});
 
 	if (it2 != symbols_.end()) {
 		return *it2;
 	}
 
-	return nullptr;
+	return std::nullopt;
 }
 
-//------------------------------------------------------------------------------
-// Name: find
-// Desc:
-//------------------------------------------------------------------------------
-const std::shared_ptr<Symbol> SymbolManager::find(edb::address_t address) const {
+/**
+ * @brief Finds all symbols that match a given name.
+ *
+ * @param name The name of the symbols to find.
+ * @return A vector containing all matching symbols.
+ */
+std::vector<Symbol> SymbolManager::findAll(const QString &name) const {
+	std::vector<Symbol> result;
+
+	auto it2 = std::find_if(symbols_.begin(), symbols_.end(), [&name](const Symbol &symbol) {
+		return symbol.name_no_prefix == name;
+	});
+
+	if (it2 != symbols_.end()) {
+		result.push_back(*it2);
+	}
+
+	return result;
+}
+
+/**
+ * @brief Finds a symbol by its address.
+ *
+ * @param address The address of the symbol to find.
+ * @return An optional containing the symbol if found, or std::nullopt if not found.
+ */
+std::optional<Symbol> SymbolManager::find(edb::address_t address) const {
 	auto it = symbolsByAddress_.find(address);
-	return (it != symbolsByAddress_.end()) ? it.value() : nullptr;
+	if (it != symbolsByAddress_.end()) {
+		return it.value();
+	}
+
+	return std::nullopt;
 }
 
-//------------------------------------------------------------------------------
-// Name: findNearSymbol
-// Desc:
-//------------------------------------------------------------------------------
-const std::shared_ptr<Symbol> SymbolManager::findNearSymbol(edb::address_t address) const {
+/**
+ * @brief Finds a symbol near a given address.
+ *
+ * @param address The address to search for a nearby symbol.
+ * @return An optional containing the symbol if found, or std::nullopt if not found.
+ */
+std::optional<Symbol> SymbolManager::findNearSymbol(edb::address_t address) const {
 
 	auto it = symbolsByAddress_.lowerBound(address);
 	if (it != symbolsByAddress_.end()) {
 
 		// not an exact match, we should backup one
-		if (address != it.value()->address) {
+		if (address != it->address) {
 			// not safe to backup!, return early
 			if (it == symbolsByAddress_.begin()) {
-				return nullptr;
+				return std::nullopt;
 			}
 			--it;
 		}
 
-		if (const std::shared_ptr<Symbol> sym = it.value()) {
-			if (address >= sym->address && address < sym->address + sym->size) {
-				return sym;
-			}
+		const Symbol &sym = it.value();
+		if (address >= sym.address && address < sym.address + sym.size) {
+			return sym;
 		}
 	}
 
-	return nullptr;
+	return std::nullopt;
 }
 
-//------------------------------------------------------------------------------
-// Name: addSymbol
-// Desc:
-//------------------------------------------------------------------------------
-void SymbolManager::addSymbol(const std::shared_ptr<Symbol> &symbol) {
-	Q_ASSERT(symbol);
+/**
+ * @brief Adds a symbol to the symbol manager.
+ *
+ * @param symbol The symbol to add.
+ */
+void SymbolManager::addSymbol(const Symbol &symbol) {
 	symbols_.push_back(symbol);
-	symbolsByAddress_[symbol->address] = symbol;
-	symbolsByName_[symbol->name]       = symbol;
-	symbolsByFile_[symbol->file].push_back(symbol);
+	symbolsByAddress_[symbol.address] = symbol;
+	symbolsByName_[symbol.name]       = symbol;
+	symbolsByFile_[symbol.file].push_back(symbol);
 }
 
-//------------------------------------------------------------------------------
-// Name: processSymbolFile
-// Desc:
-// Note: returning false means 'try again', true means, 'we loaded what we could'
-//------------------------------------------------------------------------------
+/**
+ * @brief Processes a symbol file and loads its contents.
+ *
+ * @param f The path to the symbol file.
+ * @param base The base address for the symbols.
+ * @param library_filename The name of the library for which to load symbols.
+ * @param allow_retry Whether to allow retrying if the symbol file is stale.
+ * @return True if the symbol file was processed successfully, false otherwise.
+ */
 bool SymbolManager::processSymbolFile(const QString &f, edb::address_t base, const QString &library_filename, bool allow_retry) {
 
 	// TODO(eteran): support filename starting with "http://" being fetched from a web server
@@ -220,22 +242,24 @@ bool SymbolManager::processSymbolFile(const QString &f, edb::address_t base, con
 					std::getline(file, sym_name);
 
 					if (!file) {
-						if (!file.eof()) qWarning() << "WARNING: File" << f << "seems corrupt";
+						if (!file.eof()) {
+							qWarning() << "WARNING: File" << f << "seems corrupt";
+						}
 						break;
 					}
 
-					auto sym = std::make_shared<Symbol>();
+					Symbol sym;
 
-					sym->file           = f;
-					sym->name_no_prefix = QString::fromStdString(sym_name).trimmed();
-					sym->name           = QString("%1!%2").arg(prefix, sym->name_no_prefix);
-					sym->address        = sym_start;
-					sym->size           = sym_end;
-					sym->type           = sym_type;
+					sym.file           = f;
+					sym.name_no_prefix = QString::fromStdString(sym_name).trimmed();
+					sym.name           = QStringLiteral("%1!%2").arg(prefix, sym.name_no_prefix);
+					sym.address        = sym_start;
+					sym.size           = static_cast<uint32_t>(sym_end - sym_start);
+					sym.type           = sym_type;
 
 					// fixup the base address based on where it is loaded
-					if (sym->address < base) {
-						sym->address += base;
+					if (sym.address < base) {
+						sym.address += base;
 					}
 
 					addSymbol(sym);
@@ -258,76 +282,110 @@ bool SymbolManager::processSymbolFile(const QString &f, edb::address_t base, con
 	return true;
 }
 
-//------------------------------------------------------------------------------
-// Name: symbols
-// Desc:
-//------------------------------------------------------------------------------
-const std::vector<std::shared_ptr<Symbol>> SymbolManager::symbols() const {
+/**
+ * @brief Returns a vector of all symbols currently managed by the symbol manager.
+ *
+ * @return A vector containing all symbols.
+ */
+std::vector<Symbol> SymbolManager::symbols() const {
 	return symbols_;
 }
 
-//------------------------------------------------------------------------------
-// Name: setSymbolGenerator
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Sets the symbol generator for the symbol manager.
+ *
+ * @param generator A pointer to the symbol generator to be used.
+ */
 void SymbolManager::setSymbolGenerator(ISymbolGenerator *generator) {
 	symbolGenerator_ = generator;
 }
 
-//------------------------------------------------------------------------------
-// Name: setLabel
-// Desc: a label is like a symbol, but can be set/unset by users. They will take
-//       precidence over symbols (since this is the name that the user really
-//       wants to call this address). And only apply to code
-//------------------------------------------------------------------------------
+/**
+ * @brief Sets a label for a given address.
+ *
+ * A label is like a symbol, but can be set/unset by users. It will take
+ * precedence over symbols (since this is the name that the user really
+ * wants to call this address). And only apply to code
+ *
+ * @param address The address to label.
+ * @param label The label to set.
+ */
 void SymbolManager::setLabel(edb::address_t address, const QString &label) {
 	if (label.isEmpty()) {
-		labelsByName_.remove(labels_[address]);
+		labelNames_.remove(labels_[address].name);
 		labels_.remove(address);
-	} else {
-
-		if (labelsByName_.contains(label) && labelsByName_[label] != address) {
-			QMessageBox::warning(
-				edb::v1::debugger_ui,
-				tr("Duplicate Label"),
-				tr("You are attempting to give two seperate addresses the same label, this is not supported."));
-			return;
-		}
-
-		labels_[address]     = label;
-		labelsByName_[label] = address;
+		return;
 	}
+
+	if (labelNames_.contains(label) && labels_[address].name != label) {
+		QMessageBox::warning(
+			edb::v1::debugger_ui,
+			tr("Duplicate Label"),
+			tr("You are attempting to give two separate addresses the same label, this is not supported."));
+		return;
+	}
+
+	LabelEntry newLabel = {
+		label,
+		address,
+		edb::v2::module_for_address(address),
+	};
+
+	labels_[address] = newLabel;
+	labelNames_.insert(label);
 }
 
-//------------------------------------------------------------------------------
-// Name: findAddressName
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Finds the name of an address, either with or without a prefix.
+ *
+ * @param address The address to find.
+ * @param prefixed Whether to include the prefix.
+ * @return The name of the address.
+ */
 QString SymbolManager::findAddressName(edb::address_t address, bool prefixed) {
 	auto it = labels_.find(address);
 	if (it != labels_.end()) {
-		return it.value();
+		return it.value().name;
 	}
 
-	if (const std::shared_ptr<Symbol> sym = find(address)) {
+	if (const std::optional<Symbol> sym = find(address)) {
 		return prefixed ? sym->name : sym->name_no_prefix;
 	}
 
 	return QString();
 }
 
-//------------------------------------------------------------------------------
-// Name: labels
-// Desc:
-//------------------------------------------------------------------------------
-QHash<edb::address_t, QString> SymbolManager::labels() const {
-	return labels_;
+/**
+ * @brief Gets the labels for all addresses.
+ *
+ * @return The labels for all addresses.
+ */
+QMap<edb::address_t, QString> SymbolManager::labels() const {
+	QMap<edb::address_t, QString> result;
+	for (auto it = labels_.begin(); it != labels_.end(); ++it) {
+		result[it.key()] = it.value().name;
+	}
+	return result;
 }
 
-//------------------------------------------------------------------------------
-// Name: files
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Gets the list of all symbol files.
+ *
+ * @return The list of all symbol files.
+ */
 QStringList SymbolManager::files() const {
 	return symbolsByFile_.keys();
+}
+
+/**
+ * @brief Gets the label data for all addresses.
+ *
+ * @return A QVector containing the label data for all addresses.
+ */
+QVector<SymbolManager::LabelEntry> SymbolManager::labelData() const {
+	QVector<LabelEntry> result;
+	for (auto it = labels_.begin(); it != labels_.end(); ++it) {
+		result.push_back(it.value());
+	}
+	return result;
 }

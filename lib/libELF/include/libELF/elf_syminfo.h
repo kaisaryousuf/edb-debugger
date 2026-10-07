@@ -1,23 +1,11 @@
 /*
-Copyright (C) 2012 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-Copyright (C) 1995-2003,2004,2005,2006,2007,2008,2009,2010,2011
-                   Free Software Foundation, Inc.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2012 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * Copyright (C) 1995-2003,2004,2005,2006,2007,2008,2009,2010,2011
+ * Free Software Foundation, Inc.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef ELF_SYMINFO_H_20121007_
 #define ELF_SYMINFO_H_20121007_
@@ -78,12 +66,12 @@ constexpr auto ELF32_ST_INFO(T1 bind, T2 type) {
 /* Both Elf32_Sym and Elf64_Sym use the same one-byte st_info field.  */
 template <class T>
 constexpr uint8_t ELF64_ST_BIND(T val) {
-	return ELF32_ST_BIND(val);
+	return static_cast<uint8_t>(ELF32_ST_BIND(val));
 }
 
 template <class T>
 constexpr uint8_t ELF64_ST_TYPE(T val) {
-	return ELF32_ST_TYPE(val);
+	return static_cast<uint8_t>(ELF32_ST_TYPE(val));
 }
 
 template <class T1, class T2>
@@ -132,7 +120,7 @@ enum {
 
 template <class T>
 constexpr T ELF32_ST_VISIBILITY(T o) {
-	return ((o)&0x03);
+	return ((o) & 0x03);
 }
 
 /* For ELF64 the definitions are the same.  */

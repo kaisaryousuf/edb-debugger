@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DebuggerCoreBase.h"
 #include "Breakpoint.h"
@@ -25,9 +13,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace DebuggerCorePlugin {
 
 /**
- * removes all breakpoints
- *
- * @brief DebuggerCoreBase::clearBreakpoints
+ * @brief Removes all breakpoints if a process is currently attached.
  */
 void DebuggerCoreBase::clearBreakpoints() {
 	if (attached()) {
@@ -36,9 +22,8 @@ void DebuggerCoreBase::clearBreakpoints() {
 }
 
 /**
- * creates a new breakpoint (only if there isn't already one at the given address)
+ * @brief Creates a new breakpoint at the given address, or returns the existing one if already present.
  *
- * @brief DebuggerCoreBase::addBreakpoint
  * @param address
  * @return the breakpoint which was created/found
  */
@@ -57,13 +42,14 @@ std::shared_ptr<IBreakpoint> DebuggerCoreBase::addBreakpoint(edb::address_t addr
 
 		return nullptr;
 	} catch (const BreakpointCreationError &) {
-		qDebug() << "Failed to create breakpoint";
+		qDebug("Failed to create breakpoint");
 		return nullptr;
 	}
 }
 
 /**
- * @brief DebuggerCoreBase::findBreakpoint
+ * @brief Returns the breakpoint at the given address, or an empty shared_ptr if none exists.
+ *
  * @param address
  * @return the breakpoint at the given address or std::shared_ptr<IBreakpoint>()
  */
@@ -78,11 +64,12 @@ std::shared_ptr<IBreakpoint> DebuggerCoreBase::findBreakpoint(edb::address_t add
 }
 
 /**
- * similarly to findBreakpoint, finds a breakpoint near given address. But
+ * @brief Finds the breakpoint that triggered at the given address by checking possible rewind sizes.
+ *
+ * Similarly to findBreakpoint, finds a breakpoint near given address. But
  * unlike findBreakpoint, this function looks for a breakpoint which ends
  * up at this address after being triggered, instead of just starting there.
  *
- * @brief DebuggerCoreBase::findTriggeredBreakpoint
  * @param address
  * @return
  */
@@ -101,11 +88,8 @@ std::shared_ptr<IBreakpoint> DebuggerCoreBase::findTriggeredBreakpoint(edb::addr
 }
 
 /**
- * Decrements the reference count for the breakpoint found at the given address.
- * If the refernce count goes to zero, then it is removed.
- * This is a no-op if there is no breakpoint present.
+ * @brief Removes the breakpoint at the given address; this is a no-op if no breakpoint exists there.
  *
- * @brief DebuggerCoreBase::removeBreakpoint
  * @param address
  */
 void DebuggerCoreBase::removeBreakpoint(edb::address_t address) {
@@ -120,9 +104,7 @@ void DebuggerCoreBase::removeBreakpoint(edb::address_t address) {
 }
 
 /**
- * Ends debug session, detaching from or killing debuggee according to user preferences
- *
- * @brief DebuggerCoreBase::endDebugSession
+ * @brief Ends the debug session by detaching from or killing the debuggee according to user preferences.
  */
 void DebuggerCoreBase::endDebugSession() {
 	if (attached()) {
@@ -145,10 +127,8 @@ void DebuggerCoreBase::endDebugSession() {
 }
 
 /**
- * returns a copy of the BP list, these count as references to the BPs
- * preventing full removal until this list is destructed.
+ * @brief Returns a copy of the breakpoint map, keeping shared_ptr references alive until it is destroyed.
  *
- * @brief DebuggerCoreBase::backupBreakpoints
  * @return a list of shared_ptr's to the BPs
  */
 DebuggerCoreBase::BreakpointList DebuggerCoreBase::backupBreakpoints() const {
@@ -156,7 +136,8 @@ DebuggerCoreBase::BreakpointList DebuggerCoreBase::backupBreakpoints() const {
 }
 
 /**
- * @brief DebuggerCoreBase::attached
+ * @brief Returns true if a process is currently attached for debugging.
+ *
  * @return
  */
 bool DebuggerCoreBase::attached() const {
@@ -164,7 +145,8 @@ bool DebuggerCoreBase::attached() const {
 }
 
 /**
- * @brief DebuggerCoreBase::supportedBreakpointTypes
+ * @brief Returns the list of all software breakpoint types supported on x86/x86-64.
+ *
  * @return
  */
 std::vector<IBreakpoint::BreakpointType> DebuggerCoreBase::supportedBreakpointTypes() const {

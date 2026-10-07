@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "FpuValueField.h"
 #include "ODbgRV_Util.h"
@@ -27,26 +16,28 @@ FpuValueField::FpuValueField(int fieldWidth, const QModelIndex &regValueIndex, c
 	: ValueField(
 		  fieldWidth, regValueIndex,
 		  [this](const QString &str) {
-			  if (str.length() != 20)
+			  if (str.length() != 20) {
 				  return str;
-			  if (groupDigits)
-				  return str.left(4) + " " + str.mid(4, 8) + " " + str.right(8);
+			  }
+			  if (groupDigits_) {
+				  return str.left(4) + QLatin1Char(' ') + str.mid(4, 8) + QLatin1Char(' ') + str.right(8);
+			  }
 			  return str;
 		  },
 		  group),
-	  commentWidget(commentWidget),
-	  row(row),
-	  column(column),
-	  tagValueIndex(tagValueIndex) {
+	  commentWidget_(commentWidget),
+	  row_(row),
+	  column_(column),
+	  tagValueIndex_(tagValueIndex) {
 
 	Q_ASSERT(group);
 	Q_ASSERT(commentWidget);
-	showAsRawActionIndex = menuItems_.size();
+	showAsRawActionIndex_ = static_cast<int>(menuItems_.size());
 	menuItems_.push_back(new_action(tr("View FPU as raw values"), this, [this](bool) {
 		showFPUAsRaw();
 	}));
 
-	showAsFloatActionIndex = menuItems_.size();
+	showAsFloatActionIndex_ = static_cast<int>(menuItems_.size());
 	menuItems_.push_back(new_action(tr("View FPU as floats"), this, [this](bool) {
 		showFPUAsFloat();
 	}));
@@ -74,16 +65,16 @@ void FpuValueField::displayFormatChanged() {
 
 	switch (format) {
 	case NumberDisplayMode::Hex:
-		menuItems_[showAsRawActionIndex]->setVisible(false);
-		menuItems_[showAsFloatActionIndex]->setVisible(true);
+		menuItems_[showAsRawActionIndex_]->setVisible(false);
+		menuItems_[showAsFloatActionIndex_]->setVisible(true);
 		break;
 	case NumberDisplayMode::Float:
-		menuItems_[showAsRawActionIndex]->setVisible(true);
-		menuItems_[showAsFloatActionIndex]->setVisible(false);
+		menuItems_[showAsRawActionIndex_]->setVisible(true);
+		menuItems_[showAsFloatActionIndex_]->setVisible(false);
 		break;
 	default:
-		menuItems_[showAsRawActionIndex]->setVisible(true);
-		menuItems_[showAsFloatActionIndex]->setVisible(true);
+		menuItems_[showAsRawActionIndex_]->setVisible(true);
+		menuItems_[showAsFloatActionIndex_]->setVisible(true);
 		break;
 	}
 
@@ -93,19 +84,19 @@ void FpuValueField::displayFormatChanged() {
 	Q_ASSERT(fieldWidth_ > 0);
 
 	if (format == NumberDisplayMode::Hex) {
-		groupDigits = true;
+		groupDigits_ = true;
 		fieldWidth_ += 2; // add some room for spaces between groups
 	} else {
-		groupDigits = false;
+		groupDigits_ = false;
 	}
 
 	const auto charWidth = letter_size(font()).width();
 	setFixedWidth(charWidth * fieldWidth_ + margins.left() + margins.right());
-	commentWidget->move(x() + maximumWidth(), commentWidget->y());
+	commentWidget_->move(x() + maximumWidth(), commentWidget_->y());
 }
 
 void FpuValueField::updatePalette() {
-	if (!changed() && tagValueIndex.data().toUInt() == FpuTagEmpty) {
+	if (!changed() && tagValueIndex_.data().toUInt() == FpuTagEmpty) {
 		auto palette = group()->palette();
 		palette.setColor(foregroundRole(), palette.color(QPalette::Disabled, QPalette::Text));
 		setPalette(palette);

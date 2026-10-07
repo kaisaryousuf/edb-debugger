@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogOptions.h"
 #include "Configuration.h"
@@ -31,10 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace {
 
-//------------------------------------------------------------------------------
-// Name: width_to_index
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 constexpr int width_to_index(int n) {
 	switch (n) {
 	case 16:
@@ -51,51 +38,47 @@ constexpr int width_to_index(int n) {
 }
 }
 
-//------------------------------------------------------------------------------
-// Name: DialogOptions
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 DialogOptions::DialogOptions(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
 
 	ui.setupUi(this);
 
-	ui.comboTheme->addItem(tr("System"), "System");
-	ui.comboTheme->addItem(tr("Dark [Built-in]"), "Dark [Built-in]");
-	ui.comboTheme->addItem(tr("Light [Built-in]"), "Light [Built-in]");
+	ui.comboTheme->addItem(tr("System"), QStringLiteral("System"));
+	ui.comboTheme->addItem(tr("Dark [Built-in]"), QStringLiteral("Dark [Built-in]"));
+	ui.comboTheme->addItem(tr("Light [Built-in]"), QStringLiteral("Light [Built-in]"));
 }
 
-//------------------------------------------------------------------------------
-// Name: font_from_dialog
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 QString DialogOptions::fontFromDialog(const QString &default_font) {
 	QFont old_font;
 	old_font.fromString(default_font);
 	return QFontDialog::getFont(nullptr, old_font, this).toString();
 }
 
-//------------------------------------------------------------------------------
-// Name: addOptionsPage
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogOptions::addOptionsPage(QWidget *page) {
 
 	if (!toolbox_) {
-		delete ui.tabWidget->findChild<QLabel *>("label_plugins");
-		QWidget *const tab        = ui.tabWidget->findChild<QLabel *>("tab_plugins");
-		QGridLayout *const layout = ui.tabWidget->findChild<QGridLayout *>("tab_plugins_layout");
-		toolbox_                  = new QToolBox(tab);
+		delete ui.tabWidget->findChild<QLabel *>(QStringLiteral("label_plugins"));
+		auto tab    = ui.tabWidget->findChild<QLabel *>(QStringLiteral("tab_plugins"));
+		auto layout = ui.tabWidget->findChild<QGridLayout *>(QStringLiteral("tab_plugins_layout"));
+		toolbox_    = new QToolBox(tab);
 		layout->addWidget(toolbox_, 0, 0, 1, 1);
 	}
 
-	toolbox_->addItem(page, QIcon::fromTheme("plugin"), page->windowTitle());
+	toolbox_->addItem(page, QIcon::fromTheme(QStringLiteral("plugin")), page->windowTitle());
 }
 
-//------------------------------------------------------------------------------
-// Name: directoryFromDialog
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 QString DialogOptions::directoryFromDialog() {
 	return QFileDialog::getExistingDirectory(
 		this,
@@ -104,10 +87,9 @@ QString DialogOptions::directoryFromDialog() {
 		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
 }
 
-//------------------------------------------------------------------------------
-// Name: on_btnTTY_clicked
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogOptions::on_btnTTY_clicked() {
 	const QString filename = QFileDialog::getOpenFileName(
 		this,
@@ -116,10 +98,9 @@ void DialogOptions::on_btnTTY_clicked() {
 	ui.txtTTY->setText(filename);
 }
 
-//------------------------------------------------------------------------------
-// Name: on_btnSymbolDir_clicked
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogOptions::on_btnSymbolDir_clicked() {
 	const QString s = directoryFromDialog();
 
@@ -128,10 +109,9 @@ void DialogOptions::on_btnSymbolDir_clicked() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: on_btnSessionDir_clicked
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogOptions::on_btnSessionDir_clicked() {
 	const QString s = directoryFromDialog();
 
@@ -140,10 +120,9 @@ void DialogOptions::on_btnSessionDir_clicked() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: on_btnPluginDir_clicked
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogOptions::on_btnPluginDir_clicked() {
 	const QString s = directoryFromDialog();
 
@@ -152,10 +131,9 @@ void DialogOptions::on_btnPluginDir_clicked() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: showEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogOptions::showEvent(QShowEvent *event) {
 
 	QDialog::showEvent(event);
@@ -164,8 +142,8 @@ void DialogOptions::showEvent(QShowEvent *event) {
 
 	ui.chkHexOffsets->setChecked(config.function_offsets_in_hex);
 
-	ui.rdoSytntaxATT->setChecked(config.syntax == Configuration::Att);
-	ui.rdoSytntaxIntel->setChecked(config.syntax != Configuration::Att);
+	ui.rdoSyntaxATT->setChecked(config.syntax == Configuration::Att);
+	ui.rdoSyntaxIntel->setChecked(config.syntax != Configuration::Att);
 
 	ui.rdoDetach->setChecked(config.close_behavior == Configuration::Detach);
 	ui.rdoKill->setChecked(config.close_behavior == Configuration::Kill);
@@ -248,8 +226,9 @@ void DialogOptions::showEvent(QShowEvent *event) {
 		const auto chosen = config.default_breakpoint_type;
 		for (const auto &type : bps) {
 			combo->addItem(type.description, QVariant::fromValue(type.type));
-			if (type.type == chosen)
+			if (type.type == chosen) {
 				combo->setCurrentIndex(combo->count() - 1);
+			}
 		}
 	}
 
@@ -272,17 +251,16 @@ void DialogOptions::showEvent(QShowEvent *event) {
 	currentThemeName_ = ui.comboTheme->currentData().toString();
 }
 
-//------------------------------------------------------------------------------
-// Name: closeEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogOptions::closeEvent(QCloseEvent *event) {
 
 	Configuration &config = edb::v1::config();
 
-	if (ui.rdoSytntaxIntel->isChecked()) {
+	if (ui.rdoSyntaxIntel->isChecked()) {
 		config.syntax = Configuration::Intel;
-	} else if (ui.rdoSytntaxATT->isChecked()) {
+	} else if (ui.rdoSyntaxATT->isChecked()) {
 		config.syntax = Configuration::Att;
 	}
 
@@ -380,10 +358,9 @@ void DialogOptions::closeEvent(QCloseEvent *event) {
 	event->accept();
 }
 
-//------------------------------------------------------------------------------
-// Name: accept
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogOptions::accept() {
 	close();
 }

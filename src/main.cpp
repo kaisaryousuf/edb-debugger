@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-						  evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Configuration.h"
 #include "Debugger.h"
@@ -56,9 +44,7 @@ struct LaunchArguments {
 };
 
 /**
- * displays a usage statement then exits
- *
- * @brief usage
+ * @brief Displays a usage statement then exits
  */
 [[noreturn]] void usage() {
 
@@ -78,7 +64,7 @@ struct LaunchArguments {
 			const QString s = p->extraArguments();
 			if (!s.isEmpty()) {
 				std::cerr << '\n';
-				std::cerr << qPrintable(plugin->metaObject()->className()) << '\n';
+				std::cerr << plugin->metaObject()->className() << '\n';
 				std::cerr << qPrintable(s) << '\n';
 			}
 		}
@@ -89,8 +75,9 @@ struct LaunchArguments {
 }
 
 /**
- * @brief validate_launch_arguments
- * @param launch_args
+ * @brief Validates the launch arguments provided to the debugger.
+ *
+ * @param launch_args The launch arguments to validate.
  */
 void validate_launch_arguments(const LaunchArguments &launch_args) {
 	if (!launch_args.run_app.isEmpty() && launch_args.attach_pid) {
@@ -105,10 +92,11 @@ void validate_launch_arguments(const LaunchArguments &launch_args) {
 }
 
 /**
- * attempts to load all plugins in a given directory
  *
- * @brief load_plugins
- * @param directory
+ *
+ * @brief Attempts to load all plugins in a given directory
+ *
+ * @param directory The directory to load plugins from
  */
 void load_plugins(const QString &directory) {
 
@@ -121,7 +109,7 @@ void load_plugins(const QString &directory) {
 	//               running from the build directory without further config
 	plugins_dir.cd(directory);
 
-	Q_FOREACH (const QString &file_name, plugins_dir.entryList(QDir::Files)) {
+	for (const QString &file_name : plugins_dir.entryList(QDir::Files)) {
 		if (QLibrary::isLibrary(file_name)) {
 			const QString full_path = plugins_dir.absoluteFilePath(file_name);
 			QPluginLoader loader(full_path);
@@ -147,11 +135,10 @@ void load_plugins(const QString &directory) {
 }
 
 /**
- * starts the main debugger code
+ * @brief Starts the main debugger code
  *
- * @brief start_debugger
- * @param launch_args
- * @return
+ * @param launch_args The launch arguments for the debugger
+ * @return The exit code of the debugger
  */
 int start_debugger(const LaunchArguments &launch_args) {
 
@@ -160,7 +147,7 @@ int start_debugger(const LaunchArguments &launch_args) {
 	// create the main window object
 	Debugger debugger;
 
-	qDebug() << "Starting edb version:" << EDB_VERSION_STRING;
+	qDebug() << "Starting edb version:" << QLatin1String(EDB_VERSION_STRING);
 	qDebug("Please Report Bugs & Requests At: https://github.com/eteran/edb-debugger/issues");
 
 	// ok things are initialized to a reasonable degree, let's show the main window
@@ -182,30 +169,16 @@ int start_debugger(const LaunchArguments &launch_args) {
 
 		// TODO: detect if they corrected the issue and try again
 		return -1;
-	} else {
-		// have we been asked to attach to a given program?
-		if (launch_args.attach_pid) {
-			debugger.attach(*launch_args.attach_pid);
-		} else if (!launch_args.run_app.isEmpty()) {
-			debugger.execute(launch_args.run_app, launch_args.run_args, launch_args.run_stdin, launch_args.run_stdout);
-		}
-
-		return qApp->exec();
 	}
-}
 
-/**
- * @brief load_translations
- */
-void load_translations() {
-	// load some translations
-	QTranslator qtTranslator;
-	qtTranslator.load("qt_" + QLocale::system().name(), QLibraryInfo::location(QLibraryInfo::TranslationsPath));
-	qApp->installTranslator(&qtTranslator);
+	// have we been asked to attach to a given program?
+	if (launch_args.attach_pid) {
+		debugger.attach(*launch_args.attach_pid);
+	} else if (!launch_args.run_app.isEmpty()) {
+		debugger.execute(launch_args.run_app, launch_args.run_args, launch_args.run_stdin, launch_args.run_stdout);
+	}
 
-	QTranslator myappTranslator;
-	myappTranslator.load("edb_" + QLocale::system().name());
-	qApp->installTranslator(&myappTranslator);
+	return qApp->exec();
 }
 
 // See QtCreator: src/libs/utils/theme/theme.cpp
@@ -284,11 +257,12 @@ QPalette themePalette() {
 		const QColor themeColor = theme.palette[entry.paletteIndex];
 		// Use original color if color is not defined in theme.
 		if (themeColor.isValid()) {
-			if (entry.setColorRoleAsBrush)
+			if (entry.setColorRoleAsBrush) {
 				// TODO: Find out why sometimes setBrush is used
 				pal.setBrush(entry.paletteColorGroup, entry.paletteColorRole, themeColor);
-			else
+			} else {
 				pal.setColor(entry.paletteColorGroup, entry.paletteColorRole, themeColor);
+			}
 		}
 	}
 
@@ -298,33 +272,53 @@ QPalette themePalette() {
 }
 
 /**
- * @brief main
- * @param argc
- * @param argv
- * @return
+ * @brief The main entry point for the edb debugger application.
+ *
+ * @param argc The number of command line arguments.
+ * @param argv The array of command line arguments.
+ * @return The exit code of the application.
  */
 int main(int argc, char *argv[]) {
 
 	QT_REQUIRE_VERSION(argc, argv, "5.9.0");
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 	QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+#endif
 
 	QApplication app(argc, argv);
-	QApplication::setWindowIcon(QIcon(":/debugger/images/edb48-logo.png"));
+	QApplication::setWindowIcon(QIcon(QStringLiteral(":/debugger/images/edb.svg")));
 
 	// setup organization info so settings go in right place
-	QApplication::setOrganizationName("codef00.com");
-	QApplication::setOrganizationDomain("codef00.com");
-	QApplication::setApplicationName("edb");
-	QApplication::setApplicationVersion(EDB_VERSION_STRING);
+	QApplication::setOrganizationName(QStringLiteral("codef00.com"));
+	QApplication::setOrganizationDomain(QStringLiteral("codef00.com"));
+	QApplication::setApplicationName(QStringLiteral("edb"));
+	QApplication::setApplicationVersion(QStringLiteral(EDB_VERSION_STRING));
 
-	load_translations();
+	// load some translations
+	QTranslator qtTranslator;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+	if (qtTranslator.load(QLocale(), QStringLiteral("qtbase"), QStringLiteral("_"), QLibraryInfo::path(QLibraryInfo::TranslationsPath))) {
+		QApplication::installTranslator(&qtTranslator);
+	}
+#else
+	if (qtTranslator.load(QLocale(), QStringLiteral("qtbase"), QStringLiteral("_"), QLibraryInfo::location(QLibraryInfo::TranslationsPath))) {
+		QApplication::installTranslator(&qtTranslator);
+	}
+#endif
+
+	QTranslator translator;
+	// look up e.g. :/translations/edb_{lang}.qm
+	if (translator.load(QLocale(), QStringLiteral("edb"), QStringLiteral("_"), QStringLiteral(":/translations"))) {
+		qDebug() << "Translations loaded successfully for " << QLocale().bcp47Name();
+		QApplication::installTranslator(&translator);
+	}
 
 	// look for some plugins..
 	load_plugins(edb::v1::config().plugin_path);
 
-	QStringList args = app.arguments();
+	QStringList args = QApplication::arguments();
 
 	// call the parseArguments function for each plugin
 	for (QObject *plugin : edb::v1::plugin_list()) {
@@ -346,19 +340,23 @@ int main(int argc, char *argv[]) {
 
 	for (int i = 1; i < args.size(); ++i) {
 
-		if (args[i] == "--version") {
+		if (args[i] == QLatin1String("--version")) {
 			std::cout << "edb version: " << EDB_VERSION_STRING << std::endl;
 			return 0;
-		} else if (args[i] == "--dump-version") {
+		}
+
+		if (args[i] == QLatin1String("--dump-version")) {
 			std::cout << EDB_VERSION_STRING << std::endl;
 			return 0;
-		} else if (args[i] == "--attach") {
+		}
+
+		if (args[i] == QLatin1String("--attach")) {
 			++i;
 			if (i >= args.size()) {
 				usage();
 			}
 			launch_args.attach_pid = args[i].toUInt();
-		} else if (args[i] == "--run") {
+		} else if (args[i] == QLatin1String("--run")) {
 			++i;
 			if (i >= args.size()) {
 				usage();
@@ -371,13 +369,13 @@ int main(int argc, char *argv[]) {
 				// we want to avoid any unicode conversions
 				launch_args.run_args.push_back(argv[i]);
 			}
-		} else if (args[i] == "--stdin") {
+		} else if (args[i] == QLatin1String("--stdin")) {
 			++i;
 			if (i >= args.size()) {
 				usage();
 			}
 			launch_args.run_stdin = args[i];
-		} else if (args[i] == "--stdout") {
+		} else if (args[i] == QLatin1String("--stdout")) {
 			++i;
 			if (i >= args.size()) {
 				usage();
@@ -393,11 +391,19 @@ int main(int argc, char *argv[]) {
 	QApplication::setPalette(themePalette());
 
 	// Light/Dark icons on all platforms
-	if (QApplication::palette().window().color().lightnessF() >= 0.5) {
-		QIcon::setThemeName(QLatin1String("breeze-edb"));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+	if (QApplication::palette().window().color().lightnessF() >= 0.5f) {
+		QIcon::setThemeName(QStringLiteral("breeze-edb"));
 	} else {
-		QIcon::setThemeName(QLatin1String("breeze-dark-edb"));
+		QIcon::setThemeName(QStringLiteral("breeze-dark-edb"));
 	}
+#else
+	if (QApplication::palette().window().color().lightnessF() >= 0.5) {
+		QIcon::setThemeName(QStringLiteral("breeze-edb"));
+	} else {
+		QIcon::setThemeName(QStringLiteral("breeze-dark-edb"));
+	}
+#endif
 
 	return start_debugger(launch_args);
 }

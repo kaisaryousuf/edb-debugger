@@ -1,4 +1,12 @@
-#pragma once
+/*
+ * Copyright (C) 2018 - 2025  Evan Teran <evan.teran@gmail.com>
+ * Copyright (C) 2018 darkprof <dark_prof@mail.ru>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef FAS_LOADER_HPP_
+#define FAS_LOADER_HPP_
 
 #include "Fas/Core.hpp"
 #include "IPlugin.h"
@@ -19,7 +27,7 @@ public:
 	~FasLoader() override = default;
 
 public:
-	QMenu *menu(QWidget *parent = nullptr) override;
+	[[nodiscard]] QMenu *menu(QWidget *parent = nullptr) override;
 
 private Q_SLOTS:
 	void load();
@@ -29,3 +37,5 @@ private:
 };
 
 }
+
+#endif

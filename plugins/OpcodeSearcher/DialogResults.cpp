@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogResults.h"
 #include "edb.h"
@@ -6,9 +11,10 @@
 namespace OpcodeSearcherPlugin {
 
 /**
- * @brief DialogResults::DialogResults
- * @param parent
- * @param f
+ * @brief Constructor for the DialogResults class.
+ *
+ * @param parent The parent widget for the dialog.
+ * @param f The window flags for the dialog.
  */
 DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
@@ -27,16 +33,18 @@ DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogResults::addResult
- * @param result
+ * @brief Adds a result to the results model. This function is used to populate the results table with new search results.
+ *
+ * @param result The result to be added to the model.
  */
 void DialogResults::addResult(const ResultsModel::Result &result) {
 	model_->addResult(result);
 }
 
 /**
- * @brief DialogResults::on_tableView_doubleClicked
- * @param index
+ * @brief Handles the event when a row in the table view is double-clicked. It retrieves the address from the selected result and jumps to that address in the debugger.
+ *
+ * @param index The index of the double-clicked item in the table view.
  */
 void DialogResults::on_tableView_doubleClicked(const QModelIndex &index) {
 	if (index.isValid()) {
@@ -50,8 +58,9 @@ void DialogResults::on_tableView_doubleClicked(const QModelIndex &index) {
 }
 
 /**
- * @brief DialogResults::resultCount
- * @return
+ * @brief Returns the number of results currently in the model.
+ *
+ * @return The number of results in the model.
  */
 int DialogResults::resultCount() const {
 	return model_->rowCount();

@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef SIMD_VALUE_MANAGER_H_20191119_
 #define SIMD_VALUE_MANAGER_H_20191119_
@@ -38,10 +43,10 @@ private:
 	};
 
 	using Model = RegisterViewModelBase::Model;
-	Model *model() const;
-	RegisterGroup *group() const;
-	Model::ElementSize currentSize() const;
-	NumberDisplayMode currentFormat() const;
+	[[nodiscard]] Model *model() const;
+	[[nodiscard]] RegisterGroup *group() const;
+	[[nodiscard]] Model::ElementSize currentSize() const;
+	[[nodiscard]] NumberDisplayMode currentFormat() const;
 	void setupMenu();
 	void updateMenu();
 	void fillGroupMenu();

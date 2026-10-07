@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef UTIL_STRING_H_2020227_
 #define UTIL_STRING_H_2020227_
@@ -7,7 +12,8 @@
 namespace util {
 
 /**
- * @brief is_numeric
+ * @brief Checks if the given QString contains only decimal digits.
+ *
  * @param s
  * @return true if the string only contains decimal digits
  */

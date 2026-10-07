@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Analyzer.h"
 #include "AnalyzerWidget.h"
@@ -58,16 +46,17 @@ namespace {
 
 constexpr int MinRefCount = 2;
 /**
- * @brief will_return
+ * @brief Returns true if the function at the given address is not marked as non-returning.
+ *
  * @param address
  * @return
  */
 bool will_return(edb::address_t address) {
 
-	const std::shared_ptr<Symbol> symbol = edb::v1::symbol_manager().find(address);
+	const std::optional<Symbol> symbol = edb::v1::symbol_manager().find(address);
 	if (symbol) {
 		const QString symname   = symbol->name_no_prefix;
-		const QString func_name = symname.mid(0, symname.indexOf("@"));
+		const QString func_name = symname.mid(0, symname.indexOf(QLatin1Char('@')));
 
 		if (const edb::Prototype *const info = edb::v1::get_function_info(func_name)) {
 			if (info->noreturn) {
@@ -80,20 +69,22 @@ bool will_return(edb::address_t address) {
 }
 
 /**
- * @brief is_entrypoint
+ * @brief Returns true if the given symbol represents the ELF process entry point (_start).
+ *
  * @param sym
  * @return
  */
 bool is_entrypoint(const Symbol &sym) {
 #ifdef Q_OS_UNIX
-	return sym.name_no_prefix == "_start";
+	return sym.name_no_prefix == QStringLiteral("_start");
 #else
 	return false;
 #endif
 }
 
 /**
- * @brief is_thunk
+ * @brief Returns true if the function at the given address begins with an unconditional jump, indicating a thunk.
+ *
  * @param address
  * @return true if the first instruction of the function is a jmp
  */
@@ -109,7 +100,8 @@ bool is_thunk(edb::address_t address) {
 }
 
 /**
- * @brief set_function_types
+ * @brief Classifies each function in the map as either a thunk or a standard function based on its entry instruction.
+ *
  * @param results
  */
 void set_function_types(IAnalyzer::FunctionMap *results) {
@@ -117,23 +109,45 @@ void set_function_types(IAnalyzer::FunctionMap *results) {
 	Q_ASSERT(results);
 
 	// give bonus if we have a symbol for the address
-	std::for_each(results->begin(), results->end(), [](Function &function) {
-		if (is_thunk(function.entryAddress())) {
-			function.setType(Function::Thunk);
-		} else {
-			function.setType(Function::Standard);
+	for (auto it = results->begin(); it != results->end(); ++it) {
+
+		Function &function = it.value();
+
+		if (function.empty()) {
+			qDebug() << "Function at " << function.entryAddress().toHexString() << " is empty, skipping type classification";
+			continue;
 		}
-	});
+
+		Q_ASSERT(!function.empty());
+		if (is_thunk(function.entryAddress())) {
+			function.type = Function::Thunk;
+		} else {
+			function.type = Function::Standard;
+		}
+	}
 }
 
 /**
- * @brief module_entry_point
+ * @brief Returns the entry point address of the binary module that contains the given memory region.
+ *
  * @param region
  * @return
  */
 edb::address_t module_entry_point(const std::shared_ptr<IRegion> &region) {
+	// NOTE(eteran): because modern ELF files actually have the ELF header in its
+	// own, non-executable section that precedes the main one, so this may fail...
 	if (std::unique_ptr<IBinary> binary_info = edb::v1::get_binary_info(region)) {
 		return binary_info->entryPoint();
+	}
+
+	// if it does, we can just try to see if there is a region that fits the bill
+	// one page before us. it's a guess, but it's not a bad one
+	const size_t page_size          = edb::v1::debugger_core->pageSize();
+	const edb::address_t prevRegion = region->start() - page_size;
+	if (std::shared_ptr<IRegion> region = edb::v1::memory_regions().findRegion(prevRegion)) {
+		if (std::unique_ptr<IBinary> binary_info = edb::v1::get_binary_info(region)) {
+			return binary_info->entryPoint();
+		}
 	}
 
 	return 0;
@@ -142,7 +156,8 @@ edb::address_t module_entry_point(const std::shared_ptr<IRegion> &region) {
 }
 
 /**
- * @brief Analyzer::Analyzer
+ * @brief Constructs the Analyzer plugin object.
+ *
  * @param parent
  */
 Analyzer::Analyzer(QObject *parent)
@@ -150,7 +165,8 @@ Analyzer::Analyzer(QObject *parent)
 }
 
 /**
- * @brief Analyzer::optionsPage
+ * @brief Returns the plugin's configuration options widget.
+ *
  * @return
  */
 QWidget *Analyzer::optionsPage() {
@@ -158,7 +174,8 @@ QWidget *Analyzer::optionsPage() {
 }
 
 /**
- * @brief Analyzer::menu
+ * @brief Creates and returns the Analyzer plugin menu, adding toolbar and dock widgets on first call.
+ *
  * @param parent
  * @return
  */
@@ -168,13 +185,21 @@ QMenu *Analyzer::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("Analyzer"), parent);
-		menu_->addAction(tr("Show &Specified Functions"), this, SLOT(showSpecified()));
+		menu_->addAction(tr("Show &Specified Functions"), this, &Analyzer::showSpecified);
 
 		if (edb::v1::debugger_core) {
-			menu_->addAction(tr("&Analyze %1's Region").arg(edb::v1::debugger_core->instructionPointer().toUpper()), this, SLOT(doIpAnalysis()), QKeySequence(tr("Ctrl+A")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+			menu_->addAction(tr("&Analyze %1's Region").arg(edb::v1::debugger_core->instructionPointer().toUpper()), QKeySequence(tr("Ctrl+A")), this, &Analyzer::doIpAnalysis);
+#else
+			menu_->addAction(tr("&Analyze %1's Region").arg(edb::v1::debugger_core->instructionPointer().toUpper()), this, &Analyzer::doIpAnalysis, QKeySequence(tr("Ctrl+A")));
+#endif
 		}
 
-		menu_->addAction(tr("&Analyze Viewed Region"), this, SLOT(doViewAnalysis()), QKeySequence(tr("Ctrl+Shift+A")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&Analyze Viewed Region"), QKeySequence(tr("Ctrl+Shift+A")), this, &Analyzer::doViewAnalysis);
+#else
+		menu_->addAction(tr("&Analyze Viewed Region"), this, &Analyzer::doViewAnalysis, QKeySequence(tr("Ctrl+Shift+A")));
+#endif
 
 		// if we are dealing with a main window (and we are...)
 		// add the dock object
@@ -200,14 +225,14 @@ QMenu *Analyzer::menu(QWidget *parent) {
 }
 
 /**
- * @brief Analyzer::privateInit
+ * @brief Registers this instance as the global active analyzer.
  */
 void Analyzer::privateInit() {
 	edb::v1::set_analyzer(this);
 }
 
 /**
- * @brief Analyzer::showSpecified
+ * @brief Opens or raises the dialog listing user-specified function start addresses.
  */
 void Analyzer::showSpecified() {
 	static auto dialog = new SpecifiedFunctions(edb::v1::debugger_ui);
@@ -215,7 +240,7 @@ void Analyzer::showSpecified() {
 }
 
 /**
- * @brief Analyzer::doIpAnalysis
+ * @brief Analyzes the memory region containing the current instruction pointer.
  */
 void Analyzer::doIpAnalysis() {
 	if (IProcess *process = edb::v1::debugger_core->process()) {
@@ -232,14 +257,14 @@ void Analyzer::doIpAnalysis() {
 }
 
 /**
- * @brief Analyzer::doViewAnalysis
+ * @brief Analyzes the memory region currently visible in the CPU disassembly view.
  */
 void Analyzer::doViewAnalysis() {
 	doAnalysis(edb::v1::current_cpu_view_region());
 }
 
 /**
- * @brief Analyzer::markFunctionStart
+ * @brief Marks the currently selected address as a known function start and invalidates the region's analysis.
  */
 void Analyzer::markFunctionStart() {
 
@@ -252,7 +277,7 @@ void Analyzer::markFunctionStart() {
 }
 
 /**
- * @brief Analyzer::showXrefs
+ * @brief Opens a dialog listing all cross-references that target the currently selected address.
  */
 void Analyzer::showXrefs() {
 
@@ -264,9 +289,9 @@ void Analyzer::showXrefs() {
 		for (const BasicBlock &bb : data.basicBlocks) {
 			const std::vector<std::pair<edb::address_t, edb::address_t>> refs = bb.references();
 
-			for (auto it = refs.begin(); it != refs.end(); ++it) {
-				if (it->second == address) {
-					dialog->addReference(*it);
+			for (const auto &[from, to] : refs) {
+				if (to == address) {
+					dialog->addReference({from, to});
 				}
 			}
 		}
@@ -276,7 +301,7 @@ void Analyzer::showXrefs() {
 	dialog->show();
 }
 /**
- * @brief Analyzer::gotoFunctionStart
+ * @brief Jumps the disassembly view to the entry address of the function containing the selected address.
  */
 void Analyzer::gotoFunctionStart() {
 
@@ -295,7 +320,7 @@ void Analyzer::gotoFunctionStart() {
 }
 
 /**
- * @brief Analyzer::gotoFunctionEnd
+ * @brief Jumps the disassembly view to the last instruction of the function containing the selected address.
  */
 void Analyzer::gotoFunctionEnd() {
 
@@ -313,12 +338,11 @@ void Analyzer::gotoFunctionEnd() {
 		tr("The selected instruction is not inside of a known function. Have you run an analysis of this region?"));
 }
 /**
- * @brief Analyzer::cpuContextMenu
+ * @brief Returns the list of CPU context menu actions contributed by the Analyzer plugin.
+ *
  * @return
  */
 QList<QAction *> Analyzer::cpuContextMenu() {
-
-	QList<QAction *> ret;
 
 	auto action_find                = new QAction(tr("Analyze Here"), this);
 	auto action_goto_function_start = new QAction(tr("Goto Function Start"), this);
@@ -332,18 +356,23 @@ QList<QAction *> Analyzer::cpuContextMenu() {
 	connect(action_mark_function_start, &QAction::triggered, this, &Analyzer::markFunctionStart);
 	connect(action_xrefs, &QAction::triggered, this, &Analyzer::showXrefs);
 
-	ret << action_find << action_goto_function_start << action_goto_function_end << action_mark_function_start << action_xrefs;
-
-	return ret;
+	return {
+		action_find,
+		action_goto_function_start,
+		action_goto_function_end,
+		action_mark_function_start,
+		action_xrefs,
+	};
 }
 
 /**
- * @brief Analyzer::doAnalysis
+ * @brief Runs a full analysis pass on the given region, showing progress and repainting the CPU view on completion.
+ *
  * @param region
  */
 void Analyzer::doAnalysis(const std::shared_ptr<IRegion> &region) {
 	if (region && region->size() != 0) {
-		QProgressDialog progress(tr("Performing Analysis"), nullptr, 0, 100, edb::v1::debugger_ui);
+		QProgressDialog progress(tr("Performing Analysis"), QString(), 0, 100, edb::v1::debugger_ui);
 		connect(this, &Analyzer::updateProgress, &progress, &QProgressDialog::setValue);
 		progress.show();
 		progress.setValue(0);
@@ -353,25 +382,29 @@ void Analyzer::doAnalysis(const std::shared_ptr<IRegion> &region) {
 }
 
 /**
- * @brief Analyzer::bonusMain
+ * @brief Seeds the known-function list with the address of main() if it can be located in the region.
+ *
  * @param data
  */
 void Analyzer::bonusMain(RegionData *data) const {
 
 	Q_ASSERT(data);
 
-	const QString s = edb::v1::debugger_core->process()->executable();
-	if (!s.isEmpty()) {
-		if (const edb::address_t main = edb::v1::locate_main_function()) {
-			if (data->region->contains(main)) {
-				data->knownFunctions.insert(main);
+	if (IProcess *process = edb::v1::debugger_core->process()) {
+		const QString s = process->executable();
+		if (!s.isEmpty()) {
+			if (const edb::address_t main = edb::v1::locate_main_function()) {
+				if (data->region->contains(main)) {
+					data->knownFunctions.insert(main);
+				}
 			}
 		}
 	}
 }
 
 /**
- * @brief Analyzer::bonusSymbols
+ * @brief Seeds the known-function list with all code symbol addresses that fall within the region.
+ *
  * @param data
  */
 void Analyzer::bonusSymbols(RegionData *data) {
@@ -379,31 +412,32 @@ void Analyzer::bonusSymbols(RegionData *data) {
 	Q_ASSERT(data);
 
 	// give bonus if we have a symbol for the address
-	const std::vector<std::shared_ptr<Symbol>> symbols = edb::v1::symbol_manager().symbols();
+	const std::vector<Symbol> symbols = edb::v1::symbol_manager().symbols();
 
-	for (const std::shared_ptr<Symbol> &sym : symbols) {
-		const edb::address_t addr = sym->address;
+	for (const Symbol &sym : symbols) {
+		const edb::address_t addr = sym.address;
 
 		// NOTE(eteran): we special case the module entry point because while we bonus the
 		// application's entry point in bonusEntryPoint, each module can have one which
 		// is called on load by the linker, including the linker itself! And unfortunately
 		// at least on some systems, it is a data symbol, not a code symbol
-		if (data->region->contains(addr) && (sym->isCode() || is_entrypoint(*sym))) {
-			qDebug("[Analyzer] adding: %s <%s>", qPrintable(sym->name), qPrintable(addr.toPointerString()));
+		if (data->region->contains(addr) && (sym.isCode() || is_entrypoint(sym))) {
+			qDebug("[Analyzer] adding: %s <%s>", qPrintable(sym.name), qPrintable(addr.toPointerString()));
 			data->knownFunctions.insert(addr);
 		}
 	}
 }
 
 /**
- * @brief Analyzer::bonusMarkedFunctions
+ * @brief Seeds the known-function list with all user-specified function addresses that fall within the region.
+ *
  * @param data
  */
 void Analyzer::bonusMarkedFunctions(RegionData *data) {
 
 	Q_ASSERT(data);
 
-	Q_FOREACH (const edb::address_t addr, specifiedFunctions_) {
+	for (const edb::address_t addr : specifiedFunctions_) {
 		if (data->region->contains(addr)) {
 			qDebug("[Analyzer] adding user marked function: <%s>", qPrintable(addr.toPointerString()));
 			data->knownFunctions.insert(addr);
@@ -412,16 +446,135 @@ void Analyzer::bonusMarkedFunctions(RegionData *data) {
 }
 
 /**
- * @brief Analyzer::identHeader
+ * @brief Hook for identifying executable header information within the region; currently a no-op.
+ *
  * @param data
  */
 void Analyzer::identHeader(Analyzer::RegionData *data) {
 	Q_UNUSED(data)
 }
 
+bool split_function(Function &func) {
+
+	for (auto bb_it = func.begin(); bb_it != func.end(); ++bb_it) {
+		auto &[address, bb] = *bb_it;
+		Q_UNUSED(address)
+
+		if (bb.size() <= 1) {
+			continue;
+		}
+
+		for (auto it = bb.begin(); it != bb.end(); ++it) {
+			const std::shared_ptr<edb::Instruction> &insn = *it;
+
+			// if it's a call and not the last instruction of the BB
+			// then split!
+			if (is_call(*insn) && insn != bb.back()) {
+
+				auto &&[newBlocksFirst, newBlocksSecond] = bb.splitBlock(insn);
+				func.erase(bb_it);
+
+				Q_ASSERT(!newBlocksFirst.empty());
+				Q_ASSERT(!newBlocksSecond.empty());
+
+				func.insert(newBlocksFirst);
+				func.insert(newBlocksSecond);
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 /**
- * @brief Analyzer::collectFunctions
- * @param data
+ * @brief Splits basic blocks within all functions in the given region data.
+ *
+ * This function iterates over all functions in the region data and repeatedly splits basic blocks
+ * that contain call instructions, ensuring that each call instruction is the last instruction in its basic block.
+ *
+ * @param data The region data containing the functions to process.
+ */
+void Analyzer::splitBlocks(RegionData *data) {
+	Q_ASSERT(data);
+
+	for (auto it = data->functions.begin(); it != data->functions.end(); ++it) {
+		const edb::address_t function = it.key();
+		Function &func                = it.value();
+
+		while (split_function(func)) {
+			continue;
+		}
+	}
+}
+
+/**
+ * @brief Computes which functions in the given region data are non-returning.
+ *
+ * This function iterates over all functions in the region data and checks the last instruction of each basic block.
+ * If all basic blocks in a function do not indicate a return (e.g., they end with halt, UD, or internal jumps), the function is marked as non-returning.
+ *
+ * @param data The region data containing the functions to analyze.
+ */
+void Analyzer::computeNonReturning(Analyzer::RegionData *data) {
+	Q_UNUSED(data);
+
+	for (auto it = data->functions.begin(); it != data->functions.end(); ++it) {
+
+		auto func = &it.value();
+
+		bool noreturn = true;
+
+		// Check all of the basic blocks in the function. If **all** of them don't indicate a return, then we can mark the function as non-returning.
+		// Otherwise, we just assume it returns. This is a conservative approach, but it is better than marking a function as non-returning when
+		// it actually does return.
+		for (const auto &[address, bb] : it.value()) {
+			Q_UNUSED(address);
+
+			if (!bb.empty()) {
+				const std::shared_ptr<edb::Instruction> &inst = bb.back();
+
+				// If the basic block ends with a halt, then it is non-returning. Continue to the next basic block.
+				if (is_halt(*inst)) {
+					continue;
+				}
+
+				// If the basic block ends with a UD instruction, then it is non-returning. Continue to the next basic block.
+				if (is_ud(*inst)) {
+					continue;
+				}
+
+				// If the basic block ends with a jump instruction that lands within the function, then it is non-returning. Continue to the next basic block.
+				if (is_jump(*inst)) {
+					Q_ASSERT(inst->operandCount() == 1);
+					const edb::Operand op = inst->operand(0);
+
+					if (is_immediate(op)) {
+
+						const edb::address_t ea = op->imm;
+						if (func->containsBlock(ea)) {
+							continue;
+						}
+					}
+				}
+
+				// Anything else, be conservative and assume it will return. Mark the function as returning and break out of the loop.
+				noreturn = false;
+				break;
+			}
+		}
+
+		if (noreturn) {
+			qDebug() << "Function at" << it.key().toPointerString() << "is non-returning";
+		}
+	}
+}
+
+/**
+ * @brief Performs recursive disassembly from all known entry points to build the complete function and basic block maps.
+ *
+ * @param data The region data containing the known functions and basic blocks to collect.
  */
 void Analyzer::collectFunctions(Analyzer::RegionData *data) {
 	Q_ASSERT(data);
@@ -432,12 +585,12 @@ void Analyzer::collectFunctions(Analyzer::RegionData *data) {
 
 	// push all known functions onto a stack
 	QStack<edb::address_t> known_functions;
-	Q_FOREACH (const edb::address_t function, data->knownFunctions) {
+	for (const edb::address_t function : data->knownFunctions) {
 		known_functions.push(function);
 	}
 
 	// push all fuzzy function too...
-	Q_FOREACH (const edb::address_t function, data->fuzzyFunctions) {
+	for (const edb::address_t function : data->fuzzyFunctions) {
 		known_functions.push(function);
 	}
 
@@ -571,8 +724,9 @@ void Analyzer::collectFunctions(Analyzer::RegionData *data) {
 }
 
 /**
- * @brief Analyzer::collectFuzzyFunctions
- * @param data
+ * @brief Heuristically discovers additional function entry points by scanning for call targets and ENDBR instructions.
+ *
+ * @param data The region data containing the memory and known functions to analyze for potential fuzzy function entry points.
  */
 void Analyzer::collectFuzzyFunctions(RegionData *data) {
 	Q_ASSERT(data);
@@ -583,7 +737,7 @@ void Analyzer::collectFuzzyFunctions(RegionData *data) {
 
 		QHash<edb::address_t, int> fuzzy_functions;
 
-		uint8_t *const first = &data->memory[0];
+		uint8_t *const first = (data->memory).data();
 		uint8_t *const last  = &first[data->memory.size()];
 
 		uint8_t *p = first;
@@ -608,7 +762,55 @@ void Analyzer::collectFuzzyFunctions(RegionData *data) {
 							}
 						}
 					}
+#if defined(EDB_X86) || defined(EDB_X86_64)
+#if CS_API_MAJOR >= 4
+				} else if (inst->id == X86_INS_ENDBR64 || inst->id == X86_INS_ENDBR32) {
+
+					// Intel's CET stuff actually helps us identify functions pretty easily
+					if (!data->knownFunctions.contains(addr)) {
+						fuzzy_functions[addr] = MinRefCount + 1;
+					}
+
+					// look for push rbp; mov ebp, esp as it is a common function prologue
+				} else if (inst->id == X86_INS_PUSH && inst[0]->reg == X86_REG_EBP) {
+
+					const edb::address_t next_addr = addr + inst.byteSize();
+					if (auto inst2 = edb::Instruction(p + inst.byteSize(), last, next_addr)) {
+
+						if (inst2->id == X86_INS_MOV) {
+
+							if (inst2.operandCount() == 2 && is_register(inst2[0]) && is_register(inst2[1])) {
+
+								if (inst2[0]->reg == X86_REG_EBP && inst2[1]->reg == X86_REG_ESP) {
+
+									if (!data->knownFunctions.contains(addr)) {
+										fuzzy_functions[addr] = MinRefCount + 1;
+									}
+								}
+							}
+						}
+					}
+				} else if (inst->id == X86_INS_PUSH && inst[0]->reg == X86_REG_RBP) {
+
+					const edb::address_t next_addr = addr + inst.byteSize();
+					if (auto inst2 = edb::Instruction(p + inst.byteSize(), last, next_addr)) {
+
+						if (inst2->id == X86_INS_MOV) {
+
+							if (inst2.operandCount() == 2 && is_register(inst2[0]) && is_register(inst2[1])) {
+
+								if (inst2[0]->reg == X86_REG_RBP && inst2[1]->reg == X86_REG_RSP) {
+
+									if (!data->knownFunctions.contains(addr)) {
+										fuzzy_functions[addr] = MinRefCount + 1;
+									}
+								}
+							}
+						}
+					}
 				}
+#endif
+#endif
 			}
 			++p;
 		}
@@ -623,7 +825,8 @@ void Analyzer::collectFuzzyFunctions(RegionData *data) {
 }
 
 /**
- * @brief Analyzer::analyze
+ * @brief Runs all analysis pipeline steps on the given region, caching results and emitting progress updates.
+ *
  * @param region
  */
 void Analyzer::analyze(const std::shared_ptr<IRegion> &region) {
@@ -635,7 +838,7 @@ void Analyzer::analyze(const std::shared_ptr<IRegion> &region) {
 	qDebug() << "[Analyzer] Region name:" << region->name();
 
 	QSettings settings;
-	const bool fuzzy = settings.value("Analyzer/fuzzy_logic_functions.enabled", true).toBool();
+	const bool fuzzy = settings.value(QStringLiteral("Analyzer/fuzzy_logic_functions.enabled"), true).toBool();
 
 	const size_t page_size  = edb::v1::debugger_core->pageSize();
 	const size_t page_count = region->size() / page_size;
@@ -645,60 +848,62 @@ void Analyzer::analyze(const std::shared_ptr<IRegion> &region) {
 	const QByteArray md5      = (!memory.isEmpty()) ? edb::v1::get_md5(memory) : QByteArray();
 	const QByteArray prev_md5 = region_data.md5;
 
-	if (md5 != prev_md5 || fuzzy != region_data.fuzzy) {
-
-		region_data.basicBlocks.clear();
-		region_data.functions.clear();
-		region_data.fuzzyFunctions.clear();
-		region_data.knownFunctions.clear();
-
-		region_data.memory = memory;
-		region_data.region = region;
-		region_data.md5    = md5;
-		region_data.fuzzy  = fuzzy;
-
-		const struct {
-			const char *message;
-			std::function<void()> function;
-		} analysis_steps[] = {
-			{"identifying executable headers...", [this, &region_data]() { identHeader(&region_data); }},
-			{"adding entry points to the list...", [this, &region_data]() { bonusEntryPoint(&region_data); }},
-			{"attempting to add 'main' to the list...", [this, &region_data]() { bonusMain(&region_data); }},
-			{"attempting to add functions with symbols to the list...", [this, &region_data]() { bonusSymbols(&region_data); }},
-			{"attempting to add marked functions to the list...", [this, &region_data]() { bonusMarkedFunctions(&region_data); }},
-			{"attempting to collect functions with fuzzy analysis...", [this, &region_data]() { collectFuzzyFunctions(&region_data); }},
-			{"collecting basic blocks...", [this, &region_data]() { collectFunctions(&region_data); }},
-		};
-
-		const int total_steps = sizeof(analysis_steps) / sizeof(analysis_steps[0]);
-
-		Q_EMIT updateProgress(util::percentage(0, total_steps));
-		for (int i = 0; i < total_steps; ++i) {
-			qDebug("[Analyzer] %s", analysis_steps[i].message);
-			analysis_steps[i].function();
-			Q_EMIT updateProgress(util::percentage(i + 1, total_steps));
-		}
-
-		qDebug("[Analyzer] determining function types...");
-
-		set_function_types(&region_data.functions);
-
-		qDebug("[Analyzer] complete");
-		Q_EMIT updateProgress(100);
-
-		if (analyzerWidget_) {
-			analyzerWidget_->update();
-		}
-
-	} else {
+	if (md5 == prev_md5 && fuzzy == region_data.fuzzy) {
 		qDebug("[Analyzer] region unchanged, using previous analysis");
+		return;
+	}
+
+	region_data.basicBlocks.clear();
+	region_data.functions.clear();
+	region_data.fuzzyFunctions.clear();
+	region_data.knownFunctions.clear();
+
+	region_data.memory = memory;
+	region_data.region = region;
+	region_data.md5    = md5;
+	region_data.fuzzy  = fuzzy;
+
+	const struct {
+		const char *message;
+		std::function<void()> function;
+	} analysis_steps[] = {
+		{"identifying executable headers...", [this, &region_data]() { identHeader(&region_data); }},
+		{"adding entry points to the list...", [this, &region_data]() { bonusEntryPoint(&region_data); }},
+		{"attempting to add 'main' to the list...", [this, &region_data]() { bonusMain(&region_data); }},
+		{"attempting to add functions with symbols to the list...", [this, &region_data]() { bonusSymbols(&region_data); }},
+		{"attempting to add marked functions to the list...", [this, &region_data]() { bonusMarkedFunctions(&region_data); }},
+		{"attempting to collect functions with fuzzy analysis...", [this, &region_data]() { collectFuzzyFunctions(&region_data); }},
+		{"collecting basic blocks...", [this, &region_data]() { collectFunctions(&region_data); }},
+		{"splitting basic blocks...", [this, &region_data]() { splitBlocks(&region_data); }},
+		{"computing non-returning functions...", [this, &region_data]() { computeNonReturning(&region_data); }},
+	};
+
+	const int total_steps = sizeof(analysis_steps) / sizeof(analysis_steps[0]);
+
+	Q_EMIT updateProgress(util::percentage(0, total_steps));
+	for (int i = 0; i < total_steps; ++i) {
+		qDebug("[Analyzer] %s", analysis_steps[i].message);
+		analysis_steps[i].function();
+		Q_EMIT updateProgress(util::percentage(i + 1, total_steps));
+	}
+
+	qDebug("[Analyzer] determining function types...");
+
+	set_function_types(&region_data.functions);
+
+	qDebug("[Analyzer] complete");
+	Q_EMIT updateProgress(100);
+
+	if (analyzerWidget_) {
+		analyzerWidget_->update();
 	}
 
 	qDebug("[Analyzer] elapsed: %lld ms", t.elapsed());
 }
 
 /**
- * @brief Analyzer::category
+ * @brief Returns the role of the given address (function start, body, end, or unknown) relative to known functions.
+ *
  * @param address
  * @return
  */
@@ -708,17 +913,20 @@ IAnalyzer::AddressCategory Analyzer::category(edb::address_t address) const {
 	if (findContainingFunction(address, &func)) {
 		if (address == func.entryAddress()) {
 			return ADDRESS_FUNC_START;
-		} else if (address == func.endAddress()) {
-			return ADDRESS_FUNC_END;
-		} else {
-			return ADDRESS_FUNC_BODY;
 		}
+
+		if (address == func.endAddress()) {
+			return ADDRESS_FUNC_END;
+		}
+
+		return ADDRESS_FUNC_BODY;
 	}
 	return ADDRESS_FUNC_UNKNOWN;
 }
 
 /**
- * @brief Analyzer::functions
+ * @brief Returns the map of all functions found within the given memory region.
+ *
  * @param region
  * @return
  */
@@ -727,23 +935,21 @@ IAnalyzer::FunctionMap Analyzer::functions(const std::shared_ptr<IRegion> &regio
 }
 
 /**
- * @brief Analyzer::functions
+ * @brief Returns the combined map of all functions across every analyzed region.
+ *
  * @return
  */
 IAnalyzer::FunctionMap Analyzer::functions() const {
 	FunctionMap results;
 	for (auto &it : analysisInfo_) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
 		results.insert(it.functions);
-#else
-		results.unite(it.functions);
-#endif
 	}
 	return results;
 }
 
 /**
- * @brief Analyzer::findContainingFunction
+ * @brief Finds the function that contains the given address and stores it in the output parameter.
+ *
  * @param address
  * @param function
  * @return
@@ -783,7 +989,7 @@ bool Analyzer::findContainingFunction(edb::address_t address, Function *function
 }
 
 /**
- * @brief Analyzer::forFuncsInRange
+ * @brief Invokes a callback for each known function whose body overlaps the given address range.
  *
  * Calls functor once for every function that exists between the start and end
  * addresses. This includes functions whose bodies include the start address.
@@ -823,7 +1029,8 @@ bool Analyzer::forFuncsInRange(edb::address_t start, edb::address_t end, std::fu
 }
 
 /**
- * @brief Analyzer::bonusEntryPoint
+ * @brief Seeds the known-function list with the module's binary entry point address.
+ *
  * @param data
  */
 void Analyzer::bonusEntryPoint(RegionData *data) const {
@@ -847,12 +1054,14 @@ void Analyzer::bonusEntryPoint(RegionData *data) const {
 }
 
 /**
- * @brief Analyzer::invalidateAnalysis
+ * @brief Clears cached analysis for the given region and removes any user-specified functions within it.
+ *
  * @param region
  */
 void Analyzer::invalidateAnalysis(const std::shared_ptr<IRegion> &region) {
 	invalidateDynamicAnalysis(region);
-	Q_FOREACH (const edb::address_t addr, specifiedFunctions_) {
+	const auto specifiedFunctionsCopy = specifiedFunctions_;
+	for (const edb::address_t addr : specifiedFunctionsCopy) {
 		if (addr >= region->start() && addr < region->end()) {
 			specifiedFunctions_.remove(addr);
 		}
@@ -860,7 +1069,8 @@ void Analyzer::invalidateAnalysis(const std::shared_ptr<IRegion> &region) {
 }
 
 /**
- * @brief Analyzer::invalidateDynamicAnalysis
+ * @brief Resets the dynamically-computed analysis data for the given region without affecting user-specified functions.
+ *
  * @param region
  */
 void Analyzer::invalidateDynamicAnalysis(const std::shared_ptr<IRegion> &region) {
@@ -873,7 +1083,7 @@ void Analyzer::invalidateDynamicAnalysis(const std::shared_ptr<IRegion> &region)
 }
 
 /**
- * @brief Analyzer::invalidateAnalysis
+ * @brief Clears all cached analysis data and all user-specified function addresses.
  */
 void Analyzer::invalidateAnalysis() {
 	analysisInfo_.clear();
@@ -881,7 +1091,8 @@ void Analyzer::invalidateAnalysis() {
 }
 
 /**
- * @brief Analyzer::findContainingFunction
+ * @brief Returns the entry point of the function containing the given address, or an error if none is found.
+ *
  * @param address
  * @return the entry point of the function which contains <address>
  */
@@ -890,9 +1101,9 @@ Result<edb::address_t, QString> Analyzer::findContainingFunction(edb::address_t 
 	Function function;
 	if (findContainingFunction(address, &function)) {
 		return function.entryAddress();
-	} else {
-		return make_unexpected(tr("Containing Function Not Found"));
 	}
+
+	return make_unexpected(tr("Containing Function Not Found"));
 }
 
 }

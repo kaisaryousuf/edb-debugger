@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DebuggerCore.h"
 #include "edb.h"
@@ -57,24 +45,30 @@ namespace DebuggerCorePlugin {
 
 namespace {
 
-/*
+/**
+ * @brief Enables or disables the debug privilege for the specified process.
+ * This function adjusts the privileges of the specified process to enable or disable the debug privilege (SE_DEBUG_NAME).
+ * This privilege allows the process to debug and adjust the memory of other processes, including those owned by other accounts.
  * Required to debug and adjust the memory of a process owned by another account.
  * OpenProcess quote (MSDN):
  *   "If the caller has enabled the SeDebugPrivilege privilege, the requested access
  *    is granted regardless of the contents of the security descriptor."
  * Needed to open system processes (user SYSTEM)
  *
- * NOTE: You need to be admin to enable this privilege
- * NOTE: You need to have the 'Debug programs' privilege set for the current user,
- *       if the privilege is not present it can't be enabled!
- * NOTE: Detectable by antidebug code (changes debuggee privileges too)
+ * @param process The handle to the process for which to set the debug privilege.
+ * @param set True to enable the debug privilege, false to disable it.
+ * @return True if the privilege was successfully set, false otherwise.
+ *
+ * @note You need to be admin to enable this privilege
+ * @note Detectable by antidebug code (changes debuggee privileges too)
+ * @note You need to have the 'Debug programs' privilege set for the current user, if the privilege is not present it can't be enabled!
  */
 bool set_debug_privilege(HANDLE process, bool set) {
 
 	HANDLE token;
 	bool ok = false;
 
-	//process must have PROCESS_QUERY_INFORMATION
+	// process must have PROCESS_QUERY_INFORMATION
 	if (OpenProcessToken(process, TOKEN_ADJUST_PRIVILEGES, &token)) {
 
 		LUID luid;
@@ -95,7 +89,7 @@ bool set_debug_privilege(HANDLE process, bool set) {
 }
 
 /**
- * @brief DebuggerCore::DebuggerCore
+ * @brief Creates a new instance of the DebuggerCore class.
  */
 DebuggerCore::DebuggerCore() {
 	DebugSetProcessKillOnExit(false);
@@ -108,7 +102,7 @@ DebuggerCore::DebuggerCore() {
 }
 
 /**
- * @brief DebuggerCore::~DebuggerCore
+ * @brief Destroys the DebuggerCore instance and detaches from any attached process.
  */
 DebuggerCore::~DebuggerCore() {
 	detach();
@@ -116,7 +110,8 @@ DebuggerCore::~DebuggerCore() {
 }
 
 /**
- * @brief DebuggerCore::pageSize
+ * @brief Gets the size of a memory page on the current system.
+ *
  * @return the size of a page on this system
  */
 size_t DebuggerCore::pageSize() const {
@@ -124,9 +119,10 @@ size_t DebuggerCore::pageSize() const {
 }
 
 /**
- * @brief DebuggerCore::hasExtension
- * @param ext
- * @return
+ * @brief Determines if the debuggee processor has the specified extension or feature.
+ *
+ * @param ext The extension or feature to check for.
+ * @return True if the extension is supported, false otherwise.
  */
 bool DebuggerCore::hasExtension(uint64_t ext) const {
 #if !defined(EDB_X86_64)
@@ -150,11 +146,11 @@ bool DebuggerCore::hasExtension(uint64_t ext) const {
 }
 
 /**
- * waits for a debug event, secs is a timeout (but is not yet respected)
+ * @brief Waits for a debug event, msecs is a timeout (but is not yet respected)
  *
- * @brief DebuggerCore::waitDebugEvent
- * @param msecs
- * @return null if timeout occured
+ * @param msecs The timeout in milliseconds to wait for a debug event. If zero, waits indefinitely.
+ * @return A shared pointer to the IDebugEvent representing the debug event that occurred,
+ * or nullptr if the wait timed out or if no debug event occurred within the specified time.
  */
 std::shared_ptr<IDebugEvent> DebuggerCore::waitDebugEvent(std::chrono::milliseconds msecs) {
 	if (attached()) {
@@ -227,9 +223,10 @@ std::shared_ptr<IDebugEvent> DebuggerCore::waitDebugEvent(std::chrono::milliseco
 }
 
 /**
- * @brief DebuggerCore::attach
- * @param pid
- * @return
+ * @brief Attachs the debugger to a process with the specified process ID (pid).
+ *
+ * @param pid The process ID of the target process to attach to.
+ * @return A Status object indicating the success or failure of the attach operation.
  */
 Status DebuggerCore::attach(edb::pid_t pid) {
 
@@ -240,12 +237,13 @@ Status DebuggerCore::attach(edb::pid_t pid) {
 		return Status::Ok;
 	}
 
-	return Status("Error DebuggerCore::attach");
+	return Status(QStringLiteral("Error DebuggerCore::attach"));
 }
 
 /**
- * @brief DebuggerCore::detach
- * @return
+ * @brief Detaches the debugger from the currently attached process, if any.
+ *
+ * @return A Status object indicating the success or failure of the detach operation.
  */
 Status DebuggerCore::detach() {
 	if (attached()) {
@@ -260,7 +258,7 @@ Status DebuggerCore::detach() {
 }
 
 /**
- * @brief DebuggerCore::kill
+ * @brief Kills the currently attached process, if any, and detaches the debugger from it.
  */
 void DebuggerCore::kill() {
 	if (auto p = static_cast<PlatformProcess *>(process_.get())) {
@@ -270,12 +268,13 @@ void DebuggerCore::kill() {
 }
 
 /**
- * @brief DebuggerCore::open
- * @param path
- * @param cwd
- * @param args
- * @param tty
- * @return
+ * @brief Opens a new process for debugging with the specified executable path, working directory, command-line arguments, and input/output settings.
+ *
+ * @param path The path to the executable to debug.
+ * @param cwd The working directory for the new process.
+ * @param args The command-line arguments for the new process.
+ * @param tty The terminal device to use for input/output.
+ * @return A Status object indicating the success or failure of the open operation.
  */
 Status DebuggerCore::open(const QString &path, const QString &cwd, const QList<QByteArray> &args, const QString &input, const QString &output) {
 
@@ -330,7 +329,7 @@ Status DebuggerCore::open(const QString &path, const QString &cwd, const QList<Q
 		CloseHandle(process_info.hThread); // We don't need the thread handle
 		set_debug_privilege(process_info.hProcess, false);
 
-		//process_info.hProcess  has PROCESS_ALL_ACCESS
+		// process_info.hProcess  has PROCESS_ALL_ACCESS
 		process_ = std::make_shared<PlatformProcess>(this, process_info.hProcess);
 
 		ok = true;
@@ -342,20 +341,22 @@ Status DebuggerCore::open(const QString &path, const QString &cwd, const QList<Q
 	if (ok) {
 		return Status::Ok;
 	} else {
-		return Status("Error DebuggerCore::open");
+		return Status(QStringLiteral("Error DebuggerCore::open"));
 	}
 }
 
 /**
- * @brief DebuggerCore::createState
- * @return
+ * @brief Creates a new instance of the PlatformState class, which represents the state of the debugged process.
+ *
+ * @return A unique pointer to the newly created PlatformState instance.
  */
 std::unique_ptr<IState> DebuggerCore::createState() const {
 	return std::make_unique<PlatformState>();
 }
 
 /**
- * @brief DebuggerCore::sys_pointer_size
+ * @brief Gets the size of a pointer on the current architecture.
+ *
  * @return the size of a pointer on this arch
  */
 int DebuggerCore::sys_pointer_size() const {
@@ -363,8 +364,9 @@ int DebuggerCore::sys_pointer_size() const {
 }
 
 /**
- * @brief DebuggerCore::enumerateProcesses
- * @return
+ * @brief Enumerates all processes currently running on the system and returns a map of process IDs to shared pointers of IProcess instances.
+ *
+ * @return A map of process IDs to shared pointers of IProcess instances.
  */
 QMap<edb::pid_t, std::shared_ptr<IProcess>> DebuggerCore::enumerateProcesses() const {
 	QMap<edb::pid_t, std::shared_ptr<IProcess>> ret;
@@ -401,9 +403,10 @@ QMap<edb::pid_t, std::shared_ptr<IProcess>> DebuggerCore::enumerateProcesses() c
 }
 
 /**
- * @brief DebuggerCore::parentPid
- * @param pid
- * @return
+ * @brief Gets the parent process ID of the specified process.
+ *
+ * @param pid The process ID of the target process.
+ * @return The parent process ID of the specified process, or 1 if the parent process could not be determined.
  */
 edb::pid_t DebuggerCore::parentPid(edb::pid_t pid) const {
 	edb::pid_t parent   = 1; // 1??
@@ -426,8 +429,9 @@ edb::pid_t DebuggerCore::parentPid(edb::pid_t pid) const {
 }
 
 /**
- * @brief DebuggerCore::exceptions
- * @return
+ * @brief Gets a map of exception values to their corresponding exception names.
+ *
+ * @return A map of exception values to their corresponding exception names.
  */
 QMap<qlonglong, QString> DebuggerCore::exceptions() const {
 	QMap<qlonglong, QString> exceptions;
@@ -436,8 +440,9 @@ QMap<qlonglong, QString> DebuggerCore::exceptions() const {
 }
 
 /**
- * @brief DebuggerCore::cpuType
- * @return
+ * @brief Gets the CPU type of the debugged process as a string hash.
+ *
+ * @return The CPU type of the debugged process as a string hash.
  */
 uint64_t DebuggerCore::cpuType() const {
 #ifdef EDB_X86
@@ -448,8 +453,9 @@ uint64_t DebuggerCore::cpuType() const {
 }
 
 /**
- * @brief DebuggerCore::stackPointer
- * @return
+ * @brief Gets the stack pointer register name for the current architecture.
+ *
+ * @return The stack pointer register name.
  */
 QString DebuggerCore::stackPointer() const {
 #ifdef EDB_X86
@@ -461,8 +467,9 @@ QString DebuggerCore::stackPointer() const {
 }
 
 /**
- * @brief DebuggerCore::framePointer
- * @return
+ * @brief Gets the frame pointer register name for the current architecture.
+ *
+ * @return The frame pointer register name.
  */
 QString DebuggerCore::framePointer() const {
 #ifdef EDB_X86
@@ -474,8 +481,9 @@ QString DebuggerCore::framePointer() const {
 }
 
 /**
- * @brief DebuggerCore::instructionPointer
- * @return
+ * @brief Gets the instruction pointer register name for the current architecture.
+ *
+ * @return The instruction pointer register name.
  */
 QString DebuggerCore::instructionPointer() const {
 #ifdef EDB_X86
@@ -487,16 +495,18 @@ QString DebuggerCore::instructionPointer() const {
 }
 
 /**
- * @brief DebuggerCore::process
- * @return
+ * @brief Gets the process instance being debugged.
+ *
+ * @return A pointer to the IProcess instance.
  */
 IProcess *DebuggerCore::process() const {
 	return process_.get();
 }
 
 /**
- * @brief DebuggerCore::nopFillByte
- * @return
+ * @brief Gets the byte value used to fill unused space in the debugger.
+ *
+ * @return The byte value used to fill unused space (0x90 for x86/x86-64).
  */
 uint8_t DebuggerCore::nopFillByte() const {
 	return 0x90;

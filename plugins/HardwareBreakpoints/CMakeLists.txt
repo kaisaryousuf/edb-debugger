@@ -1,15 +1,11 @@
-cmake_minimum_required (VERSION 3.1)
-include("GNUInstallDirs")
+cmake_minimum_required (VERSION 3.15)
+include("BuildPlugin")
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
+set(PLUGIN_NAME "HardwareBreakpoints")
 
-set(PluginName "HardwareBreakpoints")
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED Widgets)
 
-find_package(Qt5 5.0.0 REQUIRED Widgets)
-
-add_library(${PluginName} SHARED
+add_library(${PLUGIN_NAME} SHARED
 	DialogHwBreakpoints.cpp
 	DialogHwBreakpoints.h
 	DialogHwBreakpoints.ui
@@ -19,14 +15,6 @@ add_library(${PluginName} SHARED
 	libHardwareBreakpoints.h
 )
 
-target_link_libraries(${PluginName} Qt5::Widgets edb)
+target_link_libraries(${PLUGIN_NAME} Qt::Widgets edb)
 
-install (TARGETS ${PluginName} DESTINATION ${CMAKE_INSTALL_LIBDIR}/edb)
-
-target_add_warnings(${PluginName})
-
-set_property(TARGET ${PluginName} PROPERTY CXX_EXTENSIONS OFF)
-set_property(TARGET ${PluginName} PROPERTY CXX_STANDARD 17)
-set_property(TARGET ${PluginName} PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET ${PluginName} PROPERTY LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
-set_property(TARGET ${PluginName} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+build_plugin(${PLUGIN_NAME})

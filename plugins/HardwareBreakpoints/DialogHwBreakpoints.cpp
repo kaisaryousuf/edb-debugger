@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogHwBreakpoints.h"
 #include "IDebugger.h"
@@ -27,9 +15,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace HardwareBreakpointsPlugin {
 
 /**
- * @brief DialogHwBreakpoints::DialogHwBreakpoints
- * @param parent
- * @param f
+ * @brief Constructs a DialogHwBreakpoints instance with the specified parent and window flags. This dialog allows users to configure hardware breakpoints for debugging.
+ *
+ * @param parent The parent widget.
+ * @param f The window flags.
  */
 DialogHwBreakpoints::DialogHwBreakpoints(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
@@ -43,43 +32,51 @@ DialogHwBreakpoints::DialogHwBreakpoints(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogHwBreakpoints::type1IndexChanged
- * @param index
+ * @brief Handles the type1IndexChanged event for the DialogHwBreakpoints instance.
+ * This function is called when the type1 combo box index changes and updates the size combo box.
+ *
+ * @param index The index of the selected type in the combo box.
  */
 void DialogHwBreakpoints::type1IndexChanged(int index) {
 	ui.cmbSize1->setEnabled(index != 0);
 }
 
 /**
- * @brief DialogHwBreakpoints::type2IndexChanged
- * @param index
+ * @brief Handles the type2IndexChanged event for the DialogHwBreakpoints instance.
+ * This function is called when the type2 combo box index changes and updates the size combo box.
+ *
+ * @param index The index of the selected type in the combo box.
  */
 void DialogHwBreakpoints::type2IndexChanged(int index) {
 	ui.cmbSize2->setEnabled(index != 0);
 }
 
 /**
- * @brief DialogHwBreakpoints::type3IndexChanged
- * @param index
+ * @brief Handles the type3IndexChanged event for the DialogHwBreakpoints instance.
+ * This function is called when the type3 combo box index changes and updates the size combo box.
+ *
+ * @param index The index of the selected type in the combo box.
  */
 void DialogHwBreakpoints::type3IndexChanged(int index) {
 	ui.cmbSize3->setEnabled(index != 0);
 }
 
 /**
- * @brief DialogHwBreakpoints::type4IndexChanged
- * @param index
+ * @brief Handles the type4IndexChanged event for the DialogHwBreakpoints instance.
+ * This function is called when the type4 combo box index changes and updates the size combo box.
+ *
+ * @param index The index of the selected type in the combo box.
  */
 void DialogHwBreakpoints::type4IndexChanged(int index) {
 	ui.cmbSize4->setEnabled(index != 0);
 }
 
 /**
- * @brief DialogHwBreakpoints::showEvent
- * @param event
+ * @brief Handles the show event for the DialogHwBreakpoints instance.
+ *
+ * @param event The show event that triggered this function.
  */
-void DialogHwBreakpoints::showEvent(QShowEvent *event) {
-	Q_UNUSED(event)
+void DialogHwBreakpoints::showEvent(QShowEvent * /*event*/) {
 
 	if (IProcess *process = edb::v1::debugger_core->process()) {
 

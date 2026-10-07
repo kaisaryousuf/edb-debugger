@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "SimdValueManager.h"
 #include "ODbgRV_Util.h"
@@ -117,9 +122,10 @@ void SimdValueManager::setupMenu() {
 }
 
 void SimdValueManager::updateMenu() {
-	if (menuItems_.isEmpty())
+	if (menuItems_.isEmpty()) {
 		return;
-	Q_FOREACH (auto item, menuItems_)
+	}
+	for (auto item : menuItems_)
 		item->setVisible(true);
 
 	using RegisterViewModelBase::Model;
@@ -131,16 +137,18 @@ void SimdValueManager::updateMenu() {
 		menuItems_[VIEW_AS_WORDS]->setVisible(false);
 		break;
 	case Model::ElementSize::DWORD:
-		if (currentFormat() != NumberDisplayMode::Float)
+		if (currentFormat() != NumberDisplayMode::Float) {
 			menuItems_[VIEW_AS_DWORDS]->setVisible(false);
-		else
+		} else {
 			menuItems_[VIEW_AS_FLOAT32]->setVisible(false);
+		}
 		break;
 	case Model::ElementSize::QWORD:
-		if (currentFormat() != NumberDisplayMode::Float)
+		if (currentFormat() != NumberDisplayMode::Float) {
 			menuItems_[VIEW_AS_QWORDS]->setVisible(false);
-		else
+		} else {
 			menuItems_[VIEW_AS_FLOAT64]->setVisible(false);
+		}
 		break;
 	default:
 		EDB_PRINT_AND_DIE("Unexpected current size: ", currentSize());
@@ -174,7 +182,7 @@ void SimdValueManager::displayFormatChanged() {
 		intMode_ = newFormat;
 	}
 
-	Q_FOREACH (const auto elem, elements_) {
+	for (const auto elem : elements_) {
 		elem->deleteLater();
 	}
 

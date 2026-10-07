@@ -1,32 +1,23 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef EDB_H_20061101_
 #define EDB_H_20061101_
 
 #include "API.h"
 #include "IBinary.h"
+#include "Module.h"
 #include "Status.h"
 #include "Types.h"
+
 #include <QMap>
 #include <QPointer>
 #include <QStringList>
 #include <QVector>
+
 #include <memory>
 #include <optional>
 
@@ -65,6 +56,8 @@ namespace v2 {
 EDB_EXPORT std::optional<edb::address_t> get_expression_from_user(const QString &title, const QString &prompt);
 EDB_EXPORT std::optional<edb::address_t> eval_expression(const QString &expression);
 EDB_EXPORT QString format_bytes(const void *buffer, size_t count);
+EDB_EXPORT std::optional<Module> module_for_address(edb::address_t address);
+EDB_EXPORT bool compare_module_names(const QString &name1, const QString &name2);
 
 }
 
@@ -74,7 +67,7 @@ namespace v1 {
 EDB_EXPORT extern IDebugger *debugger_core;
 EDB_EXPORT extern QWidget *debugger_ui;
 
-// the symbol mananger
+// the symbol manager
 EDB_EXPORT ISymbolManager &symbol_manager();
 
 // the memory region manager
@@ -86,7 +79,7 @@ EDB_EXPORT ArchProcessor &arch_processor();
 // widgets
 EDB_EXPORT QAbstractScrollArea *disassembly_widget();
 
-// breakpoint managment
+// breakpoint management
 EDB_EXPORT std::shared_ptr<IBreakpoint> find_breakpoint(address_t address);
 EDB_EXPORT std::shared_ptr<IBreakpoint> find_triggered_breakpoint(address_t address);
 EDB_EXPORT QString get_breakpoint_condition(address_t address);
@@ -98,6 +91,7 @@ EDB_EXPORT void set_breakpoint_condition(address_t address, const QString &condi
 EDB_EXPORT void toggle_breakpoint(address_t address);
 
 EDB_EXPORT address_t current_data_view_address();
+EDB_EXPORT address_t instruction_pointer_address();
 
 // change what the various views show
 EDB_EXPORT bool dump_data_range(address_t address, address_t end_address, bool new_tab);
@@ -186,7 +180,7 @@ EDB_EXPORT void update_ui();
 
 // these are here and not members of state because
 // they may require using the debugger core plugin and
-// we don't want to force a dependancy between the two
+// we don't want to force a dependency between the two
 EDB_EXPORT void pop_value(State *state);
 EDB_EXPORT void push_value(State *state, reg_t value);
 

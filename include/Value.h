@@ -1,14 +1,19 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef VALUE_H_20191119_
 #define VALUE_H_20191119_
 
 #include "API.h"
-#include <array>
 #include <cinttypes>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
+#include <cstdio>
 
 #include <QString>
 #include <QVariant>
@@ -27,13 +32,13 @@ EDB_EXPORT bool debuggeeIs32Bit();
 namespace detail {
 
 template <class Integer>
-using IsInteger = typename std::enable_if<std::is_integral<Integer>::value>::type;
+using IsInteger = std::enable_if_t<std::is_integral_v<Integer>>;
 
 template <class T1, class T2>
-using PromoteType = typename std::conditional<
+using PromoteType = std::conditional_t<
 	sizeof(T1) >= sizeof(T2),
-	typename std::make_unsigned<T1>::type,
-	typename std::make_unsigned<T2>::type>::type;
+	std::make_unsigned_t<T1>,
+	std::make_unsigned_t<T2>>;
 
 template <size_t N>
 class value_type_large {
@@ -42,19 +47,19 @@ public:
 
 public:
 	// all defaulted to help ensure that this is a trivially-copyable type
-	value_type_large()                         = default;
-	value_type_large(const value_type_large &) = default;
+	value_type_large()                                    = default;
+	value_type_large(const value_type_large &)            = default;
 	value_type_large &operator=(const value_type_large &) = default;
 	value_type_large(value_type_large &&)                 = default;
-	value_type_large &operator=(value_type_large &&) = default;
-	~value_type_large()                              = default;
+	value_type_large &operator=(value_type_large &&)      = default;
+	~value_type_large()                                   = default;
 
 public:
-	template <class U, class = typename std::enable_if<!std::is_arithmetic<U>::value>::type>
+	template <class U, class = std::enable_if_t<!std::is_arithmetic_v<U>>>
 	explicit value_type_large(const U &data, size_t offset = 0) {
 
 		static_assert(sizeof(data) >= sizeof(T), "value_type can only be constructed from large enough variable");
-		static_assert(std::is_trivially_copyable<U>::value, "value_type can only be constructed from trivially copiable data");
+		static_assert(std::is_trivially_copyable_v<U>, "value_type can only be constructed from trivially copyable data");
 
 		Q_ASSERT(sizeof(data) - offset >= sizeof(T)); // check bounds, this can't be done at compile time
 
@@ -70,11 +75,11 @@ public:
 	}
 
 public:
-	bool operator==(const value_type_large &rhs) const { return std::memcmp(value_, rhs.value_, sizeof(T)) == 0; }
-	bool operator!=(const value_type_large &rhs) const { return std::memcmp(value_, rhs.value_, sizeof(T)) != 0; }
+	[[nodiscard]] bool operator==(const value_type_large &rhs) const { return std::memcmp(value_, rhs.value_, sizeof(T)) == 0; }
+	[[nodiscard]] bool operator!=(const value_type_large &rhs) const { return std::memcmp(value_, rhs.value_, sizeof(T)) != 0; }
 
 public:
-	QString toHexString() const {
+	[[nodiscard]] QString toHexString() const {
 		char buf[sizeof(T) * 2 + 1];
 		char *p = buf;
 
@@ -87,7 +92,7 @@ public:
 
 public:
 	template <class U>
-	static value_type_large fromZeroExtended(const U &data) {
+	[[nodiscard]] static value_type_large fromZeroExtended(const U &data) {
 
 		static_assert(sizeof(data) <= sizeof(T), "It doesn't make sense to expand a larger type into a smaller type");
 
@@ -116,23 +121,23 @@ public:
 
 public:
 	// all defaulted to help ensure that this is a trivially-copyable type
-	value_type()                   = default;
-	value_type(const value_type &) = default;
+	value_type()                              = default;
+	value_type(const value_type &)            = default;
 	value_type &operator=(const value_type &) = default;
 	value_type(value_type &&)                 = default;
-	value_type &operator=(value_type &&) = default;
-	~value_type()                        = default;
+	value_type &operator=(value_type &&)      = default;
+	~value_type()                             = default;
 
 public:
 	template <class Integer, class = IsInteger<Integer>>
 	value_type(Integer n)
-		: value_(n) {
+		: value_(static_cast<T>(n)) {
 		// NOTE(eteran): this is allowed to truncate like assigning a uint64_t to a uint32_t
 	}
 
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator=(const Integer &rhs) {
-		value_ = rhs;
+		value_ = static_cast<T>(rhs);
 		// NOTE(eteran): this is allowed to truncate like assigning a uint64_t to a uint32_t
 		return *this;
 	}
@@ -140,7 +145,7 @@ public:
 public:
 	template <class U>
 	explicit value_type(const value_type<U> &other)
-		: value_(other.value_) {
+		: value_(static_cast<T>(other.value_)) {
 		// NOTE(eteran): this is allowed to truncate like assigning a uint64_t to a uint32_t
 	}
 
@@ -152,11 +157,11 @@ public:
 	}
 
 public:
-	template <class U, class = typename std::enable_if<!std::is_arithmetic<U>::value>::type>
+	template <class U, class = std::enable_if_t<!std::is_arithmetic_v<U>>>
 	explicit value_type(const U &data, size_t offset = 0) {
 
 		static_assert(sizeof(data) >= sizeof(T), "value_type can only be constructed from large enough variable");
-		static_assert(std::is_trivially_copyable<U>::value, "value_type can only be constructed from trivially copiable data");
+		static_assert(std::is_trivially_copyable_v<U>, "value_type can only be constructed from trivially copyable data");
 
 		Q_ASSERT(sizeof(data) - offset >= sizeof(T)); // check bounds, this can't be done at compile time
 
@@ -172,7 +177,7 @@ public:
 	}
 
 public:
-	static value_type fromString(const QString &str, bool *ok = nullptr, int base = 10, bool isSigned = false) {
+	[[nodiscard]] static value_type fromString(const QString &str, bool *ok = nullptr, int base = 10, bool isSigned = false) {
 
 		const qulonglong v = isSigned ? static_cast<qulonglong>(str.toLongLong(ok, base)) : str.toULongLong(ok, base);
 
@@ -193,20 +198,20 @@ public:
 		return 0;
 	}
 
-	static value_type fromHexString(const QString &str, bool *ok = nullptr) {
+	[[nodiscard]] static value_type fromHexString(const QString &str, bool *ok = nullptr) {
 		return fromString(str, ok, 16);
 	}
 
-	static value_type fromSignedString(const QString &str, bool *ok = nullptr) {
+	[[nodiscard]] static value_type fromSignedString(const QString &str, bool *ok = nullptr) {
 		return fromString(str, ok, 10, true);
 	}
 
-	static value_type fromCString(const QString &str, bool *ok = nullptr) {
+	[[nodiscard]] static value_type fromCString(const QString &str, bool *ok = nullptr) {
 		return fromString(str, ok, 0);
 	}
 
 	template <class U>
-	static value_type fromZeroExtended(const U &data) {
+	[[nodiscard]] static value_type fromZeroExtended(const U &data) {
 		value_type created;
 
 		static_assert(sizeof(data) <= sizeof(T), "It doesn't make sense to expand a larger type into a smaller type");
@@ -221,22 +226,22 @@ public:
 	}
 
 public:
-	void swap(value_type &other) {
+	void swap(value_type &other) noexcept {
 		using std::swap;
 		swap(value_, other.value_);
 	}
 
 public:
-	bool negative() const {
-		return typename std::make_signed<T>::type(value_) < 0;
+	[[nodiscard]] bool negative() const {
+		return std::make_signed_t<T>(value_) < 0;
 	}
 
 public:
-	explicit operator bool() const { return value_ != 0; }
+	[[nodiscard]] explicit operator bool() const { return value_ != 0; }
 	bool operator!() const { return !value_; }
 	operator T() const { return value_; }
-	T toUint() const { return value_; }
-	T &asUint() { return value_; }
+	[[nodiscard]] T toUint() const { return value_; }
+	[[nodiscard]] T &asUint() { return value_; }
 
 public:
 	value_type operator++(int) {
@@ -326,50 +331,99 @@ public:
 public:
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator+=(Integer n) {
-		value_ += n;
+		using Signed   = std::make_signed_t<InnerValueType>;
+		using Unsigned = InnerValueType;
+		if constexpr (std::is_signed_v<Integer>) {
+			value_ += static_cast<Unsigned>(static_cast<Signed>(n));
+		} else {
+			value_ += static_cast<Unsigned>(n);
+		}
 		return *this;
 	}
 
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator-=(Integer n) {
-		value_ -= n;
+		using Signed   = std::make_signed_t<InnerValueType>;
+		using Unsigned = InnerValueType;
+		if constexpr (std::is_signed_v<Integer>) {
+			value_ -= static_cast<Unsigned>(static_cast<Signed>(n));
+		} else {
+			value_ -= static_cast<Unsigned>(n);
+		}
 		return *this;
 	}
 
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator*=(Integer n) {
-		value_ *= n;
+		using Signed   = std::make_signed_t<InnerValueType>;
+		using Unsigned = InnerValueType;
+		if constexpr (std::is_signed_v<Integer>) {
+			value_ *= static_cast<Unsigned>(static_cast<Signed>(n));
+		} else {
+			value_ *= static_cast<Unsigned>(n);
+		}
 		return *this;
 	}
 
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator/=(Integer n) {
-		value_ /= n;
+		using Signed   = std::make_signed_t<InnerValueType>;
+		using Unsigned = InnerValueType;
+		if constexpr (std::is_signed_v<Integer>) {
+			value_ /= static_cast<Unsigned>(static_cast<Signed>(n));
+		} else {
+			value_ /= static_cast<Unsigned>(n);
+		}
 		return *this;
 	}
 
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator%=(Integer n) {
-		value_ %= n;
+		using Signed   = std::make_signed_t<InnerValueType>;
+		using Unsigned = InnerValueType;
+		if constexpr (std::is_signed_v<Integer>) {
+			value_ %= static_cast<Unsigned>(static_cast<Signed>(n));
+		} else {
+			value_ %= static_cast<Unsigned>(n);
+		}
 		return *this;
 	}
 
 public:
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator&=(Integer n) {
-		value_ &= n;
+		using Signed   = std::make_signed_t<InnerValueType>;
+		using Unsigned = InnerValueType;
+
+		if constexpr (std::is_signed_v<Integer>) {
+			value_ &= static_cast<Unsigned>(static_cast<Signed>(n));
+		} else {
+			value_ &= static_cast<Unsigned>(n);
+		}
 		return *this;
 	}
 
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator|=(Integer n) {
-		value_ |= n;
+		using Signed   = std::make_signed_t<InnerValueType>;
+		using Unsigned = InnerValueType;
+		if constexpr (std::is_signed_v<Integer>) {
+			value_ |= static_cast<Unsigned>(static_cast<Signed>(n));
+		} else {
+			value_ |= static_cast<Unsigned>(n);
+		}
 		return *this;
 	}
 
 	template <class Integer, class = IsInteger<Integer>>
 	value_type &operator^=(Integer n) {
-		value_ ^= n;
+		using Signed   = std::make_signed_t<InnerValueType>;
+		using Unsigned = InnerValueType;
+		if constexpr (std::is_signed_v<Integer>) {
+			value_ ^= static_cast<Unsigned>(static_cast<Signed>(n));
+		} else {
+			value_ ^= static_cast<Unsigned>(n);
+		}
 		return *this;
 	}
 
@@ -386,42 +440,42 @@ public:
 	}
 
 public:
-	QString toPointerString(bool createdFromNativePointer = true) const {
+	[[nodiscard]] QString toPointerString(bool createdFromNativePointer = true) const {
 		if (edb::v1::debuggeeIs32Bit()) {
-			return "0x" + value_type<uint32_t>(value_).toHexString();
-		} else {
-			if (!createdFromNativePointer) { // then we don't know value of upper dword
-				return "0x????????" + value_type<uint32_t>(value_).toHexString();
-			} else {
-				return "0x" + toHexString();
-			}
+			return QStringLiteral("0x") + value_type<uint32_t>(value_).toHexString();
 		}
+
+		if (!createdFromNativePointer) { // then we don't know value of upper dword
+			return QStringLiteral("0x????????") + value_type<uint32_t>(value_).toHexString();
+		}
+
+		return QStringLiteral("0x") + toHexString();
 	}
 
-	QString toHexString() const {
+	[[nodiscard]] QString toHexString() const {
 		std::ostringstream ss;
 		ss << std::setw(sizeof(value_) * 2) << std::setfill('0') << std::hex << +value_; // + to prevent printing uint8_t as a character
 		return QString::fromStdString(ss.str());
 	}
 
-	QString unsignedToString() const {
+	[[nodiscard]] QString unsignedToString() const {
 		return toString();
 	}
 
-	QString signedToString() const {
-		return QString("%1").arg(typename std::make_signed<T>::type(value_));
+	[[nodiscard]] QString signedToString() const {
+		return QString::number(std::make_signed_t<T>(value_));
 	}
 
-	QString toString() const {
-		return QString("%1").arg(value_);
+	[[nodiscard]] QString toString() const {
+		return QString::number(value_);
 	}
 
-	QVariant toQVariant() const {
+	[[nodiscard]] QVariant toQVariant() const {
 		return QVariant::fromValue(value_);
 	}
 
 public:
-	value_type signExtended(size_t valueLength) const {
+	[[nodiscard]] value_type signExtended(size_t valueLength) const {
 		value_type result(value_);
 
 		if (valueLength == sizeof(value_)) {
@@ -466,82 +520,99 @@ std::ostream &operator<<(std::ostream &os, value_type<T> &val) {
 
 // operators for value_type, Integer
 template <class T, class Integer, class = IsInteger<Integer>>
-bool operator==(const value_type<T> &lhs, Integer rhs) {
-	using U = typename std::make_unsigned<Integer>::type;
-	return lhs.value_ == static_cast<U>(rhs);
+[[nodiscard]] bool operator==(const value_type<T> &lhs, Integer rhs) {
+
+	using Signed   = std::make_signed_t<typename value_type<T>::InnerValueType>;
+	using Unsigned = std::make_unsigned_t<typename value_type<T>::InnerValueType>;
+
+	// Our value_type is unsigned, so if the rhs is signed and negative, then we need to make sure
+	// that we sign extend the rhs to compare it properly. Otherwise, we can just compare the unsigned values.
+	if constexpr (std::is_signed_v<Integer>) {
+		return lhs.value_ == static_cast<Unsigned>(static_cast<Signed>(rhs));
+	} else {
+		return lhs.value_ == rhs;
+	}
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-bool operator!=(const value_type<T> &lhs, Integer rhs) {
-	using U = typename std::make_unsigned<Integer>::type;
-	return lhs.value_ != static_cast<U>(rhs);
+[[nodiscard]] bool operator!=(const value_type<T> &lhs, Integer rhs) {
+	using Signed   = std::make_signed_t<typename value_type<T>::InnerValueType>;
+	using Unsigned = std::make_unsigned_t<typename value_type<T>::InnerValueType>;
+
+	// Our value_type is unsigned, so if the rhs is signed and negative, then we need to make sure
+	// that we sign extend the rhs to compare it properly. Otherwise, we can just compare the unsigned values.
+	if constexpr (std::is_signed_v<Integer>) {
+		return lhs.value_ != static_cast<Unsigned>(static_cast<Signed>(rhs));
+	} else {
+		return lhs.value_ != rhs;
+	}
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator+(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator+(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r += rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator-(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator-(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r -= rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator*(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator*(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r *= rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator/(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator/(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r /= rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator%(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator%(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r %= rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator&(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator&(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r &= rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator|(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator|(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r |= rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator^(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator^(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r ^= rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator>>(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator>>(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r >>= rhs;
 	return r;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator<<(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
+[[nodiscard]] auto operator<<(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 	value_type<T> r(lhs);
 	r <<= rhs;
 	return r;
@@ -549,17 +620,20 @@ auto operator<<(const value_type<T> &lhs, Integer rhs) -> value_type<T> {
 
 // operators for Integer, value_type
 template <class T, class Integer, class = IsInteger<Integer>>
-bool operator==(Integer lhs, const value_type<T> &rhs) {
+[[nodiscard]] bool operator==(Integer lhs, const value_type<T> &rhs) {
 	return rhs == lhs;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-bool operator!=(Integer lhs, const value_type<T> &rhs) {
+[[nodiscard]] bool operator!=(Integer lhs, const value_type<T> &rhs) {
 	return rhs != lhs;
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator+(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator+(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+
+	// TODO(eteran): Should we sign-extend the lhs if it's signed and negative?
+	// Or should we just treat it as an unsigned value? For now, just treat it as an unsigned value.
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -569,7 +643,7 @@ auto operator+(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator-(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator-(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -579,7 +653,7 @@ auto operator-(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator*(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator*(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -589,7 +663,7 @@ auto operator*(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator/(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator/(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -599,7 +673,7 @@ auto operator/(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator%(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator%(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -609,7 +683,7 @@ auto operator%(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator&(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator&(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -619,7 +693,7 @@ auto operator&(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator|(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator|(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -629,7 +703,7 @@ auto operator|(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator^(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator^(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -639,7 +713,7 @@ auto operator^(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator>>(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator>>(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -649,7 +723,7 @@ auto operator>>(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType
 }
 
 template <class T, class Integer, class = IsInteger<Integer>>
-auto operator<<(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
+[[nodiscard]] auto operator<<(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType<T, Integer>> {
 
 	using U = value_type<PromoteType<T, Integer>>;
 
@@ -660,17 +734,17 @@ auto operator<<(Integer lhs, const value_type<T> &rhs) -> value_type<PromoteType
 
 // operators for value_type, value_type
 template <class T1, class T2>
-bool operator==(const value_type<T1> &lhs, const value_type<T2> &rhs) {
+[[nodiscard]] bool operator==(const value_type<T1> &lhs, const value_type<T2> &rhs) {
 	return lhs.value_ == rhs.value_;
 }
 
 template <class T1, class T2>
-bool operator!=(const value_type<T1> &lhs, const value_type<T2> &rhs) {
+[[nodiscard]] bool operator!=(const value_type<T1> &lhs, const value_type<T2> &rhs) {
 	return lhs.value_ != rhs.value_;
 }
 
 template <class T1, class T2>
-auto operator+(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
+[[nodiscard]] auto operator+(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
 
 	using U = value_type<PromoteType<T1, T2>>;
 
@@ -680,7 +754,7 @@ auto operator+(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_ty
 }
 
 template <class T1, class T2>
-auto operator-(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
+[[nodiscard]] auto operator-(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
 
 	using U = value_type<PromoteType<T1, T2>>;
 
@@ -690,7 +764,7 @@ auto operator-(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_ty
 }
 
 template <class T1, class T2>
-auto operator*(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
+[[nodiscard]] auto operator*(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
 
 	using U = value_type<PromoteType<T1, T2>>;
 
@@ -700,7 +774,7 @@ auto operator*(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_ty
 }
 
 template <class T1, class T2>
-auto operator/(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
+[[nodiscard]] auto operator/(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
 
 	using U = value_type<PromoteType<T1, T2>>;
 
@@ -710,7 +784,7 @@ auto operator/(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_ty
 }
 
 template <class T1, class T2>
-auto operator%(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
+[[nodiscard]] auto operator%(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
 
 	using U = value_type<PromoteType<T1, T2>>;
 
@@ -720,7 +794,7 @@ auto operator%(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_ty
 }
 
 template <class T1, class T2>
-auto operator&(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
+[[nodiscard]] auto operator&(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
 
 	using U = value_type<PromoteType<T1, T2>>;
 
@@ -730,7 +804,7 @@ auto operator&(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_ty
 }
 
 template <class T1, class T2>
-auto operator|(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
+[[nodiscard]] auto operator|(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
 
 	using U = value_type<PromoteType<T1, T2>>;
 
@@ -740,7 +814,7 @@ auto operator|(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_ty
 }
 
 template <class T1, class T2>
-auto operator^(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
+[[nodiscard]] auto operator^(const value_type<T1> &lhs, const value_type<T2> &rhs) -> value_type<PromoteType<T1, T2>> {
 
 	using U = value_type<PromoteType<T1, T2>>;
 
@@ -755,18 +829,18 @@ public:
 
 public:
 	// all defaulted to help ensure that this is a trivially-copyable type
-	value_type80()                     = default;
-	value_type80(const value_type80 &) = default;
+	value_type80()                                = default;
+	value_type80(const value_type80 &)            = default;
 	value_type80 &operator=(const value_type80 &) = default;
 	value_type80(value_type80 &&)                 = default;
-	value_type80 &operator=(value_type80 &&) = default;
-	~value_type80()                          = default;
+	value_type80 &operator=(value_type80 &&)      = default;
+	~value_type80()                               = default;
 
 public:
 	template <class U>
 	explicit value_type80(const U &data, size_t offset = 0) {
 #ifdef _MSC_VER
-		if constexpr (std::is_same<U, long double>::value && sizeof(U) < sizeof(T)) {
+		if constexpr (std::is_same_v<U, long double> && sizeof(U) < sizeof(T)) {
 			T temp;
 			convert_real64_to_real80(&data, &temp);
 
@@ -779,7 +853,7 @@ public:
 #else
 		static_assert(sizeof(data) >= sizeof(T), "ValueBase can only be constructed from large enough variable");
 #endif
-		static_assert(std::is_trivially_copyable<U>::value, "ValueBase can only be constructed from trivially copiable data");
+		static_assert(std::is_trivially_copyable_v<U>, "ValueBase can only be constructed from trivially copyable data");
 
 		Q_ASSERT(sizeof(data) - offset >= sizeof(T)); // check bounds, this can't be done at compile time
 
@@ -788,27 +862,27 @@ public:
 	}
 
 public:
-	bool negative() const {
+	[[nodiscard]] bool negative() const {
 		return value_[9] & 0x80;
 	}
 
-	value_type<uint16_t> exponent() const {
+	[[nodiscard]] value_type<uint16_t> exponent() const {
 		value_type<uint16_t> e(value_, 8);
 		e &= 0x7fff;
 		return e;
 	}
 
-	value_type<uint64_t> mantissa() const {
+	[[nodiscard]] value_type<uint64_t> mantissa() const {
 		value_type<uint64_t> m(value_, 0);
 		return m;
 	}
 
-	bool normalized() const {
+	[[nodiscard]] bool normalized() const {
 		return value_[7] & 0x80;
 	}
 
 public:
-	long double toFloatValue() const {
+	[[nodiscard]] long double toFloatValue() const {
 #ifdef _MSC_VER
 		double d;
 		long_double_to_double(&value_, &d);
@@ -821,7 +895,7 @@ public:
 	}
 
 public:
-	QString toHexString() const {
+	[[nodiscard]] QString toHexString() const {
 		char buf[32];
 		snprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
 				 value_[9],
@@ -839,8 +913,8 @@ public:
 	}
 
 public:
-	bool operator==(const value_type80 &rhs) const { return std::memcmp(value_, rhs.value_, 10) == 0; }
-	bool operator!=(const value_type80 &rhs) const { return std::memcmp(value_, rhs.value_, 10) != 0; }
+	[[nodiscard]] bool operator==(const value_type80 &rhs) const { return std::memcmp(value_, rhs.value_, 10) == 0; }
+	[[nodiscard]] bool operator!=(const value_type80 &rhs) const { return std::memcmp(value_, rhs.value_, 10) != 0; }
 
 private:
 	T value_ = {};
@@ -874,24 +948,24 @@ using value256 = detail::value_type_large<256>;
 // AVX512
 using value512 = detail::value_type_large<512>;
 
-static_assert(std::is_standard_layout<value8>::value &&
-				  std::is_standard_layout<value16>::value &&
-				  std::is_standard_layout<value32>::value &&
-				  std::is_standard_layout<value64>::value &&
-				  std::is_standard_layout<value80>::value &&
-				  std::is_standard_layout<value128>::value &&
-				  std::is_standard_layout<value256>::value &&
-				  std::is_standard_layout<value512>::value,
+static_assert(std::is_standard_layout_v<value8> &&
+				  std::is_standard_layout_v<value16> &&
+				  std::is_standard_layout_v<value32> &&
+				  std::is_standard_layout_v<value64> &&
+				  std::is_standard_layout_v<value80> &&
+				  std::is_standard_layout_v<value128> &&
+				  std::is_standard_layout_v<value256> &&
+				  std::is_standard_layout_v<value512>,
 			  "Fixed-sized values are intended to have standard layout");
 
-static_assert(std::is_trivially_copyable<value8>::value &&
-				  std::is_trivially_copyable<value16>::value &&
-				  std::is_trivially_copyable<value32>::value &&
-				  std::is_trivially_copyable<value64>::value &&
-				  std::is_trivially_copyable<value80>::value &&
-				  std::is_trivially_copyable<value128>::value &&
-				  std::is_trivially_copyable<value256>::value &&
-				  std::is_trivially_copyable<value512>::value,
+static_assert(std::is_trivially_copyable_v<value8> &&
+				  std::is_trivially_copyable_v<value16> &&
+				  std::is_trivially_copyable_v<value32> &&
+				  std::is_trivially_copyable_v<value64> &&
+				  std::is_trivially_copyable_v<value80> &&
+				  std::is_trivially_copyable_v<value128> &&
+				  std::is_trivially_copyable_v<value256> &&
+				  std::is_trivially_copyable_v<value512>,
 			  "Fixed-sized values are intended to be trivially copyable");
 
 }

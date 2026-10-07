@@ -1,25 +1,15 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PlatformState.h"
 #include "edb.h"
 #include "string_hash.h"
+
 #include <cmath>
+#include <cstdio>
 #include <limits>
 
 namespace DebuggerCorePlugin {
@@ -27,14 +17,15 @@ namespace DebuggerCorePlugin {
 namespace {
 
 /**
- * @brief read_float80
- * @param buffer
- * @return
+ * @brief Reads an 80-bit floating-point value from the provided buffer and returns it as a double.
+ *
+ * @param buffer A pointer to a buffer containing the 80-bit floating-point value in little-endian format.
+ * @return The double representation of the 80-bit floating-point value.
  */
 double read_float80(const uint8_t buffer[10]) {
 	// little-endian!
-	//80 bit floating point value according to IEEE-754:
-	//1 bit sign, 15 bit exponent, 64 bit mantissa
+	// 80 bit floating point value according to IEEE-754:
+	// 1 bit sign, 15 bit exponent, 64 bit mantissa
 
 	constexpr uint16_t SIGNBIT    = (1 << 15);
 	constexpr uint16_t EXP_BIAS   = (1 << 14) - 1; // 2^(n-1) - 1 = 16383
@@ -73,14 +64,15 @@ double read_float80(const uint8_t buffer[10]) {
 		}
 	}
 
-	//value = (-1)^s * (m / 2^63) * 2^(e - 16383)
+	// value = (-1)^s * (m / 2^63) * 2^(e - 16383)
 	double significand = (static_cast<double>(mantissa) / (1ull << 63));
 	return sign * ldexp(significand, exponent - EXP_BIAS);
 }
 }
 
 /**
- * @brief PlatformState::clone
+ * @brief Creates a new instance of PlatformState with the specified architecture.
+ *
  * @return a copy of the state object
  */
 std::unique_ptr<IState> PlatformState::clone() const {
@@ -88,13 +80,14 @@ std::unique_ptr<IState> PlatformState::clone() const {
 }
 
 /**
- * @brief PlatformState::flagsToString
- * @param flags
+ * @brief Formats the provided flags value into a string representation appropriate for this platform.
+ *
+ * @param flags The flags value to be formatted.
  * @return the flags in a string form appropriate for this platform
  */
 QString PlatformState::flagsToString(edb::reg_t flags) const {
 	char buf[14];
-	qsnprintf(
+	snprintf(
 		buf,
 		sizeof(buf),
 		"%c %c %c %c %c %c %c",
@@ -110,7 +103,8 @@ QString PlatformState::flagsToString(edb::reg_t flags) const {
 }
 
 /**
- * @brief PlatformState::flagsToString
+ * @brief Formats the flags of the current state into a string representation appropriate for this platform.
+ *
  * @return the flags in a string form appropriate for this platform
  */
 QString PlatformState::flagsToString() const {
@@ -118,9 +112,10 @@ QString PlatformState::flagsToString() const {
 }
 
 /**
- * @brief PlatformState::value
- * @param reg
- * @return a Register object which represents the register with the name supplied
+ * @brief Gets the value of the specified register.
+ *
+ * @param reg The name of the register to retrieve.
+ * @return A Register object which represents the register with the name supplied.
  */
 Register PlatformState::value(const QString &reg) const {
 	const QString lreg = reg.toLower();
@@ -428,8 +423,9 @@ Register PlatformState::value(const QString &reg) const {
 }
 
 /**
- * @brief PlatformState::framePointer
- * @return what is conceptually the frame pointer for this platform
+ * @brief Gets the value of the frame pointer for this platform.
+ *
+ * @return What is conceptually the frame pointer for this platform
  */
 edb::address_t PlatformState::framePointer() const {
 #if defined(EDB_X86)
@@ -440,8 +436,9 @@ edb::address_t PlatformState::framePointer() const {
 }
 
 /**
- * @brief PlatformState::instructionPointer
- * @return the instruction pointer for this platform
+ * @brief Gets the instruction pointer for this platform.
+ *
+ * @return The instruction pointer for this platform
  */
 edb::address_t PlatformState::instructionPointer() const {
 #if defined(EDB_X86)
@@ -452,8 +449,9 @@ edb::address_t PlatformState::instructionPointer() const {
 }
 
 /**
- * @brief PlatformState::stackPointer
- * @return the stack pointer for this platform
+ * @brief Gets the stack pointer for this platform.
+ *
+ * @return The stack pointer for this platform
  */
 edb::address_t PlatformState::stackPointer() const {
 #if defined(EDB_X86)
@@ -464,9 +462,10 @@ edb::address_t PlatformState::stackPointer() const {
 }
 
 /**
- * @brief PlatformState::debugRegister
- * @param n
- * @return
+ * @brief Gets the value of the specified debug register.
+ *
+ * @param n The index of the debug register to retrieve.
+ * @return The value of the specified debug register.
  */
 edb::reg_t PlatformState::debugRegister(size_t n) const {
 #if defined(EDB_X86)
@@ -521,8 +520,9 @@ edb::reg_t PlatformState::debugRegister(size_t n) const {
 }
 
 /**
- * @brief PlatformState::flags
- * @return
+ * @brief Gets the flags of the current state.
+ *
+ * @return The flags of the current state.
  */
 edb::reg_t PlatformState::flags() const {
 #if defined(EDB_X86)
@@ -533,9 +533,10 @@ edb::reg_t PlatformState::flags() const {
 }
 
 /**
- * @brief PlatformState::fpu_register
- * @param n
- * @return
+ * @brief Gets the value of the specified FPU register.
+ *
+ * @param n The index of the FPU register to retrieve.
+ * @return The value of the specified FPU register as a long double.
  */
 long double PlatformState::fpu_register(int n) const {
 	double ret = 0.0;
@@ -570,9 +571,10 @@ long double PlatformState::fpu_register(int n) const {
 }
 
 /**
- * @brief PlatformState::mmx_register
- * @param n
- * @return
+ * @brief Gets the value of the specified MMX register.
+ *
+ * @param n The index of the MMX register to retrieve.
+ * @return The value of the specified MMX register.
  */
 quint64 PlatformState::mmx_register(int n) const {
 	quint64 ret = 0;
@@ -596,9 +598,10 @@ quint64 PlatformState::mmx_register(int n) const {
 }
 
 /**
- * @brief PlatformState::xmm_register
- * @param n
- * @return
+ * @brief Gets the value of the specified XMM register.
+ *
+ * @param n The index of the XMM register to retrieve.
+ * @return The value of the specified XMM register.
  */
 QByteArray PlatformState::xmm_register(int n) const {
 	QByteArray ret(16, 0);
@@ -607,14 +610,14 @@ QByteArray PlatformState::xmm_register(int n) const {
 	if (n >= 0 && n <= 7) {
 		auto p = reinterpret_cast<const char *>(&context32_.ExtendedRegisters[(10 + n) * 16]);
 		ret    = QByteArray(p, 16);
-		std::reverse(ret.begin(), ret.end()); //little endian!
+		std::reverse(ret.begin(), ret.end()); // little endian!
 	}
 #elif defined(EDB_X86_64)
 	if (n >= 0 && n <= 15) {
 		if (isWow64_) {
 			auto p = reinterpret_cast<const char *>(&context32_.ExtendedRegisters[(10 + n) * 16]);
 			ret    = QByteArray(p, 16);
-			std::reverse(ret.begin(), ret.end()); //little endian!
+			std::reverse(ret.begin(), ret.end()); // little endian!
 		} else {
 			auto p = reinterpret_cast<const char *>(&context64_.FltSave.XmmRegisters[n]);
 			ret    = QByteArray(p, sizeof(M128A));
@@ -627,8 +630,9 @@ QByteArray PlatformState::xmm_register(int n) const {
 }
 
 /**
- * @brief PlatformState::adjustStack
- * @param bytes
+ * @brief Adjusts the stack pointer by the specified number of bytes.
+ *
+ * @param bytes The number of bytes to adjust the stack pointer by.
  */
 void PlatformState::adjustStack(int bytes) {
 #if defined(EDB_X86)
@@ -643,7 +647,7 @@ void PlatformState::adjustStack(int bytes) {
 }
 
 /**
- * @brief PlatformState::clear
+ * @brief Clears the platform state.
  */
 void PlatformState::clear() {
 	context32_ = {};
@@ -655,9 +659,10 @@ void PlatformState::clear() {
 }
 
 /**
- * @brief PlatformState::setDebugRegister
- * @param n
- * @param value
+ * @brief Sets the value of the specified debug register.
+ *
+ * @param n The index of the debug register to set.
+ * @param value The value to set the debug register to.
  */
 void PlatformState::setDebugRegister(size_t n, edb::reg_t value) {
 #if defined(EDB_X86)
@@ -735,8 +740,9 @@ void PlatformState::setDebugRegister(size_t n, edb::reg_t value) {
 }
 
 /**
- * @brief PlatformState::setFlags
- * @param flags
+ * @brief Sets the flags of the current state.
+ *
+ * @param flags The flags to set.
  */
 void PlatformState::setFlags(edb::reg_t flags) {
 #if defined(EDB_X86)
@@ -751,8 +757,9 @@ void PlatformState::setFlags(edb::reg_t flags) {
 }
 
 /**
- * @brief PlatformState::setInstructionPointer
- * @param value
+ * @brief Sets the instruction pointer for this platform.
+ *
+ * @param value The value to set the instruction pointer to.
  */
 void PlatformState::setInstructionPointer(edb::address_t value) {
 #if defined(EDB_X86)
@@ -767,9 +774,10 @@ void PlatformState::setInstructionPointer(edb::address_t value) {
 }
 
 /**
- * @brief PlatformState::setRegister
- * @param name
- * @param value
+ * @brief Sets the value of the specified register.
+ *
+ * @param name The name of the register to set.
+ * @param value The value to set the register to.
  */
 void PlatformState::setRegister(const QString &name, edb::reg_t value) {
 
@@ -898,8 +906,9 @@ void PlatformState::setRegister(const QString &name, edb::reg_t value) {
 }
 
 /**
- * @brief PlatformState::instructionPointerRegister
- * @return
+ * @brief Gets the instruction pointer register for this platform.
+ *
+ * @return The instruction pointer register for this platform
  */
 Register PlatformState::instructionPointerRegister() const {
 #if defined(EDB_X86_64)
@@ -914,8 +923,9 @@ Register PlatformState::instructionPointerRegister() const {
 }
 
 /**
- * @brief PlatformState::flagsRegister
- * @return
+ * @brief Gets the flags register for this platform.
+ *
+ * @return The flags register for this platform
  */
 Register PlatformState::flagsRegister() const {
 #if defined(EDB_X86_64)
@@ -931,13 +941,14 @@ Register PlatformState::flagsRegister() const {
 }
 
 /**
- * @brief PlatformState::getThreadState
- * @param hThread
- * @param isWow64
+ * @brief Gets the state of the specified thread and stores it in the PlatformState object.
+ *
+ * @param hThread The handle to the thread whose state to get.
+ * @param isWow64 Whether the thread is a Wow64 thread.
  */
 void PlatformState::getThreadState(HANDLE hThread, bool isWow64) {
 #if defined(EDB_X86)
-	context32_.ContextFlags = CONTEXT_ALL; //CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS | CONTEXT_FLOATING_POINT;
+	context32_.ContextFlags = CONTEXT_ALL; // CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS | CONTEXT_FLOATING_POINT;
 	GetThreadContext(hThread, &context32_);
 
 	gs_base_ = 0;
@@ -957,7 +968,7 @@ void PlatformState::getThreadState(HANDLE hThread, bool isWow64) {
 	fs_base_ = 0;
 
 	if (isWow64) {
-		context32_.ContextFlags = CONTEXT_ALL; //CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS | CONTEXT_FLOATING_POINT;
+		context32_.ContextFlags = CONTEXT_ALL; // CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS | CONTEXT_FLOATING_POINT;
 		Wow64GetThreadContext(hThread, &context32_);
 
 		WOW64_LDT_ENTRY ldt_entry;
@@ -969,7 +980,7 @@ void PlatformState::getThreadState(HANDLE hThread, bool isWow64) {
 			fs_base_ = ldt_entry.BaseLow | (ldt_entry.HighWord.Bits.BaseMid << 16) | (ldt_entry.HighWord.Bits.BaseHi << 24);
 		}
 	} else {
-		context64_.ContextFlags = CONTEXT_ALL; //CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS | CONTEXT_FLOATING_POINT;
+		context64_.ContextFlags = CONTEXT_ALL; // CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS | CONTEXT_FLOATING_POINT;
 		GetThreadContext(hThread, &context64_);
 
 		// GetThreadSelectorEntry always returns false on x64
@@ -981,8 +992,9 @@ void PlatformState::getThreadState(HANDLE hThread, bool isWow64) {
 }
 
 /**
- * @brief PlatformState::setThreadState
- * @param hThread
+ * @brief Sets the state of the specified thread to the current PlatformState.
+ *
+ * @param hThread The handle to the thread whose state to set.
  */
 void PlatformState::setThreadState(HANDLE hThread) const {
 #if defined(EDB_X86)
@@ -997,10 +1009,11 @@ void PlatformState::setThreadState(HANDLE hThread) const {
 }
 
 /**
- * @brief PlatformState::archRegister
- * @param type
- * @param n
- * @return
+ * @brief Gets the register of the specified type and index.
+ *
+ * @param type The type of the register (e.g., "mmx", "xmm", "ymm").
+ * @param n The index of the register to retrieve.
+ * @return The register of the specified type and index.
  */
 Register PlatformState::archRegister(uint64_t type, size_t n) const {
 	switch (type) {

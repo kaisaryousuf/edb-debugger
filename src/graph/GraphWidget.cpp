@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "GraphWidget.h"
 #include "GraphEdge.h"
@@ -62,10 +50,11 @@ QPointF center_to_origin(const QPointF &p, qreal width, qreal height) {
 
 }
 
-//------------------------------------------------------------------------------
-// Name: GraphWidget
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Constructs a GraphWidget with the specified parent widget.
+ *
+ * @param parent The parent widget for this GraphWidget.
+ */
 GraphWidget::GraphWidget(QWidget *parent)
 	: QGraphicsView(parent) {
 
@@ -80,75 +69,83 @@ GraphWidget::GraphWidget(QWidget *parent)
 	HUDLabel_ = new QLabel(this);
 	HUDLabel_->hide();
 	HUDLabel_->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-	HUDLabel_->setFont(QFont("FreeSans", 32));
+	HUDLabel_->setFont(QFont(QStringLiteral("FreeSans"), 32));
 	HUDLabel_->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	HUDLayout_ = new QHBoxLayout(this);
 	HUDLayout_->addWidget(HUDLabel_);
 
 	context_ = gvContext();
-	graph_   = _agopen("GraphName", Agstrictdirected);
+	graph_   = _agopen(QStringLiteral("GraphName"), Agstrictdirected);
 
-	//Set graph attributes
-	setGraphAttribute("overlap", "prism");
-	setGraphAttribute("pad", "0,2");
-	setGraphAttribute("dpi", "96,0");
-	setGraphAttribute("nodesep", "2,5");
-	setGraphAttribute("nslimit", "1");
-	setGraphAttribute("nslimit1", "1");
-	setGraphAttribute("splines", "line"); // ugly but should be much faster
+	// Set graph attributes
+	setGraphAttribute(QStringLiteral("overlap"), QStringLiteral("prism"));
+	setGraphAttribute(QStringLiteral("pad"), QStringLiteral("0,2"));
+	setGraphAttribute(QStringLiteral("dpi"), QStringLiteral("96,0"));
+	setGraphAttribute(QStringLiteral("nodesep"), QStringLiteral("2,5"));
+	setGraphAttribute(QStringLiteral("nslimit"), QStringLiteral("1"));
+	setGraphAttribute(QStringLiteral("nslimit1"), QStringLiteral("1"));
+	setGraphAttribute(QStringLiteral("splines"), QStringLiteral("line")); // ugly but should be much faster
 
-	//Set default attributes for the future nodes
-	setNodeAttribute("fixedsize", "false");
-	setNodeAttribute("label", "");
-	setNodeAttribute("regular", "true");
+	// Set default attributes for the future nodes
+	setNodeAttribute(QStringLiteral("fixedsize"), QStringLiteral("false"));
+	setNodeAttribute(QStringLiteral("label"), QString());
+	setNodeAttribute(QStringLiteral("regular"), QStringLiteral("true"));
 
-	//Divide the wanted width by the DPI to get the value in points
-	QString nodePtsWidth = QString("%1").arg(NodeWidth / _agget(graph_, "dpi", "96,0").toDouble());
-	//GV uses , instead of . for the separator in floats
-	setNodeAttribute("width", nodePtsWidth.replace('.', ","));
+	// Divide the wanted width by the DPI to get the value in points
+	auto nodePtsWidth = QString::number(NodeWidth / _agget(graph_, QStringLiteral("dpi"), QStringLiteral("96,0")).toDouble());
+	// GV uses , instead of . for the separator in floats
+	setNodeAttribute(QStringLiteral("width"), nodePtsWidth.replace(QLatin1Char('.'), QLatin1String(",")));
 
 	// set font
-	QFont font = QFont("Arial");
-	setGraphAttribute("fontname", font.family());
-	setGraphAttribute("fontsize", QString("%1").arg(font.pointSizeF()));
+	QFont font = QFont(QStringLiteral("Arial"));
+	setGraphAttribute(QStringLiteral("fontname"), font.family());
+	setGraphAttribute(QStringLiteral("fontsize"), QString::number(font.pointSizeF()));
 
-	setNodeAttribute("fontname", font.family());
-	setNodeAttribute("fontsize", QString("%1").arg(font.pointSizeF()));
+	setNodeAttribute(QStringLiteral("fontname"), font.family());
+	setNodeAttribute(QStringLiteral("fontsize"), QString::number(font.pointSizeF()));
 
-	setEdgeAttribute("fontname", font.family());
-	setEdgeAttribute("fontsize", QString("%1").arg(font.pointSizeF()));
+	setEdgeAttribute(QStringLiteral("fontname"), font.family());
+	setEdgeAttribute(QStringLiteral("fontsize"), QString::number(font.pointSizeF()));
 }
 
-//------------------------------------------------------------------------------
-// Name: setGraphAttribute
-// Desc:
-//------------------------------------------------------------------------------
-void GraphWidget::setGraphAttribute(const QString name, const QString value) {
+/**
+ * @brief Sets an attribute for the graph.
+ *
+ * @param name The name of the attribute.
+ * @param value The value of the attribute.
+ */
+void GraphWidget::setGraphAttribute(QString name, QString value) {
 	_agset(graph_, name, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: setNodeAttribute
-// Desc:
-//------------------------------------------------------------------------------
-void GraphWidget::setNodeAttribute(const QString name, const QString value) {
+/**
+ * @brief Sets an attribute for the nodes in the graph.
+ *
+ * @param name The name of the attribute.
+ * @param value The value of the attribute.
+ */
+void GraphWidget::setNodeAttribute(QString name, QString value) {
 	_agnodeattr(graph_, name, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: setEdgeAttribute
-// Desc:
-//------------------------------------------------------------------------------
-void GraphWidget::setEdgeAttribute(const QString name, const QString value) {
+/**
+ * @brief Sets an attribute for the edges in the graph.
+ *
+ * @param name The name of the attribute.
+ * @param value The value of the attribute.
+ */
+void GraphWidget::setEdgeAttribute(QString name, QString value) {
 	_agedgeattr(graph_, name, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: layout
-// Desc:
-//------------------------------------------------------------------------------
-void GraphWidget::setHUDNotification(const QString &s, int duration) {
+/**
+ * @brief Sets a notification message to be displayed on the HUD for a specified duration.
+ *
+ * @param s The notification message to display.
+ * @param duration The duration for which the notification should be displayed. Default is 1000 ms.
+ */
+void GraphWidget::setHUDNotification(const QString &s, std::chrono::milliseconds duration) {
 
 	HUDLabel_->setText(s);
 	HUDLabel_->show();
@@ -160,7 +157,7 @@ void GraphWidget::setHUDNotification(const QString &s, int duration) {
 	auto animation = new QPropertyAnimation(this);
 	animation->setTargetObject(effect);
 	animation->setPropertyName("opacity");
-	animation->setDuration(duration);
+	animation->setDuration(static_cast<int>(duration.count()));
 	animation->setStartValue(effect->opacity());
 	animation->setEndValue(0);
 	animation->setEasingCurve(QEasingCurve::OutQuad);
@@ -169,20 +166,19 @@ void GraphWidget::setHUDNotification(const QString &s, int duration) {
 	connect(animation, &QPropertyAnimation::finished, HUDLabel_, &QLabel::hide);
 }
 
-//------------------------------------------------------------------------------
-// Name: layout
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Lays out the graph using the specified layout engine.
+ */
 void GraphWidget::layout() {
 
 	inLayout_ = true;
 
-	qDebug() << "Starting Layout Engine";
+	qDebug("Starting Layout Engine");
 
 	gvFreeLayout(context_, graph_);
 	gvLayout(context_, graph_, "dot");
 
-	Q_FOREACH (QGraphicsItem *item, items()) {
+	for (QGraphicsItem *item : items()) {
 		if (auto node = qgraphicsitem_cast<GraphNode *>(item)) {
 			qreal gheight = graph_height(graph_);
 			if (auto internalNode = node->node_) {
@@ -192,13 +188,13 @@ void GraphWidget::layout() {
 		}
 	}
 
-	Q_FOREACH (QGraphicsItem *item, items()) {
+	for (QGraphicsItem *item : items()) {
 		if (auto edge = qgraphicsitem_cast<GraphEdge *>(item)) {
 			edge->syncState();
 		}
 	}
 
-	qDebug() << "Layout Complete";
+	qDebug("Layout Complete");
 
 	// make the scene HUGE so it feels like you can just scroll forever
 	scene()->setSceneRect(sceneRect().adjusted(-ScenePadding, -ScenePadding, +ScenePadding, +ScenePadding));
@@ -206,20 +202,20 @@ void GraphWidget::layout() {
 	inLayout_ = false;
 }
 
-//------------------------------------------------------------------------------
-// Name: ~GraphWidget
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Destroys the GraphWidget, freeing the associated graph and context resources.
+ */
 GraphWidget::~GraphWidget() {
 	gvFreeLayout(context_, graph_);
 	agclose(graph_);
 	gvFreeContext(context_);
 }
 
-//------------------------------------------------------------------------------
-// Name: keyPressEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Handles key press events for the GraphWidget, allowing for zooming, rotating, centering, and layout actions based on specific key inputs.
+ *
+ * @param event The key press event to handle.
+ */
 void GraphWidget::keyPressEvent(QKeyEvent *event) {
 
 	switch (event->key()) {
@@ -253,10 +249,11 @@ void GraphWidget::keyPressEvent(QKeyEvent *event) {
 	QGraphicsView::keyPressEvent(event);
 }
 
-//------------------------------------------------------------------------------
-// Name: keyReleaseEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Handles key release events for the GraphWidget, allowing for resetting the drag mode when the Control key is released.
+ *
+ * @param event The key release event to handle.
+ */
 void GraphWidget::keyReleaseEvent(QKeyEvent *event) {
 
 	switch (event->key()) {
@@ -272,18 +269,21 @@ void GraphWidget::keyReleaseEvent(QKeyEvent *event) {
 	QGraphicsView::keyReleaseEvent(event);
 }
 
-//------------------------------------------------------------------------------
-// Name: wheelEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Handles wheel events for the GraphWidget, allowing for zooming in and out based on the wheel rotation.
+ *
+ * @param event The wheel event to handle.
+ */
 void GraphWidget::wheelEvent(QWheelEvent *event) {
 	setScale(std::pow(2.0, +event->angleDelta().y() / 240.0));
 }
 
-//------------------------------------------------------------------------------
-// Name: zoom
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Sets the scale of the view by the specified factor, ensuring that the scale remains within defined minimum and maximum bounds.
+ * Emits a zoom event with the new scale factor and the current scale.
+ *
+ * @param factor The scale factor to apply to the view.
+ */
 void GraphWidget::setScale(qreal factor) {
 	const qreal f = std::sqrt(transform().determinant());
 	factor        = qBound(MinimumZoom / f, factor, MaximumZoom / f);
@@ -291,10 +291,11 @@ void GraphWidget::setScale(qreal factor) {
 	Q_EMIT zoomEvent(factor, f);
 }
 
-//------------------------------------------------------------------------------
-// Name: contextMenuEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Handles context menu events for the GraphWidget, emitting signals based on the type of item under the cursor (node, edge, or background).
+ *
+ * @param event The context menu event to handle.
+ */
 void GraphWidget::contextMenuEvent(QContextMenuEvent *event) {
 
 	QGraphicsItem *const item = itemAt(event->pos());
@@ -311,10 +312,11 @@ void GraphWidget::contextMenuEvent(QContextMenuEvent *event) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: mouseDoubleClickEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Handles mouse double-click events for the GraphWidget, emitting signals based on the type of item under the cursor (node, edge, or background).
+ *
+ * @param event The mouse double-click event to handle.
+ */
 void GraphWidget::mouseDoubleClickEvent(QMouseEvent *event) {
 
 	QGraphicsItem *const item = itemAt(event->pos());
@@ -330,10 +332,9 @@ void GraphWidget::mouseDoubleClickEvent(QMouseEvent *event) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: clear
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Clears the graph by deleting all items in the scene, effectively removing all nodes and edges from the view.
+ */
 void GraphWidget::clear() {
 	qDeleteAll(scene()->items());
 }

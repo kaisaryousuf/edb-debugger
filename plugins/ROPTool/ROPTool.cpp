@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ROPTool.h"
 #include "DialogROPTool.h"
@@ -24,24 +12,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace ROPToolPlugin {
 
 /**
- * @brief ROPTool::ROPTool
- * @param parent
+ * @brief Constructor for the ROPTool plugin.
+ *
+ * @param parent The parent QObject for this plugin.
  */
 ROPTool::ROPTool(QObject *parent)
 	: QObject(parent) {
 }
 
 /**
- * @brief ROPTool::~ROPTool
+ * @brief Destructor for the ROPTool plugin.
  */
 ROPTool::~ROPTool() {
 	delete dialog_;
 }
 
 /**
- * @brief ROPTool::menu
- * @param parent
- * @return
+ * @brief Returns the context menu for this plugin, creating it if it doesn't already exist.
+ *
+ * @param parent The parent widget for the menu.
+ * @return A pointer to the created menu.
  */
 QMenu *ROPTool::menu(QWidget *parent) {
 
@@ -49,14 +39,18 @@ QMenu *ROPTool::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("ROPTool"), parent);
-		menu_->addAction(tr("&ROP Tool"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+Alt+R")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&ROP Tool"), QKeySequence(tr("Ctrl+Alt+R")), this, &ROPTool::showMenu);
+#else
+		menu_->addAction(tr("&ROP Tool"), this, &ROPTool::showMenu, QKeySequence(tr("Ctrl+Alt+R")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief ROPTool::showMenu
+ * @brief Slot to show the ROP Tool dialog. If the dialog does not already exist, it is created and then shown.
  */
 void ROPTool::showMenu() {
 

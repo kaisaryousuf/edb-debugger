@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef MODULE_H_20191119_
 #define MODULE_H_20191119_
@@ -26,5 +14,20 @@ struct Module {
 	QString name;
 	edb::address_t baseAddress;
 };
+
+inline bool operator==(const Module &lhs, const Module &rhs) {
+	return lhs.name == rhs.name && lhs.baseAddress == rhs.baseAddress;
+}
+
+inline bool operator<(const Module &lhs, const Module &rhs) {
+	return lhs.baseAddress < rhs.baseAddress || (lhs.baseAddress == rhs.baseAddress && lhs.name < rhs.name);
+}
+
+// NOTE(eteran): this type is different between Qt5 and Qt6, so we just use whatever qHash returns for a uint32_t.
+using hash_type = decltype(qHash(0u, 0));
+
+inline hash_type qHash(const Module &module, hash_type seed = 0) {
+	return qHash(module.name, seed) ^ qHash(module.baseAddress.toUint(), seed);
+}
 
 #endif

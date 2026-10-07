@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "BinarySearcher.h"
 #include "DialogAsciiString.h"
@@ -25,7 +13,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace BinarySearcherPlugin {
 
 /**
- * @brief BinarySearcher::BinarySearcher
+ * @brief Constructs the BinarySearcher plugin object.
+ *
  * @param parent
  */
 BinarySearcher::BinarySearcher(QObject *parent)
@@ -33,7 +22,8 @@ BinarySearcher::BinarySearcher(QObject *parent)
 }
 
 /**
- * @brief BinarySearcher::menu
+ * @brief Creates and returns the Binary Searcher plugin menu, building it on first call.
+ *
  * @param parent
  * @return
  */
@@ -43,29 +33,30 @@ QMenu *BinarySearcher::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("BinarySearcher"), parent);
-		menu_->addAction(tr("&Binary String Search"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+F")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&Binary String Search"), QKeySequence(tr("Ctrl+F")), this, &BinarySearcher::showMenu);
+#else
+		menu_->addAction(tr("&Binary String Search"), this, &BinarySearcher::showMenu, QKeySequence(tr("Ctrl+F")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief BinarySearcher::stackContextMenu
- * @return
+ * @brief Returns the stack context menu actions contributed by the BinarySearcher plugin.
+ *
+ * @return A list of actions for the stack context menu.
  */
 QList<QAction *> BinarySearcher::stackContextMenu() {
 
-	QList<QAction *> ret;
-
 	auto action_find = new QAction(tr("&Find ASCII String"), this);
 	connect(action_find, &QAction::triggered, this, &BinarySearcher::mnuStackFindAscii);
-	ret << action_find;
-
-	return ret;
+	return {action_find};
 }
 
 /**
- * @brief BinarySearcher::showMenu
+ * @brief Opens or raises the binary string search dialog.
  */
 void BinarySearcher::showMenu() {
 	static auto dialog = new DialogBinaryString(edb::v1::debugger_ui);
@@ -73,7 +64,7 @@ void BinarySearcher::showMenu() {
 }
 
 /**
- * @brief BinarySearcher::mnuStackFindAscii
+ * @brief Opens or raises the ASCII string search dialog from the stack context menu.
  */
 void BinarySearcher::mnuStackFindAscii() {
 	static auto dialog = new DialogAsciiString(edb::v1::debugger_ui);

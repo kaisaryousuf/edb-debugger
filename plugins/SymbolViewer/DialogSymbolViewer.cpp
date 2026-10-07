@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogSymbolViewer.h"
 #include "Configuration.h"
@@ -32,16 +20,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace SymbolViewerPlugin {
 
 /**
- * @brief DialogSymbolViewer::DialogSymbolViewer
- * @param parent
- * @param f
+ * @brief Constructs a DialogSymbolViewer instance with the specified parent and window flags.
+ *
+ * @param parent The parent widget.
+ * @param f The window flags.
  */
 DialogSymbolViewer::DialogSymbolViewer(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
 
 	ui.setupUi(this);
 
-	buttonRefresh_ = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Refresh"));
+	buttonRefresh_ = new QPushButton(QIcon::fromTheme(QStringLiteral("view-refresh")), tr("Refresh"));
 	connect(buttonRefresh_, &QPushButton::clicked, this, [this]() {
 		buttonRefresh_->setEnabled(false);
 		doFind();
@@ -64,18 +53,18 @@ DialogSymbolViewer::DialogSymbolViewer(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogSymbolViewer::on_listView_doubleClicked
+ * @brief Handles the double-click event on the list view in the DialogSymbolViewer instance.
+ * This function is called when an item in the list view is double-clicked and follows
+ * the found item in the data view.
  *
- * follows the found item in the data view
- *
- * @param index
+ * @param index The index of the double-clicked item in the list view.
  */
 void DialogSymbolViewer::on_listView_doubleClicked(const QModelIndex &index) {
 
 	const QString s = index.data().toString();
 
-	if (const Result<edb::address_t, QString> addr = edb::v1::string_to_address(s.split(":")[0])) {
-		const std::shared_ptr<Symbol> sym = edb::v1::symbol_manager().find(*addr);
+	if (const Result<edb::address_t, QString> addr = edb::v1::string_to_address(s.split(QLatin1Char(':'))[0])) {
+		const std::optional<Symbol> sym = edb::v1::symbol_manager().find(*addr);
 
 		if (sym && sym->isCode()) {
 			edb::v1::jump_to_address(*addr);
@@ -86,8 +75,9 @@ void DialogSymbolViewer::on_listView_doubleClicked(const QModelIndex &index) {
 }
 
 /**
- * @brief DialogSymbolViewer::on_listView_customContextMenuRequested
- * @param pos
+ * @brief Handles the custom context menu request event for the list view in the DialogSymbolViewer instance.
+ *
+ * @param pos The position of the right-click event.
  */
 void DialogSymbolViewer::on_listView_customContextMenuRequested(const QPoint &pos) {
 
@@ -96,13 +86,13 @@ void DialogSymbolViewer::on_listView_customContextMenuRequested(const QPoint &po
 
 		const QString s = index.data().toString();
 
-		if (const Result<edb::address_t, QString> addr = edb::v1::string_to_address(s.split(":")[0])) {
+		if (const Result<edb::address_t, QString> addr = edb::v1::string_to_address(s.split(QLatin1Char(':'))[0])) {
 
 			QMenu menu;
-			QAction *const action1 = menu.addAction(tr("&Follow In Disassembly"), this, SLOT(mnuFollowInCPU()));
-			QAction *const action2 = menu.addAction(tr("&Follow In Dump"), this, SLOT(mnuFollowInDump()));
-			QAction *const action3 = menu.addAction(tr("&Follow In Dump (New Tab)"), this, SLOT(mnuFollowInDumpNewTab()));
-			QAction *const action4 = menu.addAction(tr("&Follow In Stack"), this, SLOT(mnuFollowInStack()));
+			QAction *const action1 = menu.addAction(tr("&Follow In Disassembly"), this, &DialogSymbolViewer::mnuFollowInCPU);
+			QAction *const action2 = menu.addAction(tr("&Follow In Dump"), this, &DialogSymbolViewer::mnuFollowInDump);
+			QAction *const action3 = menu.addAction(tr("&Follow In Dump (New Tab)"), this, &DialogSymbolViewer::mnuFollowInDumpNewTab);
+			QAction *const action4 = menu.addAction(tr("&Follow In Stack"), this, &DialogSymbolViewer::mnuFollowInStack);
 
 			action1->setData(addr->toQVariant());
 			action2->setData(addr->toQVariant());
@@ -115,7 +105,9 @@ void DialogSymbolViewer::on_listView_customContextMenuRequested(const QPoint &po
 }
 
 /**
- * @brief DialogSymbolViewer::mnuFollowInDump
+ * @brief Handles the "Follow In Dump" action in the DialogSymbolViewer instance.
+ *
+ * @param address The address to dump.
  */
 void DialogSymbolViewer::mnuFollowInDump() {
 	if (auto action = qobject_cast<QAction *>(sender())) {
@@ -125,7 +117,9 @@ void DialogSymbolViewer::mnuFollowInDump() {
 }
 
 /**
- * @brief DialogSymbolViewer::mnuFollowInDumpNewTab
+ * @brief Handles the "Follow In Dump (New Tab)" action in the DialogSymbolViewer instance.
+ *
+ * @param address The address to dump in a new tab.
  */
 void DialogSymbolViewer::mnuFollowInDumpNewTab() {
 	if (auto action = qobject_cast<QAction *>(sender())) {
@@ -135,7 +129,9 @@ void DialogSymbolViewer::mnuFollowInDumpNewTab() {
 }
 
 /**
- * @brief DialogSymbolViewer::mnuFollowInStack
+ * @brief Handles the "Follow In Stack" action in the DialogSymbolViewer instance.
+ *
+ * @param address The address to dump in the stack view.
  */
 void DialogSymbolViewer::mnuFollowInStack() {
 	if (auto action = qobject_cast<QAction *>(sender())) {
@@ -145,7 +141,9 @@ void DialogSymbolViewer::mnuFollowInStack() {
 }
 
 /**
- * @brief DialogSymbolViewer::mnuFollowInCPU
+ * @brief Handles the "Follow In CPU" action in the DialogSymbolViewer instance.
+ *
+ * @param address The address to jump to in the CPU view.
  */
 void DialogSymbolViewer::mnuFollowInCPU() {
 	if (auto action = qobject_cast<QAction *>(sender())) {
@@ -155,23 +153,25 @@ void DialogSymbolViewer::mnuFollowInCPU() {
 }
 
 /**
- * @brief DialogSymbolViewer::doFind
+ * @brief Performs a search for symbols and updates the list view in the DialogSymbolViewer instance.
+ * This function retrieves the list of symbols from the symbol manager and populates the list view with the results.
  */
 void DialogSymbolViewer::doFind() {
-	QStringList results;
 
-	const std::vector<std::shared_ptr<Symbol>> symbols = edb::v1::symbol_manager().symbols();
-	for (const std::shared_ptr<Symbol> &sym : symbols) {
-		results << QString("%1: %2").arg(edb::v1::format_pointer(sym->address), sym->name);
+	const std::vector<Symbol> symbols = edb::v1::symbol_manager().symbols();
+	QStringList results;
+	results.reserve(static_cast<int>(symbols.size()));
+	for (const Symbol &sym : symbols) {
+		results.push_back(QStringLiteral("%1: %2").arg(edb::v1::format_pointer(sym.address), sym.name));
 	}
 
 	model_->setStringList(results);
 }
 
 /**
- * @brief DialogSymbolViewer::showEvent
+ * @brief Handles the show event for the DialogSymbolViewer instance.
  */
-void DialogSymbolViewer::showEvent(QShowEvent *) {
+void DialogSymbolViewer::showEvent(QShowEvent * /*event*/) {
 	buttonRefresh_->setEnabled(false);
 	doFind();
 	buttonRefresh_->setEnabled(true);

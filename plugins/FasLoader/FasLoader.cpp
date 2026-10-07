@@ -1,20 +1,9 @@
 /*
-Copyright (C) 2006 - 2015 * Evan Teran evan.teran@gmail.com
-                          * darkprof dark_prof@mail.ru
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2018 - 2025  Evan Teran <evan.teran@gmail.com>
+ * Copyright (C) 2018 darkprof <dark_prof@mail.ru>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "FasLoader.hpp"
 #include "IDebugger.h"
@@ -29,17 +18,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace FasLoaderPlugin {
 
 /**
- * @brief FasLoader::FasLoader
- * @param parent
+ * @brief Constructs a FasLoader object with the specified parent QObject.
+ *
+ * @param parent The parent QObject for this plugin.
  */
 FasLoader::FasLoader(QObject *parent)
 	: QObject(parent) {
 }
 
 /**
- * @brief FasLoader::menu
- * @param parent
- * @return
+ * @brief Returns the menu for the FasLoader plugin, creating it if it doesn't already exist.
+ *
+ * @param parent The parent widget for the menu.
+ * @return A pointer to the created menu.
  */
 QMenu *FasLoader::menu(QWidget *parent) {
 
@@ -47,36 +38,36 @@ QMenu *FasLoader::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("FasLoader"), parent);
-		menu_->addAction(tr("&Load *.fas symbols"), this, SLOT(load()));
+		menu_->addAction(tr("&Load *.fas symbols"), this, &FasLoader::load);
 	}
 
 	return menu_;
 }
 
 /**
- * @brief FasLoader::load
+ * @brief Loads symbols from a *.fas file associated with the current process's executable and adds them to the symbol manager.
  */
 void FasLoader::load() {
 	if (edb::v1::debugger_core) {
 		if (IProcess *process = edb::v1::debugger_core->process()) {
 			const QString fileName = process->executable();
 			QString fasName        = fileName;
-			fasName.append(".fas");
+			fasName.append(QStringLiteral(".fas"));
 
 			Fas::Core fasCore;
-			fasCore.load(fasName.toUtf8().constData());
+			fasCore.load(fasName.toStdString());
 
 			auto pluginSymbols = fasCore.getSymbols();
 			for (auto pluginSymbol : pluginSymbols) {
 
-				auto symbol = std::make_shared<Symbol>();
+				Symbol symbol;
 
-				symbol->file    = fileName;
-				symbol->address = pluginSymbol.value;
-				symbol->name    = QString::fromStdString(pluginSymbol.name);
-				symbol->size    = pluginSymbol.size;
+				symbol.file    = fileName;
+				symbol.address = pluginSymbol.value;
+				symbol.name    = QString::fromStdString(pluginSymbol.name);
+				symbol.size    = pluginSymbol.size;
 				if (pluginSymbol.size > 0) {
-					symbol->type = 'd';
+					symbol.type = 'd';
 				}
 
 				edb::v1::symbol_manager().addSymbol(symbol);

@@ -1,13 +1,9 @@
-cmake_minimum_required (VERSION 3.1)
-include("GNUInstallDirs")
+cmake_minimum_required (VERSION 3.15)
+include("BuildPlugin")
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
+set(PLUGIN_NAME "ODbgRegisterView")
 
-set(PluginName "ODbgRegisterView")
-
-find_package(Qt5 5.0.0 REQUIRED Widgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED Widgets)
 
 set(PluginSources
 	BitFieldDescription.cpp
@@ -32,7 +28,7 @@ set(PluginSources
 	NumberEdit.cpp
 	NumberEdit.h
 	ODbgRV_Common.h
-	ODbgRV_Util.h	
+	ODbgRV_Util.h
 	Plugin.cpp
 	Plugin.h
 	RegisterGroup.cpp
@@ -52,7 +48,7 @@ if(TARGET_ARCH_FAMILY_X86)
 	set(PLUGIN_INCLUDES
 		arch/x86-generic
 	)
-	
+
 	set(PluginSources
 		${PluginSources}
 		arch/x86-generic/x86Groups.cpp
@@ -77,21 +73,13 @@ elseif(TARGET_ARCH_FAMILY_ARM)
 	)
 endif()
 
-add_library(${PluginName} SHARED ${PluginSources})
+add_library(${PLUGIN_NAME} SHARED ${PluginSources})
 
-target_include_directories(${PluginName} PRIVATE
+target_include_directories(${PLUGIN_NAME} PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${PLUGIN_INCLUDES}
 )
 
-target_link_libraries(${PluginName} Qt5::Widgets edb)
+target_link_libraries(${PLUGIN_NAME} Qt::Widgets edb)
 
-install (TARGETS ${PluginName} DESTINATION ${CMAKE_INSTALL_LIBDIR}/edb)
-
-target_add_warnings(${PluginName})
-
-set_property(TARGET ${PluginName} PROPERTY CXX_EXTENSIONS OFF)
-set_property(TARGET ${PluginName} PROPERTY CXX_STANDARD 17)
-set_property(TARGET ${PluginName} PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET ${PluginName} PROPERTY LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
-set_property(TARGET ${PluginName} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+build_plugin(${PLUGIN_NAME})

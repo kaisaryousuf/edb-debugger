@@ -1,28 +1,23 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DIALOG_ASCII_STRING_H_20082201_
 #define DIALOG_ASCII_STRING_H_20082201_
 
+#include "Types.h"
 #include "ui_DialogAsciiString.h"
 #include <QDialog>
+#include <QFutureWatcher>
+#include <QTimer>
+
+#include <atomic>
+#include <vector>
 
 class QListWidgetItem;
+class IProcess;
 
 namespace BinarySearcherPlugin {
 
@@ -34,14 +29,31 @@ public:
 	~DialogAsciiString() override = default;
 
 protected:
+	void reject() override;
 	void showEvent(QShowEvent *event) override;
 
 private:
-	void doFind();
+	struct SearchResult {
+		std::vector<edb::address_t> matches;
+		bool cancelled        = false;
+		bool allocationFailed = false;
+	};
+
+	void onFindClicked();
+	void onFindFinished();
+	void updateProgress();
+	void setSearchRunning(bool running);
+	SearchResult doFind(const QByteArray &needle, const IProcess *process, edb::address_t start, edb::address_t end);
 
 private:
 	Ui::DialogAsciiString ui;
 	QPushButton *buttonFind_ = nullptr;
+	QFutureWatcher<SearchResult> searchWatcher_;
+	QTimer progressTimer_;
+	std::atomic_bool cancelRequested_ = false;
+	std::atomic_size_t progressDone_  = 0;
+	std::atomic_size_t progressTotal_ = 0;
+	bool searchRunning_               = false;
 };
 
 }

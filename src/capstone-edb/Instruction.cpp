@@ -1,23 +1,11 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Instruction.h"
 
-#include <QRegExp>
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
@@ -25,6 +13,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cstdio>
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
@@ -43,52 +32,63 @@ Formatter activeFormatter;
 
 #if defined(EDB_X86) || defined(EDB_X86_64)
 /**
- * @brief is_simd_register
- * @param operand
- * @return
+ * @brief Determines if the given operand is a SIMD register.
+ *
+ * @param operand The operand to check.
+ * @return True if the operand is a SIMD register, false otherwise.
  */
 bool is_simd_register(const Operand &operand) {
 
-	if (operand->type != X86_OP_REG)
+	if (operand->type != X86_OP_REG) {
 		return false;
+	}
 
 	const auto reg = operand->reg;
 
-	if (X86_REG_MM0 <= reg && reg <= X86_REG_MM7)
+	if (X86_REG_MM0 <= reg && reg <= X86_REG_MM7) {
 		return true;
-	if (X86_REG_XMM0 <= reg && reg <= X86_REG_XMM31)
+	}
+	if (X86_REG_XMM0 <= reg && reg <= X86_REG_XMM31) {
 		return true;
-	if (X86_REG_YMM0 <= reg && reg <= X86_REG_YMM31)
+	}
+	if (X86_REG_YMM0 <= reg && reg <= X86_REG_YMM31) {
 		return true;
-	if (X86_REG_ZMM0 <= reg && reg <= X86_REG_ZMM31)
+	}
+	if (X86_REG_ZMM0 <= reg && reg <= X86_REG_ZMM31) {
 		return true;
+	}
 
 	return false;
 }
 
 /**
- * @brief apriori_not_simd
- * @param insn
- * @param operand
- * @return
+ * @brief Determines if the given operand is not a SIMD operand.
+ *
+ * @param insn The instruction containing the operand.
+ * @param operand The operand to check.
+ * @return True if the operand is not a SIMD operand, false otherwise.
  */
 bool apriori_not_simd(const Instruction &insn, const Operand &operand) {
 
-	if (!is_simd(insn))
+	if (!is_simd(insn)) {
 		return true;
+	}
 
-	if (operand->type == X86_OP_REG && !is_simd_register(operand))
+	if (operand->type == X86_OP_REG && !is_simd_register(operand)) {
 		return true;
-	if (operand->type == X86_OP_IMM)
+	}
+	if (operand->type == X86_OP_IMM) {
 		return true;
+	}
 
 	return false;
 }
 
 /**
- * @brief KxRegisterPresent
- * @param insn
- * @return
+ * @brief Determines if a Kx register is present in the given instruction.
+ *
+ * @param insn The instruction to check.
+ * @return True if a Kx register is present, false otherwise.
  */
 bool KxRegisterPresent(const Instruction &insn) {
 	const size_t operandCount = insn.operandCount();
@@ -103,16 +103,18 @@ bool KxRegisterPresent(const Instruction &insn) {
 }
 
 /**
- * @brief simdOperandNormalizedNumberInInstruction
- * @param insn
- * @param operand
- * @param canBeNonSIMD
- * @return
+ * @brief Determines the normalized number of a SIMD operand within the given instruction.
+ *
+ * @param insn The instruction containing the operand.
+ * @param operand The operand to check.
+ * @param canBeNonSIMD Whether the operand can be non-SIMD.
+ * @return The normalized number of the SIMD operand.
  */
 std::size_t simdOperandNormalizedNumberInInstruction(const Instruction &insn, const Operand &operand, bool canBeNonSIMD = false) {
 
-	if (!canBeNonSIMD)
+	if (!canBeNonSIMD) {
 		assert(!apriori_not_simd(insn, operand));
+	}
 
 	size_t number             = operand.index();
 	const size_t operandCount = insn.operandCount();
@@ -132,25 +134,27 @@ std::size_t simdOperandNormalizedNumberInInstruction(const Instruction &insn, co
 #endif
 
 /**
- * @brief isX86_64
- * @return
+ * @brief Determines if the current architecture is x86_64.
+ *
+ * @return True if the current architecture is x86_64, false otherwise.
  */
 bool isX86_64() {
 	return capstoneArch == Architecture::ARCH_AMD64;
 }
 
 /**
- * @brief to_operands
- * @param str
- * @return
+ * @brief Converts a QString containing operands into a vector of std::string operands.
+ *
+ * @param str The QString containing the operands to convert.
+ * @return A vector of std::string operands.
  */
 std::vector<std::string> to_operands(QString str) {
 
 	// Remove any decorations: we want just operands themselves
-	static const QRegularExpression re(",?\\{[^}]*\\}");
-	str.replace(re, "");
+	static const QRegularExpression re(QStringLiteral(",?\\{[^}]*\\}"));
+	str.replace(re, QString());
 
-	QStringList betweenCommas = str.split(",");
+	QStringList betweenCommas = str.split(QLatin1Char(','));
 	std::vector<std::string> operands;
 
 	// Have to work around inconvenient AT&T syntax for SIB, that's why so complicated logic
@@ -160,32 +164,30 @@ std::vector<std::string> to_operands(QString str) {
 
 		// We've split operand string by commas, but there may be SIB scheme
 		// in the form (B,I,S) or (B) or (I,S). Let's find missing parts of it.
-		if (it->contains("(") && !it->contains(")")) {
-
-			std::logic_error matchFailed("failed to find matching ')'");
+		if (it->contains(QLatin1Char('(')) && !it->contains(QLatin1Char(')'))) {
 
 			// the next part must exist and have continuation of SIB scheme
 			if (std::next(it) == betweenCommas.end()) {
-				throw matchFailed;
+				throw std::logic_error("failed to find matching ')'");
 			}
 
-			current += ",";
+			current += QLatin1Char(',');
 			current += *(++it);
 
 			// This may still be not enough
-			if (current.contains("(") && !current.contains(")")) {
+			if (current.contains(QLatin1Char('(')) && !current.contains(QLatin1Char(')'))) {
 				if (std::next(it) == betweenCommas.end()) {
-					throw matchFailed;
+					throw std::logic_error("failed to find matching ')'");
 				}
 
-				current += ",";
+				current += QLatin1Char(',');
 				current += *(++it);
 			}
 
 			// The expected SIB string has at most three components.
 			// If we still haven't found closing parenthesis, we're screwed
-			if (current.contains("(") && !current.contains(")")) {
-				throw matchFailed;
+			if (current.contains(QLatin1Char('(')) && !current.contains(QLatin1Char(')'))) {
+				throw std::logic_error("failed to find matching ')'");
 			}
 		}
 		operands.push_back(current.trimmed().toStdString());
@@ -241,20 +243,17 @@ bool init(Architecture arch) {
 }
 
 Instruction::Instruction(Instruction &&other) noexcept
-	: insn_(other.insn_), byte0_(other.byte0_), rva_(other.rva_) {
-
-	other.insn_  = nullptr;
-	other.byte0_ = 0;
-	other.rva_   = 0;
+	: insn_(std::exchange(other.insn_, nullptr)),
+	  byte0_(std::exchange(other.byte0_, 0)),
+	  rva_(std::exchange(other.rva_, 0)) {
 }
 
 Instruction &Instruction::operator=(Instruction &&rhs) noexcept {
-	insn_      = rhs.insn_;
-	byte0_     = rhs.byte0_;
-	rva_       = rhs.rva_;
-	rhs.insn_  = nullptr;
-	rhs.byte0_ = 0;
-	rhs.rva_   = 0;
+	if (this != &rhs) {
+		insn_  = std::exchange(rhs.insn_, nullptr);
+		byte0_ = std::exchange(rhs.byte0_, 0);
+		rva_   = std::exchange(rhs.rva_, 0);
+	}
 	return *this;
 }
 
@@ -266,7 +265,6 @@ Instruction::~Instruction() {
 
 Instruction::Instruction(const void *first, const void *last, uint64_t rva) noexcept
 	: rva_(rva) {
-
 	assert(capstoneInitialized);
 	auto codeBegin = static_cast<const uint8_t *>(first);
 	auto codeEnd   = static_cast<const uint8_t *>(last);
@@ -290,10 +288,13 @@ Instruction::Instruction(const void *first, const void *last, uint64_t rva) noex
 }
 
 Operand Instruction::operator[](size_t n) const {
-	if (!valid())
+	if (!valid()) {
 		return Operand();
-	if (n > operandCount())
+	}
+
+	if (n > operandCount()) {
 		return Operand();
+	}
 
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	return Operand(this, &insn_->detail->x86.operands[n], n);
@@ -305,10 +306,13 @@ Operand Instruction::operator[](size_t n) const {
 }
 
 Operand Instruction::operand(size_t n) const {
-	if (!valid())
+	if (!valid()) {
 		return Operand();
-	if (n > operandCount())
+	}
+
+	if (n > operandCount()) {
 		return Operand();
+	}
 
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	return Operand(this, &insn_->detail->x86.operands[n], n);
@@ -351,8 +355,9 @@ Instruction::ConditionCode Instruction::conditionCode() const {
 	default:
 		if (is_conditional_gpr_move(*this) || is_conditional_jump(*this) || is_conditional_set(*this)) {
 			const uint8_t *opcode = insn_->detail->x86.opcode;
-			if (opcode[0] == 0x0f)
+			if (opcode[0] == 0x0f) {
 				return static_cast<ConditionCode>(opcode[1] & 0xf);
+			}
 			return static_cast<ConditionCode>(opcode[0] & 0xf);
 		}
 	}
@@ -397,7 +402,7 @@ Instruction::ConditionCode Instruction::conditionCode() const {
 #endif
 }
 
-void Instruction::swap(Instruction &other) {
+void Instruction::swap(Instruction &other) noexcept {
 	using std::swap;
 	swap(insn_, other.insn_);
 	swap(byte0_, other.byte0_);
@@ -405,25 +410,24 @@ void Instruction::swap(Instruction &other) {
 }
 
 QString Formatter::adjustInstructionText(const Instruction &insn) const {
-
-	QString operands(insn->op_str);
+	auto operands = QString::fromLatin1(insn->op_str);
 
 	// Remove extra spaces
-	operands.replace(" + ", "+");
-	operands.replace(" - ", "-");
+	operands.replace(QLatin1String(" + "), QLatin1String("+"));
+	operands.replace(QLatin1String(" - "), QLatin1String("-"));
 
-	operands.replace(QRegExp("\\bxword "), "tbyte ");
-	operands.replace(QRegExp("(word|byte) ptr "), "\\1 ");
+	operands.replace(QRegularExpression(QStringLiteral("\\bxword ")), QLatin1String("tbyte "));
+	operands.replace(QRegularExpression(QStringLiteral("(word|byte) ptr ")), QLatin1String("\\1 "));
 
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	if (activeFormatter.options().simplifyRIPRelativeTargets && isX86_64() && (insn->detail->x86.modrm & 0xc7) == 0x05) {
-		QRegExp ripRel("\\brip ?[+-] ?((0x)?[0-9a-fA-F]+)\\b");
-		operands.replace(ripRel, "rel 0x" + QString::number(insn->detail->x86.disp + insn->address + insn->size, 16));
+		QRegularExpression ripRel(QStringLiteral("\\brip ?[+-] ?((0x)?[0-9a-fA-F]+)\\b"));
+		operands.replace(ripRel, QLatin1String("rel 0x") + QString::number(insn->detail->x86.disp + insn->address + insn->size, 16));
 	}
 
 	if (insn.operandCount() == 2 && insn->id != X86_INS_MOVZX && insn->id != X86_INS_MOVSX &&
 		((insn[0]->type == X86_OP_REG && insn[1]->type == X86_OP_MEM) || (insn[1]->type == X86_OP_REG && insn[0]->type == X86_OP_MEM))) {
-		operands.replace(QRegExp("(\\b.?(mm)?word|byte)\\b( ptr)? "), "");
+		operands.replace(QRegularExpression(QStringLiteral("(\\b.?(mm)?word|byte)\\b( ptr)? ")), QString());
 	}
 #endif
 	return operands;
@@ -449,7 +453,6 @@ void Formatter::setOptions(const Formatter::FormatOptions &options) {
 }
 
 std::string Formatter::toString(const Instruction &insn) const {
-
 	enum {
 		Tab1Size = 8,
 		Tab2Size = 11,
@@ -475,10 +478,12 @@ std::string Formatter::toString(const Instruction &insn) const {
 		const auto pos = s.tellp();
 		const auto pad = pos < Tab1Size ? Tab1Size - pos : pos < Tab2Size ? Tab2Size - pos
 																		  : 1;
-		space          = std::string(pad, ' ');
+
+		space = std::string(pad, ' ');
 	}
-	if (insn.operandCount() > 0) // prevent addition of trailing whitespace
-	{
+
+	if (insn.operandCount() > 0) {
+		// prevent addition of trailing whitespace
 		s << space << adjustInstructionText(insn).toStdString();
 	} else if (insn->op_str[0] != 0) {
 		// This may happen for instructions like IT in Thumb-2: e.g. ITT NE
@@ -494,10 +499,10 @@ void Formatter::checkCapitalize(std::string &str, bool canContainHex) const {
 	if (options_.capitalization == UpperCase) {
 		std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 		if (canContainHex) {
-			QString qstr = QString::fromStdString(str);
+			auto qstr = QString::fromStdString(str);
 
-			const QRegularExpression re("\\b0X([0-9A-F]+)\\b");
-			qstr.replace(re, "0x\\1");
+			static const QRegularExpression re(QStringLiteral("\\b0X([0-9A-F]+)\\b"));
+			qstr.replace(re, QLatin1String("0x\\1"));
 
 			str = qstr.toStdString();
 		}
@@ -505,8 +510,9 @@ void Formatter::checkCapitalize(std::string &str, bool canContainHex) const {
 }
 
 std::string Formatter::toString(const Operand &operand) const {
-	if (!operand)
+	if (!operand) {
 		return "(bad)";
+	}
 
 	std::string str;
 
@@ -526,7 +532,7 @@ std::string Formatter::toString(const Operand &operand) const {
 		// Capstone doesn't provide a way to get operand string, so we try
 		// to extract it from the formatted all-operands string
 		try {
-			const auto operands = to_operands(insn->op_str);
+			const auto operands = to_operands(QString::fromLatin1(insn->op_str));
 
 			if (operands.size() <= numberInInstruction) {
 				throw std::logic_error("got less than " + std::to_string(numberInInstruction) + " operands");
@@ -545,8 +551,9 @@ std::string Formatter::toString(const Operand &operand) const {
 std::string Formatter::registerName(unsigned int reg) const {
 	assert(capstoneInitialized);
 	const char *raw = cs_reg_name(csh, reg);
-	if (!raw)
+	if (!raw) {
 		return "(invalid register)";
+	}
 	std::string str(raw);
 	checkCapitalize(str, false);
 	return str;
@@ -556,8 +563,9 @@ bool is_SIMD_PS(const Operand &operand) {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	const Instruction &insn = *operand.owner();
 
-	if (apriori_not_simd(insn, operand))
+	if (apriori_not_simd(insn, operand)) {
 		return false;
+	}
 
 	const auto number = simdOperandNormalizedNumberInInstruction(insn, operand);
 
@@ -751,8 +759,9 @@ bool is_SIMD_PD(const Operand &operand) {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	const Instruction &insn = *operand.owner();
 
-	if (apriori_not_simd(insn, operand))
+	if (apriori_not_simd(insn, operand)) {
 		return false;
+	}
 
 	const auto number = simdOperandNormalizedNumberInInstruction(insn, operand);
 
@@ -898,10 +907,11 @@ bool is_SIMD_PD(const Operand &operand) {
 		return number != 2;
 	case X86_INS_VPERMPD: // if third operand is not imm8, then second is indices (always in VPERMPS)
 		assert(insn.operandCount() == 3);
-		if (insn[2]->type != X86_OP_IMM)
+		if (insn[2]->type != X86_OP_IMM) {
 			return number != 1;
-		else
-			return true;
+		}
+
+		return true;
 	case X86_INS_VPERMIL2PD: // XOP (AMD). Fourth operand is selector (?)
 		return number != 3;
 	case X86_INS_VRCP14SD:
@@ -933,8 +943,9 @@ bool is_SIMD_SS(const Operand &operand) {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	const Instruction &insn = *operand.owner();
 
-	if (apriori_not_simd(insn, operand))
+	if (apriori_not_simd(insn, operand)) {
 		return false;
+	}
 
 	const auto number = simdOperandNormalizedNumberInInstruction(insn, operand);
 
@@ -1028,8 +1039,9 @@ bool is_SIMD_SD(const Operand &operand) {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	const Instruction &insn = *operand.owner();
 
-	if (apriori_not_simd(insn, operand))
+	if (apriori_not_simd(insn, operand)) {
 		return false;
+	}
 
 	const auto number = simdOperandNormalizedNumberInInstruction(insn, operand);
 
@@ -1163,23 +1175,30 @@ bool is_SIMD_USI(const Operand &operand) {
 }
 
 bool is_return(const Instruction &insn) {
-	if (!insn) return false;
+	if (!insn) {
+		return false;
+	}
 	return cs_insn_group(csh, insn.native(), CS_GRP_RET);
 }
 
 bool is_jump(const Instruction &insn) {
-	if (!insn) return false;
+	if (!insn) {
+		return false;
+	}
 	return cs_insn_group(csh, insn.native(), CS_GRP_JUMP);
 }
 
 bool is_call(const Instruction &insn) {
-	if (!insn) return false;
+	if (!insn) {
+		return false;
+	}
 	return cs_insn_group(csh, insn.native(), CS_GRP_CALL);
 }
 
 bool modifies_pc(const Instruction &insn) {
-	if (is_call(insn) || is_jump(insn) || is_interrupt(insn))
+	if (is_call(insn) || is_jump(insn) || is_interrupt(insn)) {
 		return true;
+	}
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	return false;
 #elif defined(EDB_ARM32)

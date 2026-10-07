@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2014 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2014 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ThreadsModel.h"
 #include "IThread.h"
@@ -35,9 +23,9 @@ QModelIndex ThreadsModel::index(int row, int column, const QModelIndex &parent) 
 
 	if (row >= 0) {
 		return createIndex(row, column, const_cast<Item *>(&items_[row]));
-	} else {
-		return createIndex(row, column);
 	}
+
+	return createIndex(row, column);
 }
 
 QModelIndex ThreadsModel::parent(const QModelIndex &index) const {
@@ -56,9 +44,10 @@ QVariant ThreadsModel::data(const QModelIndex &index, int role) const {
 			case 0:
 				if (item.current) {
 					return tr("*%1").arg(item.thread->tid());
-				} else {
-					return QVariant::fromValue(item.thread->tid());
 				}
+
+				return QVariant::fromValue(item.thread->tid());
+
 			case 1:
 				return item.thread->priority();
 			case 2: {
@@ -66,10 +55,10 @@ QVariant ThreadsModel::data(const QModelIndex &index, int role) const {
 				const QString symname = edb::v1::find_function_symbol(item.thread->instructionPointer(), default_region_name);
 
 				if (!symname.isEmpty()) {
-					return QString("%1 <%2>").arg(edb::v1::format_pointer(item.thread->instructionPointer()), symname);
-				} else {
-					return QString("%1").arg(edb::v1::format_pointer(item.thread->instructionPointer()));
+					return QStringLiteral("%1 <%2>").arg(edb::v1::format_pointer(item.thread->instructionPointer()), symname);
 				}
+
+				return edb::v1::format_pointer(item.thread->instructionPointer());
 			}
 			case 3:
 				return item.thread->runState();
@@ -104,14 +93,12 @@ QVariant ThreadsModel::headerData(int section, Qt::Orientation orientation, int 
 	return QVariant();
 }
 
-int ThreadsModel::columnCount(const QModelIndex &parent) const {
-	Q_UNUSED(parent)
+int ThreadsModel::columnCount(const QModelIndex & /*parent*/) const {
 	return 5;
 }
 
-int ThreadsModel::rowCount(const QModelIndex &parent) const {
-	Q_UNUSED(parent)
-	return items_.size();
+int ThreadsModel::rowCount(const QModelIndex & /*parent*/) const {
+	return static_cast<int>(items_.size());
 }
 
 void ThreadsModel::addThread(const std::shared_ptr<IThread> &thread, bool current) {

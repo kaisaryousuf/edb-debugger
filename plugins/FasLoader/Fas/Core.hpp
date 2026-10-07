@@ -1,4 +1,14 @@
-#pragma once
+/*
+ * @file: Core.hpp
+ *
+ * This file part of RT ( Reconstructive Tools )
+ * Copyright (c) 2018 darkprof <dark_prof@mail.ru>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ **/
+
+#ifndef FAS_CORE_H_
+#define FAS_CORE_H_
 
 #include "Header.hpp"
 #include "PluginSymbol.hpp"
@@ -45,4 +55,7 @@ private:
 	FasSymbols fasSymbols_;
 	PluginSymbols symbols_;
 };
+
 }
+
+#endif

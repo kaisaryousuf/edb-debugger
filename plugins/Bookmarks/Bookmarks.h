@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef BOOKMARKS_H_20061122_
 #define BOOKMARKS_H_20061122_
@@ -35,16 +23,27 @@ class Bookmarks : public QObject, public IPlugin {
 	Q_CLASSINFO("author", "Evan Teran")
 	Q_CLASSINFO("url", "http://www.codef00.com")
 
+private:
+	struct BookmarkEntry {
+		QString type;
+		QString comment;
+		QString module;
+		QString offset;
+	};
+
 public:
 	explicit Bookmarks(QObject *parent = nullptr);
 
 public:
-	QMenu *menu(QWidget *parent = nullptr) override;
-	QList<QAction *> cpuContextMenu() override;
+	[[nodiscard]] QMenu *menu(QWidget *parent = nullptr) override;
+	[[nodiscard]] QList<QAction *> cpuContextMenu() override;
 
 public:
-	QVariantMap saveState() const override;
+	[[nodiscard]] QVariantMap saveState() const override;
 	void restoreState(const QVariantMap &) override;
+
+public:
+	void libraryEvent(const Module &module, bool loaded) override;
 
 private:
 	void addBookmarkMenu();
@@ -52,6 +51,9 @@ private:
 private:
 	QMenu *menu_                    = nullptr;
 	BookmarkWidget *bookmarkWidget_ = nullptr;
+
+	// These are the ones not restored yet, but will be restored when the modules are loaded
+	std::vector<BookmarkEntry> deferredBookmarks_;
 };
 
 }

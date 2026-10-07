@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2019 Evan Teran
-						  evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ResultsModel.h"
 #include "edb.h"
@@ -23,19 +11,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace FunctionFinderPlugin {
 
 /**
- * @brief ResultsModel::ResultsModel
- * @param parent
+ * @brief Constructs a ResultsModel with the specified parent object.
+ *
+ * @param parent The parent object for the model.
  */
 ResultsModel::ResultsModel(QObject *parent)
 	: QAbstractItemModel(parent) {
 }
 
 /**
- * @brief ResultsModel::headerData
- * @param section
- * @param orientation
- * @param role
- * @return
+ * @brief Gets the header data for the specified section, orientation, and role.
+ *
+ * @param section The section of the header to retrieve data for.
+ * @param orientation The orientation of the header (horizontal or vertical).
+ * @param role The role for which to retrieve data.
+ * @return The header data for the specified section, orientation, and role.
  */
 QVariant ResultsModel::headerData(int section, Qt::Orientation orientation, int role) const {
 
@@ -60,10 +50,11 @@ QVariant ResultsModel::headerData(int section, Qt::Orientation orientation, int 
 }
 
 /**
- * @brief ResultsModel::data
- * @param index
- * @param role
- * @return
+ * @brief Gets the data for the specified index and role.
+ *
+ * @param index The index of the item to retrieve data for.
+ * @param role The role for which to retrieve data.
+ * @return The data for the specified index and role.
  */
 QVariant ResultsModel::data(const QModelIndex &index, int role) const {
 
@@ -96,8 +87,9 @@ QVariant ResultsModel::data(const QModelIndex &index, int role) const {
 }
 
 /**
- * @brief ResultsModel::addResult
- * @param r
+ * @brief Adds a result to the results model. This function is used to populate the results table with new search results.
+ *
+ * @param r The result to be added to the model.
  */
 void ResultsModel::addResult(const Result &r) {
 	beginInsertRows(QModelIndex(), rowCount(), rowCount());
@@ -106,11 +98,12 @@ void ResultsModel::addResult(const Result &r) {
 }
 
 /**
- * @brief ResultsModel::index
- * @param row
- * @param column
- * @param parent
- * @return
+ * @brief Gets the index of the item at the specified row and column.
+ *
+ * @param row The row of the item to retrieve the index for.
+ * @param column The column of the item to retrieve the index for.
+ * @param parent The parent index.
+ * @return The index of the item at the specified row and column.
  */
 QModelIndex ResultsModel::index(int row, int column, const QModelIndex &parent) const {
 
@@ -126,45 +119,47 @@ QModelIndex ResultsModel::index(int row, int column, const QModelIndex &parent) 
 
 	if (row >= 0) {
 		return createIndex(row, column, const_cast<Result *>(&results_[row]));
-	} else {
-		return createIndex(row, column);
 	}
+
+	return createIndex(row, column);
 }
 
 /**
- * @brief ResultsModel::parent
- * @param index
- * @return
+ * @brief Gets the parent index of the specified index. Since this model is a flat list, it always returns an invalid index.
+ *
+ * @param index The index for which to retrieve the parent index.
+ * @return An invalid QModelIndex, since this model is a flat list.
  */
-QModelIndex ResultsModel::parent(const QModelIndex &index) const {
-	Q_UNUSED(index)
+QModelIndex ResultsModel::parent(const QModelIndex & /*index*/) const {
 	return QModelIndex();
 }
 
 /**
- * @brief ResultsModel::rowCount
- * @param parent
- * @return
+ * @brief Gets the number of rows in the model.
+ *
+ * @param parent The parent index.
+ * @return The number of rows in the model.
  */
-int ResultsModel::rowCount(const QModelIndex &parent) const {
-	Q_UNUSED(parent)
-	return results_.size();
+
+int ResultsModel::rowCount(const QModelIndex & /*parent*/) const {
+	return static_cast<int>(results_.size());
 }
 
 /**
- * @brief ResultsModel::columnCount
- * @param parent
- * @return
+ * @brief Gets the number of columns in the model. This model has a fixed number of columns (6).
+ *
+ * @param parent The parent index.
+ * @return The number of columns in the model (6).
  */
-int ResultsModel::columnCount(const QModelIndex &parent) const {
-	Q_UNUSED(parent)
+int ResultsModel::columnCount(const QModelIndex & /*parent*/) const {
 	return 6;
 }
 
 /**
- * @brief ResultsModel::sort
- * @param column
- * @param order
+ * @brief Sorts the results in the model based on the specified column and order. The sorting is performed in-place, and the model is updated accordingly.
+ *
+ * @param column The column to sort by.
+ * @param order The sort order.
  */
 void ResultsModel::sort(int column, Qt::SortOrder order) {
 

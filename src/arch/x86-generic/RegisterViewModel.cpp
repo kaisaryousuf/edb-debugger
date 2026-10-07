@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2017 - 2017 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "RegisterViewModel.h"
 #include "Util.h"
@@ -48,13 +36,13 @@ struct Regs<64> {
 	static constexpr char namePrefix() { return 'R'; }
 };
 
-constexpr std::size_t FPU_REG_COUNT   = 8;
-constexpr std::size_t MMX_REG_COUNT   = FPU_REG_COUNT;
-constexpr std::size_t SSE_REG_COUNT32 = 8;
-constexpr std::size_t SSE_REG_COUNT64 = 16;
-constexpr std::size_t AVX_REG_COUNT32 = 8;
-constexpr std::size_t AVX_REG_COUNT64 = 16;
-constexpr std::size_t DBG_REG_COUNT   = 8;
+constexpr int FPU_REG_COUNT   = 8;
+constexpr int MMX_REG_COUNT   = FPU_REG_COUNT;
+constexpr int SSE_REG_COUNT32 = 8;
+constexpr int SSE_REG_COUNT64 = 16;
+constexpr int AVX_REG_COUNT32 = 8;
+constexpr int AVX_REG_COUNT64 = 16;
+constexpr int DBG_REG_COUNT   = 8;
 
 enum {
 	RIP_ROW,
@@ -180,14 +168,14 @@ const std::vector<RegisterViewModelBase::BitFieldDescriptionEx> MXCSRDescription
 };
 
 const std::vector<RegisterViewModelBase::BitFieldDescriptionEx> DR6Description = {
-	{"B0", 0, 1},
-	{"B1", 1, 1},
-	{"B2", 2, 1},
-	{"B3", 3, 1},
-	{"BD", 13, 1},
-	{"BS", 14, 1},
-	{"BT", 15, 1},
-	{"RTM", 16, 1},
+	{QStringLiteral("B0"), 0, 1},
+	{QStringLiteral("B1"), 1, 1},
+	{QStringLiteral("B2"), 2, 1},
+	{QStringLiteral("B3"), 3, 1},
+	{QStringLiteral("BD"), 13, 1},
+	{QStringLiteral("BS"), 14, 1},
+	{QStringLiteral("BT"), 15, 1},
+	{QStringLiteral("RTM"), 16, 1},
 };
 
 const std::vector<QString> DR7_RW = {
@@ -228,76 +216,78 @@ std::vector<RegisterViewModelBase::BitFieldDescriptionEx> DR7Description = {
 };
 
 void addGPRs32(RegisterViewModelBase::Category *gprs32) {
-	gprs32->addRegister(std::make_unique<Regs<32>::GPR>("EAX"));
-	gprs32->addRegister(std::make_unique<Regs<32>::GPR>("ECX"));
-	gprs32->addRegister(std::make_unique<Regs<32>::GPR>("EDX"));
-	gprs32->addRegister(std::make_unique<Regs<32>::GPR>("EBX"));
-	gprs32->addRegister(std::make_unique<Regs<32>::GPR>("ESP"));
-	gprs32->addRegister(std::make_unique<Regs<32>::GPR>("EBP"));
-	gprs32->addRegister(std::make_unique<Regs<32>::GPR>("ESI"));
-	gprs32->addRegister(std::make_unique<Regs<32>::GPR>("EDI"));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("EAX")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("EAX")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("EAX")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("ECX")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("EDX")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("EBX")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("ESP")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("EBP")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("ESI")));
+	gprs32->addRegister(std::make_unique<Regs<32>::GPR>(QStringLiteral("EDI")));
 }
 
 void addGPRs64(RegisterViewModelBase::Category *gprs64) {
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("RAX"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("RCX"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("RDX"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("RBX"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("RSP"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("RBP"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("RSI"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("RDI"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("R8"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("R9"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("R10"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("R11"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("R12"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("R13"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("R14"));
-	gprs64->addRegister(std::make_unique<Regs<64>::GPR>("R15"));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("RAX")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("RCX")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("RDX")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("RBX")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("RSP")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("RBP")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("RSI")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("RDI")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("R8")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("R9")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("R10")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("R11")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("R12")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("R13")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("R14")));
+	gprs64->addRegister(std::make_unique<Regs<64>::GPR>(QStringLiteral("R15")));
 }
 
 template <std::size_t bitSize>
 void addGenStatusRegs(RegisterViewModelBase::Category *cat) {
 	using Rs = Regs<bitSize>;
-	cat->addRegister(std::make_unique<typename Rs::IP>(Rs::namePrefix() + QString("IP")));
-	cat->addRegister(std::make_unique<typename Rs::FLAGS>(Rs::namePrefix() + QString("FLAGS"), flagsDescription));
+	cat->addRegister(std::make_unique<typename Rs::IP>(QChar::fromLatin1(Rs::namePrefix()) + QStringLiteral("IP")));
+	cat->addRegister(std::make_unique<typename Rs::FLAGS>(QChar::fromLatin1(Rs::namePrefix()) + QStringLiteral("FLAGS"), flagsDescription));
 }
 
 void addSegRegs(RegisterViewModelBase::Category *cat) {
-	cat->addRegister(std::make_unique<SegmentReg>("ES"));
-	cat->addRegister(std::make_unique<SegmentReg>("CS"));
-	cat->addRegister(std::make_unique<SegmentReg>("SS"));
-	cat->addRegister(std::make_unique<SegmentReg>("DS"));
-	cat->addRegister(std::make_unique<SegmentReg>("FS"));
-	cat->addRegister(std::make_unique<SegmentReg>("GS"));
+	cat->addRegister(std::make_unique<SegmentReg>(QStringLiteral("ES")));
+	cat->addRegister(std::make_unique<SegmentReg>(QStringLiteral("CS")));
+	cat->addRegister(std::make_unique<SegmentReg>(QStringLiteral("SS")));
+	cat->addRegister(std::make_unique<SegmentReg>(QStringLiteral("DS")));
+	cat->addRegister(std::make_unique<SegmentReg>(QStringLiteral("FS")));
+	cat->addRegister(std::make_unique<SegmentReg>(QStringLiteral("GS")));
 }
 
 template <std::size_t bitSize>
 void addFPURegs(RegisterViewModelBase::Category *fpuRegs) {
-	for (std::size_t i = 0; i < FPU_REG_COUNT; ++i) {
-		fpuRegs->addRegister(std::make_unique<FPUReg>(QString("R%1").arg(i)));
+	for (int i = 0; i < FPU_REG_COUNT; ++i) {
+		fpuRegs->addRegister(std::make_unique<FPUReg>(QStringLiteral("R%1").arg(i)));
 	}
-	fpuRegs->addRegister(std::make_unique<FPUWord>("FCR", FCRDescription));
-	fpuRegs->addRegister(std::make_unique<FPUWord>("FSR", FSRDescription));
-	fpuRegs->addRegister(std::make_unique<FPUWord>("FTR", FTRDescription));
-	fpuRegs->addRegister(std::make_unique<FOPCReg>("FOP"));
+	fpuRegs->addRegister(std::make_unique<FPUWord>(QStringLiteral("FCR"), FCRDescription));
+	fpuRegs->addRegister(std::make_unique<FPUWord>(QStringLiteral("FSR"), FSRDescription));
+	fpuRegs->addRegister(std::make_unique<FPUWord>(QStringLiteral("FTR"), FTRDescription));
+	fpuRegs->addRegister(std::make_unique<FOPCReg>(QStringLiteral("FOP")));
 	using Rs = Regs<bitSize>;
-	fpuRegs->addRegister(std::make_unique<SegmentReg>("FIS"));
-	fpuRegs->addRegister(std::make_unique<typename Rs::IP>("FIP"));
-	fpuRegs->addRegister(std::make_unique<SegmentReg>("FDS"));
-	fpuRegs->addRegister(std::make_unique<typename Rs::IP>("FDP"));
+	fpuRegs->addRegister(std::make_unique<SegmentReg>(QStringLiteral("FIS")));
+	fpuRegs->addRegister(std::make_unique<typename Rs::IP>(QStringLiteral("FIP")));
+	fpuRegs->addRegister(std::make_unique<SegmentReg>(QStringLiteral("FDS")));
+	fpuRegs->addRegister(std::make_unique<typename Rs::IP>(QStringLiteral("FDP")));
 }
 
 template <std::size_t bitSize>
 void addDebugRegs(RegisterViewModelBase::Category *dbgRegs) {
 	using Rs = Regs<bitSize>;
-	for (std::size_t i = 0; i < 4; ++i) {
-		dbgRegs->addRegister(std::make_unique<typename Rs::IP>(QString("DR%1").arg(i)));
+	for (int i = 0; i < 4; ++i) {
+		dbgRegs->addRegister(std::make_unique<typename Rs::IP>(QStringLiteral("DR%1").arg(i)));
 	}
 
-	dbgRegs->addRegister(std::make_unique<typename Rs::FLAGS>(QString("DR6"), DR6Description));
-	dbgRegs->addRegister(std::make_unique<typename Rs::FLAGS>(QString("DR7"), DR7Description));
+	dbgRegs->addRegister(std::make_unique<typename Rs::FLAGS>(QStringLiteral("DR6"), DR6Description));
+	dbgRegs->addRegister(std::make_unique<typename Rs::FLAGS>(QStringLiteral("DR7"), DR7Description));
 }
 
 const std::vector<NumberDisplayMode> MMXFormats = {
@@ -316,33 +306,34 @@ const std::vector<NumberDisplayMode> SSEAVXFormats = {
 void addMMXRegs(RegisterViewModelBase::SIMDCategory *mmxRegs) {
 	using namespace RegisterViewModelBase;
 	// TODO: MMXReg should have possibility to be shown in byte/word/dword signed/unsigned/hex formats
-	for (std::size_t i = 0; i < MMX_REG_COUNT; ++i) {
-		mmxRegs->addRegister(std::make_unique<MMXReg>(QString("MM%1").arg(i), MMXFormats));
+	for (int i = 0; i < MMX_REG_COUNT; ++i) {
+		mmxRegs->addRegister(std::make_unique<MMXReg>(QStringLiteral("MM%1").arg(i), MMXFormats));
 	}
 }
 
-void addSSERegs(RegisterViewModelBase::SIMDCategory *sseRegs, unsigned regCount) {
-	for (std::size_t i = 0; i < regCount; ++i) {
-		sseRegs->addRegister(std::make_unique<SSEReg>(QString("XMM%1").arg(i), SSEAVXFormats));
+void addSSERegs(RegisterViewModelBase::SIMDCategory *sseRegs, int regCount) {
+	for (int i = 0; i < regCount; ++i) {
+		sseRegs->addRegister(std::make_unique<SSEReg>(QStringLiteral("XMM%1").arg(i), SSEAVXFormats));
 	}
 
-	sseRegs->addRegister(std::make_unique<MXCSR>("MXCSR", MXCSRDescription));
+	sseRegs->addRegister(std::make_unique<MXCSR>(QStringLiteral("MXCSR"), MXCSRDescription));
 }
 
-void addAVXRegs(RegisterViewModelBase::SIMDCategory *avxRegs, unsigned regCount) {
-	for (std::size_t i = 0; i < regCount; ++i) {
-		avxRegs->addRegister(std::make_unique<AVXReg>(QString("YMM%1").arg(i), SSEAVXFormats));
+void addAVXRegs(RegisterViewModelBase::SIMDCategory *avxRegs, int regCount) {
+	for (int i = 0; i < regCount; ++i) {
+		avxRegs->addRegister(std::make_unique<AVXReg>(QStringLiteral("YMM%1").arg(i), SSEAVXFormats));
 	}
-	avxRegs->addRegister(std::make_unique<MXCSR>("MXCSR", MXCSRDescription));
+	avxRegs->addRegister(std::make_unique<MXCSR>(QStringLiteral("MXCSR"), MXCSRDescription));
 }
 
 }
 
 /**
- * @brief RegisterViewModel::data
- * @param index
- * @param role
- * @return
+ * @brief Returns the data for the specified index and role.
+ *
+ * @param index The index of the item to retrieve.
+ * @param role The role of the data to retrieve.
+ * @return The data for the specified index and role.
  */
 QVariant RegisterViewModel::data(const QModelIndex &index, int role) const {
 	if (role == FixedLengthRole) {
@@ -353,13 +344,19 @@ QVariant RegisterViewModel::data(const QModelIndex &index, int role) const {
 		const auto name = reg->data(NAME_COLUMN).toString();
 
 		if (index.column() == NAME_COLUMN) {
-			if (name == "R8" || name == "R9") {
+			if (name == QLatin1String("R8") || name == QLatin1String("R9")) {
 				return 3;
 			}
 
-			if (name.startsWith("XMM") || name.startsWith("YMM")) {
-				if (mode == CpuMode::IA32) return 4;
-				if (mode == CpuMode::AMD64) return 5;
+			if (name.startsWith(QLatin1String("XMM")) || name.startsWith(QLatin1String("YMM"))) {
+				if (mode == CpuMode::IA32) {
+					return 4;
+				}
+
+				if (mode == CpuMode::AMD64) {
+					return 5;
+				}
+
 				return {};
 			}
 		}
@@ -368,9 +365,10 @@ QVariant RegisterViewModel::data(const QModelIndex &index, int role) const {
 }
 
 /**
- * @brief RegisterViewModel::RegisterViewModel
- * @param cpuSuppFlags
- * @param parent
+ * @brief Constructs the register view model and initializes its internal state.
+ *
+ * @param cpuSuppFlags The CPU support flags.
+ * @param parent The parent object for the register view model.
  */
 RegisterViewModel::RegisterViewModel(int cpuSuppFlags, QObject *parent)
 	: RegisterViewModelBase::Model(parent),
@@ -419,7 +417,7 @@ RegisterViewModel::RegisterViewModel(int cpuSuppFlags, QObject *parent)
 	setCpuMode(CpuMode::UNKNOWN);
 }
 
-template <typename RegType, typename ValueType>
+template <class RegType, class ValueType>
 void updateRegister(RegisterViewModelBase::Category *cat, int row, ValueType value, const QString &comment, const char *nameToCheck = nullptr) {
 	const auto reg = cat->getRegister(row);
 	if (!dynamic_cast<RegType *>(reg)) {
@@ -427,19 +425,19 @@ void updateRegister(RegisterViewModelBase::Category *cat, int row, ValueType val
 		invalidate(cat, row, nameToCheck);
 		return;
 	}
-	Q_ASSERT(!nameToCheck || reg->name() == nameToCheck);
+	Q_ASSERT(!nameToCheck || reg->name() == QString::fromLatin1(nameToCheck));
 	Q_UNUSED(nameToCheck)
 	static_cast<RegType *>(reg)->update(value, comment);
 }
 
-void RegisterViewModel::updateGPR(std::size_t i, edb::value32 val, const QString &comment) {
+void RegisterViewModel::updateGPR(int i, edb::value32 val, const QString &comment) {
 	Q_ASSERT(int(i) < gprs32->childCount());
-	updateRegister<GPR32>(gprs32, static_cast<int>(i), val, comment);
+	updateRegister<GPR32>(gprs32, i, val, comment);
 }
 
-void RegisterViewModel::updateGPR(std::size_t i, edb::value64 val, const QString &comment) {
+void RegisterViewModel::updateGPR(int i, edb::value64 val, const QString &comment) {
 	Q_ASSERT(int(i) < gprs64->childCount());
-	updateRegister<GPR64>(gprs64, static_cast<int>(i), val, comment);
+	updateRegister<GPR64>(gprs64, i, val, comment);
 }
 
 void RegisterViewModel::updateIP(edb::value64 value, const QString &comment) {
@@ -458,7 +456,7 @@ void RegisterViewModel::updateFlags(edb::value32 value, const QString &comment) 
 	updateRegister<EFLAGS>(genStatusRegs32, EFLAGS_ROW, value, comment);
 }
 
-void RegisterViewModel::updateSegReg(std::size_t i, edb::value16 value, const QString &comment) {
+void RegisterViewModel::updateSegReg(int i, edb::value16 value, const QString &comment) {
 	updateRegister<SegmentReg>(segRegs, i, value, comment);
 }
 
@@ -473,10 +471,10 @@ RegisterViewModelBase::FPUCategory *RegisterViewModel::getFPUcat() const {
 	}
 }
 
-void RegisterViewModel::updateFPUReg(std::size_t i, edb::value80 value, const QString &comment) {
+void RegisterViewModel::updateFPUReg(int i, edb::value80 value, const QString &comment) {
 	const auto cat = getFPUcat();
 	Q_ASSERT(int(i) < cat->childCount());
-	updateRegister<FPUReg>(cat, static_cast<int>(i), value, comment);
+	updateRegister<FPUReg>(cat, i, value, comment);
 }
 
 void RegisterViewModel::updateFCR(edb::value16 value, const QString &comment) {
@@ -492,10 +490,13 @@ void RegisterViewModel::updateFSR(edb::value16 value, const QString &comment) {
 }
 
 void invalidate(RegisterViewModelBase::Category *cat, int row, const char *nameToCheck) {
-	if (!cat) return;
+	if (!cat) {
+		return;
+	}
+
 	Q_ASSERT(row < cat->childCount());
 	const auto reg = cat->getRegister(row);
-	Q_ASSERT(!nameToCheck || reg->name() == nameToCheck);
+	Q_ASSERT(!nameToCheck || reg->name() == QString::fromLatin1(nameToCheck));
 	Q_UNUSED(nameToCheck)
 	reg->invalidate();
 }
@@ -540,39 +541,45 @@ void RegisterViewModel::updateFDS(edb::value16 value, const QString &comment) {
 	updateRegister<SegmentReg>(getFPUcat(), FDS_ROW, value, comment, "FDS");
 }
 
-void RegisterViewModel::updateDR(std::size_t i, edb::value32 value, const QString &comment) {
+void RegisterViewModel::updateDR(int i, edb::value32 value, const QString &comment) {
 	Q_ASSERT(i < DBG_REG_COUNT);
-	if (i < 4)
+	if (i < 4) {
 		updateRegister<EIP>(dbgRegs32, i, value, comment);
-	else if (i >= 6)
+	} else if (i >= 6) {
 		updateRegister<EFLAGS>(dbgRegs32, i - 2, value, comment);
+	}
 }
-void RegisterViewModel::updateDR(std::size_t i, edb::value64 value, const QString &comment) {
+void RegisterViewModel::updateDR(int i, edb::value64 value, const QString &comment) {
 	Q_ASSERT(i < DBG_REG_COUNT);
-	if (i < 4)
+	if (i < 4) {
 		updateRegister<RIP>(dbgRegs64, i, value, comment);
-	else if (i >= 6)
+	} else if (i >= 6) {
 		updateRegister<RFLAGS>(dbgRegs64, i - 2, value, comment);
+	}
 }
 
-void RegisterViewModel::updateMMXReg(std::size_t i, edb::value64 value, const QString &comment) {
+void RegisterViewModel::updateMMXReg(int i, edb::value64 value, const QString &comment) {
 	Q_ASSERT(i < MMX_REG_COUNT);
-	if (!mmxRegs->childCount()) return;
-	updateRegister<MMXReg>(mmxRegs, static_cast<int>(i), value, comment);
+	if (!mmxRegs->childCount()) {
+		return;
+	}
+	updateRegister<MMXReg>(mmxRegs, i, value, comment);
 }
-void RegisterViewModel::invalidateMMXReg(std::size_t i) {
+void RegisterViewModel::invalidateMMXReg(int i) {
 	Q_ASSERT(i < MMX_REG_COUNT);
-	if (!mmxRegs->childCount()) return;
+	if (!mmxRegs->childCount()) {
+		return;
+	}
 	invalidate(mmxRegs, i);
 }
 
 std::tuple<RegisterViewModelBase::Category * /*sse*/,
 		   RegisterViewModelBase::Category * /*avx*/,
-		   unsigned /*maxRegs*/>
+		   int /*maxRegs*/>
 RegisterViewModel::getSSEparams() const {
 	RegisterViewModelBase::Category *sseCat = nullptr;
 	RegisterViewModelBase::Category *avxCat = nullptr;
-	unsigned sseRegMax                      = 0;
+	int sseRegMax                           = 0;
 	switch (mode) {
 	case CpuMode::IA32:
 		sseRegMax = SSE_REG_COUNT32;
@@ -590,43 +597,57 @@ RegisterViewModel::getSSEparams() const {
 	return std::make_tuple(sseCat, avxCat, sseRegMax);
 }
 
-void RegisterViewModel::updateSSEReg(std::size_t i, edb::value128 value, const QString &comment) {
-	RegisterViewModelBase::Category *sseCat, *avxCat;
-	unsigned sseRegMax;
+void RegisterViewModel::updateSSEReg(int i, edb::value128 value, const QString &comment) {
+	RegisterViewModelBase::Category *sseCat;
+	RegisterViewModelBase::Category *avxCat;
+	int sseRegMax;
 	std::tie(sseCat, avxCat, sseRegMax) = getSSEparams();
 	Q_ASSERT(i < sseRegMax);
-	if (!sseCat->childCount()) return;
-	updateRegister<SSEReg>(sseCat, static_cast<int>(i), value, comment);
+	if (!sseCat->childCount()) {
+		return;
+	}
+	updateRegister<SSEReg>(sseCat, i, value, comment);
 	// To avoid showing stale data in case this is called when AVX state is supported
-	if (avxCat->childCount()) invalidate(avxCat, i);
+	if (avxCat->childCount()) {
+		invalidate(avxCat, i);
+	}
 }
-void RegisterViewModel::invalidateSSEReg(std::size_t i) {
-	RegisterViewModelBase::Category *sseCat, *avxCat;
-	std::size_t sseRegMax;
+void RegisterViewModel::invalidateSSEReg(int i) {
+	RegisterViewModelBase::Category *sseCat;
+	RegisterViewModelBase::Category *avxCat;
+	int sseRegMax;
 	std::tie(sseCat, avxCat, sseRegMax) = getSSEparams();
+
 	Q_ASSERT(i < sseRegMax);
-	if (!sseCat->childCount()) return;
+	if (!sseCat->childCount()) {
+		return;
+	}
+
 	invalidate(sseCat, i);
 	// To avoid showing stale data in case this is called when AVX state is supported
-	if (avxCat->childCount()) invalidate(avxCat, i);
+	if (avxCat->childCount()) {
+		invalidate(avxCat, i);
+	}
 }
 
-void RegisterViewModel::updateAVXReg(std::size_t i, edb::value256 value, const QString &comment) {
-	RegisterViewModelBase::Category *sseCat, *avxCat;
-	unsigned avxRegMax;
+void RegisterViewModel::updateAVXReg(int i, edb::value256 value, const QString &comment) {
+	RegisterViewModelBase::Category *sseCat;
+	RegisterViewModelBase::Category *avxCat;
+	int avxRegMax;
 	std::tie(sseCat, avxCat, avxRegMax) = getSSEparams();
 	if (i >= avxRegMax) {
 		qWarning() << Q_FUNC_INFO << ": i>AVXmax";
 		return;
 	}
 	// update aliases
-	updateRegister<SSEReg>(sseCat, static_cast<int>(i), edb::value128(value), comment);
+	updateRegister<SSEReg>(sseCat, i, edb::value128(value), comment);
 	// update actual registers
-	updateRegister<AVXReg>(avxCat, static_cast<int>(i), value, comment);
+	updateRegister<AVXReg>(avxCat, i, value, comment);
 }
-void RegisterViewModel::invalidateAVXReg(std::size_t i) {
-	RegisterViewModelBase::Category *sseCat, *avxCat;
-	std::size_t avxRegMax;
+void RegisterViewModel::invalidateAVXReg(int i) {
+	RegisterViewModelBase::Category *sseCat;
+	RegisterViewModelBase::Category *avxCat;
+	int avxRegMax;
 	std::tie(sseCat, avxCat, avxRegMax) = getSSEparams();
 	Q_ASSERT(i < avxRegMax);
 	// invalidate aliases
@@ -636,20 +657,24 @@ void RegisterViewModel::invalidateAVXReg(std::size_t i) {
 }
 
 void RegisterViewModel::updateMXCSR(edb::value32 value, const QString &comment) {
-	RegisterViewModelBase::Category *sseCat, *avxCat;
+	RegisterViewModelBase::Category *sseCat;
+	RegisterViewModelBase::Category *avxCat;
 	std::size_t avxRegMax;
 	std::tie(sseCat, avxCat, avxRegMax) = getSSEparams();
 	updateRegister<MXCSR>(sseCat, sseCat->childCount() - 1, value, comment, "MXCSR");
-	if (avxCat->childCount())
+	if (avxCat->childCount()) {
 		updateRegister<MXCSR>(avxCat, avxCat->childCount() - 1, value, comment, "MXCSR");
+	}
 }
 void RegisterViewModel::invalidateMXCSR() {
-	RegisterViewModelBase::Category *sseCat, *avxCat;
+	RegisterViewModelBase::Category *sseCat;
+	RegisterViewModelBase::Category *avxCat;
 	std::size_t avxRegMax;
 	std::tie(sseCat, avxCat, avxRegMax) = getSSEparams();
 	invalidate(sseCat, sseCat->childCount() - 1, "MXCSR");
-	if (avxCat->childCount())
+	if (avxCat->childCount()) {
 		invalidate(avxCat, avxCat->childCount() - 1, "MXCSR");
+	}
 }
 
 void RegisterViewModel::hide64BitModeCategories() {
@@ -657,8 +682,14 @@ void RegisterViewModel::hide64BitModeCategories() {
 	genStatusRegs64->hide();
 	fpuRegs64->hide();
 	dbgRegs64->hide();
-	if (sseRegs64->childCount()) sseRegs64->hide();
-	if (avxRegs64->childCount()) avxRegs64->hide();
+
+	if (sseRegs64->childCount()) {
+		sseRegs64->hide();
+	}
+
+	if (avxRegs64->childCount()) {
+		avxRegs64->hide();
+	}
 }
 
 void RegisterViewModel::hide32BitModeCategories() {
@@ -666,8 +697,14 @@ void RegisterViewModel::hide32BitModeCategories() {
 	genStatusRegs32->hide();
 	fpuRegs32->hide();
 	dbgRegs32->hide();
-	if (sseRegs32->childCount()) sseRegs32->hide();
-	if (avxRegs32->childCount()) avxRegs32->hide();
+
+	if (sseRegs32->childCount()) {
+		sseRegs32->hide();
+	}
+
+	if (avxRegs32->childCount()) {
+		avxRegs32->hide();
+	}
 }
 
 void RegisterViewModel::show64BitModeCategories() {
@@ -675,8 +712,14 @@ void RegisterViewModel::show64BitModeCategories() {
 	genStatusRegs64->show();
 	fpuRegs64->show();
 	dbgRegs64->show();
-	if (sseRegs64->childCount()) sseRegs64->show();
-	if (avxRegs64->childCount()) avxRegs64->show();
+
+	if (sseRegs64->childCount()) {
+		sseRegs64->show();
+	}
+
+	if (avxRegs64->childCount()) {
+		avxRegs64->show();
+	}
 }
 
 void RegisterViewModel::show32BitModeCategories() {
@@ -684,8 +727,14 @@ void RegisterViewModel::show32BitModeCategories() {
 	genStatusRegs32->show();
 	fpuRegs32->show();
 	dbgRegs32->show();
-	if (sseRegs32->childCount()) sseRegs32->show();
-	if (avxRegs32->childCount()) avxRegs32->show();
+
+	if (sseRegs32->childCount()) {
+		sseRegs32->show();
+	}
+
+	if (avxRegs32->childCount()) {
+		avxRegs32->show();
+	}
 }
 
 void RegisterViewModel::hideGenericCategories() {
@@ -695,11 +744,15 @@ void RegisterViewModel::hideGenericCategories() {
 
 void RegisterViewModel::showGenericCategories() {
 	segRegs->show();
-	if (mmxRegs->childCount()) mmxRegs->show();
+	if (mmxRegs->childCount()) {
+		mmxRegs->show();
+	}
 }
 
 void RegisterViewModel::setCpuMode(CpuMode newMode) {
-	if (mode == newMode) return;
+	if (mode == newMode) {
+		return;
+	}
 
 	beginResetModel();
 	mode = newMode;

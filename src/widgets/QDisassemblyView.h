@@ -1,24 +1,13 @@
 /*
-Copyright (C) 2006 - 2017 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef QDISASSEMBLY_VIEW_H_20061101_
 #define QDISASSEMBLY_VIEW_H_20061101_
 
+#include "Comment.h"
 #include "NavigationHistory.h"
 #include "Types.h"
 
@@ -47,15 +36,15 @@ class QDisassemblyView final : public QAbstractScrollArea {
 
 private:
 	struct DrawingContext {
-		int l1;
-		int l2;
-		int l3;
-		int l4;
+		qreal l1;
+		qreal l2;
+		qreal l3;
+		qreal l4;
 		int linesToRender;
 		int selectedLines;
-		int lineHeight;
+		qreal lineHeight;
 		QPalette::ColorGroup group;
-		std::map<int, int> lineBadgeWidth; // for jmp drawing
+		std::map<int, qreal> lineBadgeWidth; // for jmp drawing
 	};
 
 public:
@@ -74,17 +63,20 @@ protected:
 	void resizeEvent(QResizeEvent *event) override;
 
 public:
-	QByteArray saveState() const;
-	QString getComment(edb::address_t address);
-	bool addressShown(edb::address_t address) const;
-	edb::address_t addressFromPoint(const QPoint &pos) const;
-	edb::address_t selectedAddress() const;
+	[[nodiscard]] bool addressShown(edb::address_t address) const;
+	[[nodiscard]] edb::address_t addressFromPoint(const QPointF &pos) const;
+	[[nodiscard]] edb::address_t selectedAddress() const;
+	[[nodiscard]] int selectedSize() const;
+	[[nodiscard]] QByteArray saveState() const;
+	[[nodiscard]] QString getComment(edb::address_t address) const;
+	[[nodiscard]] std::shared_ptr<IRegion> region() const;
+
 	int removeComment(edb::address_t address);
-	int selectedSize() const;
-	std::shared_ptr<IRegion> region() const;
 	void addComment(edb::address_t address, QString comment);
 	void clearComments();
-	void restoreComments(QVariantList &);
+
+	[[nodiscard]] QVector<Comment> commentData() const;
+
 	void restoreState(const QByteArray &stateBuffer);
 	void setSelectedAddress(edb::address_t address);
 
@@ -104,35 +96,35 @@ public Q_SLOTS:
 	void resetColumns();
 
 private:
-	void scrollbarActionTriggered(int action);
-	QString formatAddress(edb::address_t address) const;
-	QString instructionString(const edb::Instruction &inst) const;
-	Result<int, QString> getInstructionSize(edb::address_t address) const;
-	Result<int, QString> getInstructionSize(edb::address_t address, uint8_t *buf, int *size) const;
-	std::optional<unsigned int> getLineOfAddress(edb::address_t addr) const;
-	edb::address_t addressFromCoord(int x, int y) const;
-	int addressLength() const;
-	int autoLine2() const;
-	int line0() const;
-	int line1() const;
-	int line2() const;
-	int line3() const;
-	int line4() const;
-	int lineHeight() const;
-	int previousInstructions(int current_address, int count);
-	int previousInstruction(IAnalyzer *analyzer, int current_address);
-	int followingInstructions(int current_address, int count);
-	int followingInstruction(int current_address);
+	[[nodiscard]] edb::address_t addressFromCoord(qreal x, qreal y) const;
+	[[nodiscard]] int addressLength() const;
+	[[nodiscard]] int followingInstruction(int current_address) const;
+	[[nodiscard]] int followingInstructions(int current_address, int count) const;
+	[[nodiscard]] int getSelectedLineNumber() const;
+	[[nodiscard]] int previousInstruction(IAnalyzer *analyzer, int current_address) const;
+	[[nodiscard]] int previousInstructions(int current_address, int count) const;
+	[[nodiscard]] qreal autoLine2() const;
+	[[nodiscard]] qreal line0() const;
+	[[nodiscard]] qreal line1() const;
+	[[nodiscard]] qreal line2() const;
+	[[nodiscard]] qreal line3() const;
+	[[nodiscard]] qreal line4() const;
+	[[nodiscard]] qreal lineHeight() const;
+	[[nodiscard]] QString formatAddress(edb::address_t address) const;
+	[[nodiscard]] QString instructionString(const edb::Instruction &inst) const;
+	[[nodiscard]] Result<int, QString> getInstructionSize(edb::address_t address, uint8_t *buf, int *size) const;
+	[[nodiscard]] Result<int, QString> getInstructionSize(edb::address_t address) const;
+	[[nodiscard]] std::optional<unsigned int> getLineOfAddress(edb::address_t addr) const;
 	int updateDisassembly(int lines_to_render);
-	int getSelectedLineNumber() const;
 	void paintLineBg(QPainter &painter, QBrush brush, int line, int num_lines = 1);
+	void scrollbarActionTriggered(int action);
 	void setAddressOffset(edb::address_t address);
 	void updateScrollbars();
 	void updateSelectedAddress(QMouseEvent *event);
 
-	void drawInstruction(QPainter &painter, const edb::Instruction &inst, const DrawingContext *ctx, int y, bool selected);
+	void drawInstruction(QPainter &painter, const edb::Instruction &inst, const DrawingContext *ctx, qreal y, bool selected);
 	void drawHeaderAndBackground(QPainter &painter, const DrawingContext *ctx, const std::unique_ptr<IBinary> &binary_info);
-	void drawRegiserBadges(QPainter &painter, DrawingContext *ctx);
+	void drawRegisterBadges(QPainter &painter, DrawingContext *ctx);
 	void drawSymbolNames(QPainter &painter, const DrawingContext *ctx);
 	void drawSidebarElements(QPainter &painter, const DrawingContext *ctx);
 	void drawInstructionBytes(QPainter &painter, const DrawingContext *ctx);
@@ -146,15 +138,15 @@ private:
 	edb::address_t addressOffset_{0};
 	edb::address_t selectedInstructionAddress_{0};
 	edb::address_t currentAddress_{0};
-	int fontHeight_                = 0; // height of a character in this font
-	int fontWidth_                 = 0; // width of a character in this font
-	int iconWidth_                 = 0;
-	int iconHeight_                = 0;
-	int line0_                     = 0;
-	int line1_                     = 0;
-	int line2_                     = 0;
-	int line3_                     = 0;
-	int line4_                     = 0;
+	qreal fontHeight_              = 0.0; // height of a character in this font
+	qreal fontWidth_               = 0.0; // width of a character in this font
+	qreal iconWidth_               = 0.0;
+	qreal iconHeight_              = 0.0;
+	qreal line0_                   = 0.0;
+	qreal line1_                   = 0.0;
+	qreal line2_                   = 0.0;
+	qreal line3_                   = 0.0;
+	qreal line4_                   = 0.0;
 	int selectedInstructionSize_   = 0;
 	bool movingLine1_              = false;
 	bool movingLine2_              = false;
@@ -174,7 +166,7 @@ private:
 	std::vector<CapstoneEDB::Instruction> instructions_;
 	SyntaxHighlighter *highlighter_;
 	bool showAddressSeparator_;
-	QHash<edb::address_t, QString> comments_;
+	QHash<edb::address_t, Comment> comments_;
 	NavigationHistory history_;
 	QSvgRenderer breakpointRenderer_;
 	QSvgRenderer currentRenderer_;
@@ -202,7 +194,7 @@ private:
 		size_t distance;
 
 		// length of arrow horizontal
-		int horizontalLength;
+		qreal horizontalLength;
 	};
 };
 

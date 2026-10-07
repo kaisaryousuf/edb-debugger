@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "OpcodeSearcher.h"
 #include "DialogOpcodes.h"
@@ -24,24 +12,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace OpcodeSearcherPlugin {
 
 /**
- * @brief OpcodeSearcher::OpcodeSearcher
- * @param parent
+ * @brief Constructs an OpcodeSearcher object with the specified parent QObject.
+ *
+ * @param parent The parent QObject for this plugin.
  */
 OpcodeSearcher::OpcodeSearcher(QObject *parent)
 	: QObject(parent) {
 }
 
 /**
- * @brief OpcodeSearcher::~OpcodeSearcher
+ * @brief Destructs the OpcodeSearcher object and frees the opcode search dialog.
  */
 OpcodeSearcher::~OpcodeSearcher() {
 	delete dialog_;
 }
 
 /**
- * @brief OpcodeSearcher::menu
- * @param parent
- * @return
+ * @brief Returns the menu for the OpcodeSearcher plugin, creating it if it doesn't already exist.
+ *
+ * @param parent The parent widget for the menu.
+ * @return A pointer to the QMenu object.
  */
 QMenu *OpcodeSearcher::menu(QWidget *parent) {
 
@@ -49,14 +39,18 @@ QMenu *OpcodeSearcher::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("OpcodeSearcher"), parent);
-		menu_->addAction(tr("&Opcode Search"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+O")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&Opcode Search"), QKeySequence(tr("Ctrl+O")), this, &OpcodeSearcher::showMenu);
+#else
+		menu_->addAction(tr("&Opcode Search"), this, &OpcodeSearcher::showMenu, QKeySequence(tr("Ctrl+O")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief OpcodeSearcher::showMenu
+ * @brief Shows the Opcode Search menu. If the dialog does not already exist, it is created and then shown.
  */
 void OpcodeSearcher::showMenu() {
 

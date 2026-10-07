@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef PLATFORM_PROCESS_H_20150517_
 #define PLATFORM_PROCESS_H_20150517_
@@ -46,12 +34,12 @@ public:
 
 	QList<QByteArray> arguments() const override;
 
-	QString stardardInput() const override {
-		qDebug("TODO: implement PlatformProcess::stardardInput");
+	QString standardInput() const override {
+		qDebug("TODO: implement PlatformProcess::standardInput");
 		return QString();
 	}
 
-	QString stardardOutput() const override {
+	QString standardOutput() const override {
 		qDebug("TODO: implement PlatformProcess::currentWorkingDirectory");
 		return QString();
 	}
@@ -87,7 +75,7 @@ public:
 	edb::uid_t uid() const override;
 	QString user() const override;
 	QString name() const override;
-	QList<Module> loadedModules() const override;
+	std::set<Module> loadedModules() const override;
 
 public:
 	// only legal to call when attached
@@ -109,11 +97,11 @@ public:
 
 	Status resume(edb::EventStatus status) override;
 	Status step(edb::EventStatus status) override;
-	bool isPaused() const override;
+	[[nodiscard]] bool isPaused() const override;
 	QMap<edb::address_t, Patch> patches() const override;
 
 private:
-	bool isWow64() const;
+	[[nodiscard]] bool isWow64() const;
 
 private:
 	edb::address_t startAddress_ = 0;

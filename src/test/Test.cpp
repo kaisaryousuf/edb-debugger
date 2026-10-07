@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Value.h"
 #include <cstdlib>
@@ -41,7 +46,7 @@ void testSignExtension() {
 	v64 = 0xffffffffffffffff;
 	TEST(v64.signExtended(8) == 0xffffffffffffffff);
 
-	//shouldn't!
+	// shouldn't!
 	v64 = 0x7f;
 	TEST(v64.signExtended(1) == 0x000000000000007f);
 
@@ -89,13 +94,13 @@ void testAssignment() {
 
 void testFromString() {
 	edb::value64 v64;
-	v64 = edb::value64::fromHexString("0123456789abcdef");
+	v64 = edb::value64::fromHexString(QStringLiteral("0123456789abcdef"));
 	TEST(v64 == 0x0123456789abcdef);
 
-	v64 = edb::value64::fromSignedString("-10");
+	v64 = edb::value64::fromSignedString(QStringLiteral("-10"));
 	TEST(v64 == 0xfffffffffffffff6);
 
-	v64 = edb::value64::fromCString("07777777777");
+	v64 = edb::value64::fromCString(QStringLiteral("07777777777"));
 	TEST(v64 == 07777777777);
 }
 
@@ -119,14 +124,120 @@ void testConstruction() {
 
 void testToString() {
 	edb::value64 v64;
-	v64 = edb::value64::fromHexString("0123456789abcdef");
+	v64 = edb::value64::fromHexString(QStringLiteral("0123456789abcdef"));
 	TEST(v64 == 0x0123456789abcdef);
 
 	QString str = v64.toHexString();
-	TEST(str == "0123456789abcdef");
+	TEST(str == QLatin1String("0123456789abcdef"));
 
 	QString str2 = v64.toString();
-	TEST(str2 == "81985529216486895");
+	TEST(str2 == QLatin1String("81985529216486895"));
+}
+
+void testCompare() {
+	edb::value64 v64a = 0xffffffffffffffff;
+	TEST(v64a == 0xffffffffffffffff);
+	TEST(v64a != 0x0000000000000000);
+	TEST(v64a == -1);
+}
+
+void testCompareSignedVsUnsigned() {
+	// value_type is always unsigned and compares signed integers via sign-extension.
+	edb::value8 v8 = 0xff;
+	TEST(v8 == -1);
+	TEST(-1 == v8);
+	TEST(v8 != -2);
+	TEST(v8 != 0x7f);
+
+	edb::value16 v16 = 0xffff;
+	TEST(v16 == -1);
+	TEST(-1 == v16);
+	TEST(v16 != -2);
+
+	edb::value16 v16SignExtendedFromInt8 = 0xff80;
+	TEST(v16SignExtendedFromInt8 == static_cast<int8_t>(-128));
+	TEST(static_cast<int8_t>(-128) == v16SignExtendedFromInt8);
+
+	edb::value16 v16NotSignExtendedFromInt8 = 0x0080;
+	TEST(v16NotSignExtendedFromInt8 != static_cast<int8_t>(-128));
+	TEST(static_cast<int8_t>(-128) != v16NotSignExtendedFromInt8);
+
+	edb::value64 v64AllOnes = 0xffffffffffffffff;
+	TEST(v64AllOnes == static_cast<int32_t>(-1));
+	TEST(static_cast<int32_t>(-1) == v64AllOnes);
+
+	edb::value64 v64Low32Ones = 0x00000000ffffffff;
+	TEST(v64Low32Ones != static_cast<int32_t>(-1));
+	TEST(static_cast<int32_t>(-1) != v64Low32Ones);
+}
+
+void testMixedSignedOperatorsValueTypeLhs() {
+	edb::value32 v = 0x00000010;
+	auto neg1      = static_cast<int8_t>(-1);
+
+	TEST((v + neg1) == 0x0000000f);
+	TEST((v - neg1) == 0x00000011);
+	TEST((v * neg1) == 0xfffffff0);
+	TEST((v / neg1) == 0x00000000);
+	TEST((v % neg1) == 0x00000010);
+
+	TEST((v & neg1) == 0x00000010);
+	TEST((v | neg1) == 0xffffffff);
+	TEST((v ^ neg1) == 0xffffffef);
+}
+
+void testMixedSignedOperatorsIntegerLhs() {
+	auto neg1      = static_cast<int8_t>(-1);
+	edb::value16 v = 0x00f0;
+
+	TEST((neg1 + v) == 0x00ef);
+	TEST((neg1 - v) == 0xff0f);
+	TEST((neg1 * v) == 0xff10);
+	TEST((neg1 / v) == 0x0111);
+	TEST((neg1 % v) == 0x000f);
+
+	TEST((neg1 & v) == 0x00f0);
+	TEST((neg1 | v) == 0xffff);
+	TEST((neg1 ^ v) == 0xff0f);
+
+	// Ensure a wider value_type uses full-width sign-extension from a narrower signed integer.
+	edb::value64 one = 1;
+	TEST((static_cast<int32_t>(-1) + one) == 0x0000000000000000);
+}
+
+void testExplicitSignedTypes() {
+	const int8_t s8Neg1       = -1;
+	const int8_t s8Neg128     = INT8_MIN;
+	const int16_t s16Neg1     = -1;
+	const int32_t s32Neg1     = -1;
+	const int64_t s64Neg1     = -1;
+	const signed char schNeg1 = -1;
+
+	edb::value8 v8 = 0xff;
+	TEST(v8 == s8Neg1);
+	TEST(s8Neg1 == v8);
+	TEST(v8 == schNeg1);
+	TEST(schNeg1 == v8);
+
+	edb::value16 v16SignExtended = 0xff80;
+	TEST(v16SignExtended == s8Neg128);
+	TEST(s8Neg128 == v16SignExtended);
+
+	edb::value32 v32 = 0x00000010;
+	TEST((v32 + s16Neg1) == 0x0000000f);
+	TEST((v32 - s16Neg1) == 0x00000011);
+	TEST((v32 | s32Neg1) == 0xffffffff);
+	TEST((v32 ^ s32Neg1) == 0xffffffef);
+
+	edb::value64 v64 = 0xffffffffffffffff;
+	TEST(v64 == s32Neg1);
+	TEST(v64 == s64Neg1);
+	TEST(s32Neg1 == v64);
+	TEST(s64Neg1 == v64);
+
+	edb::value64 v64Low32Ones = 0x00000000ffffffff;
+	TEST(v64Low32Ones != s32Neg1);
+	TEST(s32Neg1 != v64Low32Ones);
 }
 
 }
@@ -137,4 +248,9 @@ int main() {
 	testFromString();
 	testSignExtension();
 	testToString();
+	testCompare();
+	testCompareSignedVsUnsigned();
+	testMixedSignedOperatorsValueTypeLhs();
+	testMixedSignedOperatorsIntegerLhs();
+	testExplicitSignedTypes();
 }

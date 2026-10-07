@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DebuggerCore.h"
 #include "PlatformEvent.h"
@@ -29,11 +17,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <cerrno>
 #include <cstring>
 
+#include <csignal>
+#include <cstdio>
 #include <fcntl.h>
 #include <kvm.h>
 #include <machine/reg.h>
 #include <paths.h>
-#include <signal.h>
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
@@ -67,14 +56,21 @@ int resume_code(int status) {
 }
 
 #if defined(OpenBSD) && (OpenBSD > 201205)
-//------------------------------------------------------------------------------
-// Name: load_vmmap_entries
-// Desc: Download vmmap_entries from the kernel into our address space.
-//       We fix up the addr tree while downloading.
-//       Returns the size of the tree on success, or -1 on failure.
-//       On failure, *rptr needs to be passed to unload_vmmap_entries to free
-//       the lot.
-//------------------------------------------------------------------------------
+/**
+ * @brief Loads virtual memory map entries from the kernel.
+ *
+ * Download vmmap_entries from the kernel into our address space.
+ * We fix up the addr tree while downloading.
+ * Returns the size of the tree on success, or -1 on failure.
+ * On failure, *rptr needs to be passed to unload_vmmap_entries to free
+ * the lot.
+ *
+ * @param kd The kvm_t pointer.
+ * @param kptr The kernel pointer to the entry.
+ * @param rptr The pointer to the entry.
+ * @param parent The parent entry.
+ * @return The size of the tree on success, or -1 on failure.
+ */
 ssize_t load_vmmap_entries(kvm_t *kd, u_long kptr, struct vm_map_entry **rptr, struct vm_map_entry *parent) {
 	struct vm_map_entry *entry;
 	u_long left_kptr;
@@ -127,10 +123,11 @@ ssize_t load_vmmap_entries(kvm_t *kd, u_long kptr, struct vm_map_entry **rptr, s
 	return 1 + left_sz + right_sz;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc: Free the vmmap entries in the given tree.
-//------------------------------------------------------------------------------
+/**
+ * @brief Frees the vmmap entries in the given tree.
+ *
+ * @param entry The root entry of the tree to free.
+ */
 void unload_vmmap_entries(struct vm_map_entry *entry) {
 	if (entry == NULL)
 		return;
@@ -140,10 +137,13 @@ void unload_vmmap_entries(struct vm_map_entry *entry) {
 	free(entry);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc: Don't implement address comparison.
-//------------------------------------------------------------------------------
+/**
+ * @brief A function that does nothing and should not be called. Passed as the address comparison function.
+ *
+ * @param p The first parameter.
+ * @param q The second parameter.
+ * @return 0.
+ */
 int no_impl(void *p, void *q) {
 	Q_UNUSED(p)
 	Q_UNUSED(q)
@@ -157,10 +157,9 @@ int no_impl(void *p, void *q) {
 RB_GENERATE(uvm_map_addr, vm_map_entry, daddrs.addr_entry, no_impl)
 #endif
 
-//------------------------------------------------------------------------------
-// Name: DebuggerCore
-// Desc: constructor
-//------------------------------------------------------------------------------
+/**
+ * @brief Constructor for DebuggerCore.
+ */
 DebuggerCore::DebuggerCore() {
 #if defined(_SC_PAGESIZE)
 	page_size_ = sysconf(_SC_PAGESIZE);
@@ -171,35 +170,38 @@ DebuggerCore::DebuggerCore() {
 #endif
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Checks if the debugger has a specific extension.
+ *
+ * @param ext The extension to check for.
+ * @return true if the extension is available, false otherwise.
+ */
 bool DebuggerCore::has_extension(quint64 ext) const {
 	return false;
 }
 
-//------------------------------------------------------------------------------
-// Name: page_size
-// Desc: returns the size of a page on this system
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the size of a page on this system.
+ *
+ * @return The page size.
+ */
 size_t DebuggerCore::page_size() const {
 	return page_size_;
 }
 
-//------------------------------------------------------------------------------
-// Name: ~DebuggerCore
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Destructor for DebuggerCore.
+ */
 DebuggerCore::~DebuggerCore() {
 	detach();
 }
 
-//------------------------------------------------------------------------------
-// Name: wait_debug_event
-// Desc: waits for a debug event, msecs is a timeout
-//      it will return false if an error or timeout occurs
-//------------------------------------------------------------------------------
+/**
+ * @brief Waits for a debug event.
+ *
+ * @param msecs The timeout in milliseconds.
+ * @return A shared pointer to the debug event, or nullptr if an error or timeout occurs.
+ */
 std::shared_ptr<const IDebugEvent> DebuggerCore::wait_debug_event(int msecs) {
 	if (attached()) {
 		int status;
@@ -227,8 +229,8 @@ std::shared_ptr<const IDebugEvent> DebuggerCore::wait_debug_event(int msecs) {
 					e->fault_code_    = proc.p_sicode;
 					e->fault_address_ = proc.p_sigval.sival_ptr;
 
-					//printf("ps_sig   : %d\n", sigacts.ps_sig);
-					//printf("ps_type  : %d\n", sigacts.ps_type);
+					// printf("ps_sig   : %d\n", sigacts.ps_sig);
+					// printf("ps_type  : %d\n", sigacts.ps_type);
 
 					kvm_close(kd);
 				} else {
@@ -245,10 +247,13 @@ std::shared_ptr<const IDebugEvent> DebuggerCore::wait_debug_event(int msecs) {
 	return nullptr;
 }
 
-//------------------------------------------------------------------------------
-// Name: read_data
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Reads data from the debugged process.
+ *
+ * @param address The address to read from.
+ * @param ok A pointer to a boolean to indicate success or failure.
+ * @return The read value.
+ */
 long DebuggerCore::read_data(edb::address_t address, bool *ok) {
 
 	Q_ASSERT(ok);
@@ -259,18 +264,23 @@ long DebuggerCore::read_data(edb::address_t address, bool *ok) {
 	return v;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_data
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Writes data to the debugged process.
+ *
+ * @param address The address to write to.
+ * @param value The value to write.
+ * @return true if the write was successful, false otherwise.
+ */
 bool DebuggerCore::write_data(edb::address_t address, long value) {
 	return ptrace(PT_WRITE_D, pid(), reinterpret_cast<char *>(address), value) != -1;
 }
 
-//------------------------------------------------------------------------------
-// Name: attach
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Attaches the debugger to a process.
+ *
+ * @param pid The process ID to attach to.
+ * @return true if the attachment was successful, false otherwise.
+ */
 bool DebuggerCore::attach(edb::pid_t pid) {
 	detach();
 
@@ -287,10 +297,9 @@ bool DebuggerCore::attach(edb::pid_t pid) {
 	return ret == 0;
 }
 
-//------------------------------------------------------------------------------
-// Name: detach
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Detaches the debugger from the debugged process.
+ */
 void DebuggerCore::detach() {
 	if (attached()) {
 
@@ -303,10 +312,9 @@ void DebuggerCore::detach() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: kill
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Kills the debugged process.
+ */
 void DebuggerCore::kill() {
 	if (attached()) {
 		clear_breakpoints();
@@ -317,10 +325,9 @@ void DebuggerCore::kill() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: pause
-// Desc: stops *all* threads of a process
-//------------------------------------------------------------------------------
+/**
+ * @brief Pauses the debugged process.
+ */
 void DebuggerCore::pause() {
 	if (attached()) {
 		for (auto it = threads_.begin(); it != threads_.end(); ++it) {
@@ -329,10 +336,11 @@ void DebuggerCore::pause() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: resume
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Resumes the debugged process.
+ *
+ * @param status The event status.
+ */
 void DebuggerCore::resume(edb::EVENT_STATUS status) {
 	// TODO: assert that we are paused
 
@@ -345,10 +353,11 @@ void DebuggerCore::resume(edb::EVENT_STATUS status) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: step
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Steps the debugged process.
+ *
+ * @param status The event status.
+ */
 void DebuggerCore::step(edb::EVENT_STATUS status) {
 	// TODO: assert that we are paused
 
@@ -361,10 +370,11 @@ void DebuggerCore::step(edb::EVENT_STATUS status) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: get_state
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Gets the state of the debugged process.
+ *
+ * @param state A pointer to the state object to populate.
+ */
 void DebuggerCore::get_state(State *state) {
 
 	Q_ASSERT(state);
@@ -389,10 +399,11 @@ void DebuggerCore::get_state(State *state) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_state
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Sets the state of the debugged process.
+ *
+ * @param state The state object to set.
+ */
 void DebuggerCore::set_state(const State &state) {
 
 	// TODO: assert that we are paused
@@ -406,10 +417,15 @@ void DebuggerCore::set_state(const State &state) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: open
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Opens a process for debugging.
+ *
+ * @param path The path to the executable to debug.
+ * @param cwd The working directory for the debugged process.
+ * @param args The arguments to pass to the debugged process.
+ * @param tty The TTY to use for the debugged process's I/O.
+ * @return true if the process was successfully opened for debugging, false otherwise.
+ */
 bool DebuggerCore::open(const QString &path, const QString &cwd, const QList<QByteArray> &args, const QString &tty) {
 	detach();
 	pid_t pid;
@@ -469,27 +485,30 @@ bool DebuggerCore::open(const QString &path, const QString &cwd, const QList<QBy
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_active_thread
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Sets the active thread for the debugger.
+ *
+ * @param tid The thread ID to set as active.
+ */
 void DebuggerCore::set_active_thread(edb::tid_t tid) {
 	Q_ASSERT(threads_.contains(tid));
 	active_thread_ = tid;
 }
 
-//------------------------------------------------------------------------------
-// Name: create_state
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Creates a new state object for the debugger.
+ *
+ * @return A unique pointer to the newly created state object.
+ */
 std::unique_ptr<IState> DebuggerCore::create_state() const {
 	return std::make_unique<PlatformState>();
 }
 
-//------------------------------------------------------------------------------
-// Name: enumerate_processes
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Enumerates the processes currently running on the system.
+ *
+ * @return A map of process IDs to ProcessInfo objects for each running process.
+ */
 QMap<edb::pid_t, ProcessInfo> DebuggerCore::enumerate_processes() const {
 	QMap<edb::pid_t, ProcessInfo> ret;
 
@@ -515,10 +534,12 @@ QMap<edb::pid_t, ProcessInfo> DebuggerCore::enumerate_processes() const {
 	return ret;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the executable path for a given process ID.
+ *
+ * @param pid The process ID.
+ * @return The executable path for the process.
+ */
 QString DebuggerCore::process_exe(edb::pid_t pid) const {
 	QString ret;
 
@@ -537,19 +558,23 @@ QString DebuggerCore::process_exe(edb::pid_t pid) const {
 	return ret;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the current working directory for a given process ID.
+ *
+ * @param pid The process ID.
+ * @return The current working directory for the process, or an empty string if not implemented.
+ */
 QString DebuggerCore::process_cwd(edb::pid_t pid) const {
 	// TODO: implement this
 	return QString();
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the parent process ID for a given process ID.
+ *
+ * @param pid The process ID.
+ * @return The parent process ID, or 0 if the process has no parent or an
+ */
 edb::pid_t DebuggerCore::parent_pid(edb::pid_t pid) const {
 	edb::pid_t ret = 0;
 	char errbuf[_POSIX2_LINE_MAX];
@@ -562,10 +587,11 @@ edb::pid_t DebuggerCore::parent_pid(edb::pid_t pid) const {
 	return ret;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the memory regions for the debugged process.
+ *
+ * @return A list of memory regions for the debugged process.
+ */
 QList<std::shared_ptr<IRegion>> DebuggerCore::memory_regions() const {
 
 	QList<std::shared_ptr<IRegion>> regions;
@@ -593,7 +619,7 @@ QList<std::shared_ptr<IRegion>> DebuggerCore::memory_regions() const {
 				const edb::address_t start = e->start;
 				const edb::address_t end   = e->end;
 				const edb::address_t base  = e->offset;
-				const QString name         = QString();
+				const auto name            = QString();
 				const IRegion::permissions_t permissions =
 					((e->protection & VM_PROT_READ) ? PROT_READ : 0) |
 					((e->protection & VM_PROT_WRITE) ? PROT_WRITE : 0) |
@@ -613,7 +639,7 @@ QList<std::shared_ptr<IRegion>> DebuggerCore::memory_regions() const {
 					const edb::address_t start = e.start;
 					const edb::address_t end   = e.end;
 					const edb::address_t base  = e.offset;
-					const QString name         = QString();
+					const auto name            = QString();
 					const IRegion::permissions_t permissions =
 						((e.protection & VM_PROT_READ) ? PROT_READ : 0) |
 						((e.protection & VM_PROT_WRITE) ? PROT_WRITE : 0) |
@@ -634,10 +660,12 @@ QList<std::shared_ptr<IRegion>> DebuggerCore::memory_regions() const {
 	return regions;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the command line arguments for a given process ID.
+ *
+ * @param pid The process ID.
+ * @return A list of command line arguments for the process.
+ */
 QList<QByteArray> DebuggerCore::process_args(edb::pid_t pid) const {
 	QList<QByteArray> ret;
 	if (pid != 0) {
@@ -659,47 +687,53 @@ QList<QByteArray> DebuggerCore::process_args(edb::pid_t pid) const {
 	return ret;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the address of the process code.
+ *
+ * @return The address of the process code, or 0 if not implemented.
+ */
 edb::address_t DebuggerCore::process_code_address() const {
 	qDebug() << "TODO: implement DebuggerCore::process_code_address";
 	return 0;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the address of the process data.
+ *
+ * @return The address of the process data, or 0 if not implemented.
+ */
 edb::address_t DebuggerCore::process_data_address() const {
 	qDebug() << "TODO: implement DebuggerCore::process_data_address";
 	return 0;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns a list of loaded modules for the debugged process.
+ *
+ * @return A list of loaded modules for the debugged process.
+ */
 QList<Module> DebuggerCore::loaded_modules() const {
 	QList<Module> modules;
 	qDebug() << "TODO: implement DebuggerCore::loaded_modules";
 	return modules;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the start time of the specified process.
+ *
+ * @param pid The process ID.
+ * @return The start time of the process.
+ */
 QDateTime DebuggerCore::process_start(edb::pid_t pid) const {
 	qDebug() << "TODO: implement DebuggerCore::process_start";
 	return QDateTime();
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the CPU type of the debugged process.
+ *
+ * @return The CPU type of the debugged process.
+ */
 quint64 DebuggerCore::cpu_type() const {
 #ifdef EDB_X86
 	return edb::string_hash<'x', '8', '6'>::value;
@@ -708,24 +742,24 @@ quint64 DebuggerCore::cpu_type() const {
 #endif
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Formats a pointer address for display.
+ */
 QString DebuggerCore::format_pointer(edb::address_t address) const {
 	char buf[32];
 #ifdef EDB_X86
-	qsnprintf(buf, sizeof(buf), "%08x", address);
+	snprintf(buf, sizeof(buf), "%08x", address);
 #elif defined(EDB_X86_64)
-	qsnprintf(buf, sizeof(buf), "%016llx", address);
+	snprintf(buf, sizeof(buf), "%016llx", address);
 #endif
 	return buf;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the name of the stack pointer register for the target architecture.
+ *
+ * @return The name of the stack pointer register.
+ */
 QString DebuggerCore::stack_pointer() const {
 #ifdef EDB_X86
 	return "esp";
@@ -734,10 +768,11 @@ QString DebuggerCore::stack_pointer() const {
 #endif
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the name of the frame pointer register for the target architecture.
+ *
+ * @return The name of the frame pointer register.
+ */
 QString DebuggerCore::frame_pointer() const {
 #ifdef EDB_X86
 	return "ebp";
@@ -746,10 +781,11 @@ QString DebuggerCore::frame_pointer() const {
 #endif
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Returns the name of the instruction pointer register for the target architecture.
+ *
+ * @return The name of the instruction pointer register.
+ */
 QString DebuggerCore::instruction_pointer() const {
 #ifdef EDB_X86
 	return "eip";

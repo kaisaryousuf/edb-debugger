@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "SpecifiedFunctions.h"
 #include "IAnalyzer.h"
@@ -29,7 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace AnalyzerPlugin {
 
 /**
- * @brief SpecifiedFunctions::SpecifiedFunctions
+ * @brief Constructs the specified functions dialog and sets up its list model, filter, and refresh button.
+ *
  * @param parent
  * @param f
  */
@@ -47,7 +36,7 @@ SpecifiedFunctions::SpecifiedFunctions(QWidget *parent, Qt::WindowFlags f)
 
 	connect(ui.filter, &QLineEdit::textChanged, filterModel_, &QSortFilterProxyModel::setFilterFixedString);
 
-	buttonRefresh_ = new QPushButton(QIcon::fromTheme("view-refresh"), tr("Refresh"));
+	buttonRefresh_ = new QPushButton(QIcon::fromTheme(QStringLiteral("view-refresh")), tr("Refresh"));
 	connect(buttonRefresh_, &QPushButton::clicked, this, [this]() {
 		buttonRefresh_->setEnabled(false);
 		doFind();
@@ -58,9 +47,7 @@ SpecifiedFunctions::SpecifiedFunctions(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief SpecifiedFunctions::on_function_list_doubleClicked
- *
- * follows the found item in the data view
+ * @brief Jumps the disassembly view to the address corresponding to the double-clicked list entry.
  *
  * @param index
  */
@@ -73,7 +60,7 @@ void SpecifiedFunctions::on_function_list_doubleClicked(const QModelIndex &index
 }
 
 /**
- * @brief SpecifiedFunctions::doFind
+ * @brief Refreshes the list with all currently user-specified function addresses.
  */
 void SpecifiedFunctions::doFind() {
 
@@ -81,14 +68,15 @@ void SpecifiedFunctions::doFind() {
 	QSet<edb::address_t> functions = analyzer->specifiedFunctions();
 
 	QStringList results;
+	results.reserve(static_cast<int>(functions.size()));
 	for (edb::address_t address : functions) {
-		results << QString("%1").arg(edb::v1::format_pointer(address));
+		results.push_back(edb::v1::format_pointer(address));
 	}
 	model_->setStringList(results);
 }
 
 /**
- * @brief SpecifiedFunctions::showEvent
+ * @brief Refreshes the user-specified function list every time the dialog becomes visible.
  */
 void SpecifiedFunctions::showEvent(QShowEvent *) {
 	buttonRefresh_->setEnabled(false);

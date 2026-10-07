@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PlatformRegion.h"
 #include "IDebugEventHandler.h"
@@ -35,7 +23,8 @@ namespace DebuggerCorePlugin {
 namespace {
 
 /**
- * @brief permissions_value
+ * @brief Converts individual read/write/execute permission booleans into the POSIX permissions_t bitmask.
+ *
  * @param read
  * @param write
  * @param execute
@@ -43,9 +32,15 @@ namespace {
  */
 IRegion::permissions_t permissions_value(bool read, bool write, bool execute) {
 	IRegion::permissions_t perms = 0;
-	if (read) perms |= PROT_READ;
-	if (write) perms |= PROT_WRITE;
-	if (execute) perms |= PROT_EXEC;
+	if (read) {
+		perms |= PROT_READ;
+	}
+	if (write) {
+		perms |= PROT_WRITE;
+	}
+	if (execute) {
+		perms |= PROT_EXEC;
+	}
 	return perms;
 }
 
@@ -56,12 +51,12 @@ class BackupInfo : public IDebugEventHandler {
 public:
 	BackupInfo(edb::address_t address, IRegion::permissions_t perms, PlatformRegion *region);
 	~BackupInfo() override;
-	BackupInfo(const BackupInfo &) = delete;
+	BackupInfo(const BackupInfo &)            = delete;
 	BackupInfo &operator=(const BackupInfo &) = delete;
 
 public:
-	IRegion::permissions_t perms() const { return premissions_; }
-	bool locked() { return !lock_.testAndSetAcquire(0, 1); }
+	[[nodiscard]] IRegion::permissions_t perms() const { return permissions_; }
+	[[nodiscard]] bool locked() { return !lock_.testAndSetAcquire(0, 1); }
 
 public:
 	bool backup();
@@ -73,26 +68,27 @@ public:
 private:
 	QAtomicInt lock_ = 1;
 	edb::address_t address_;
-	IRegion::permissions_t premissions_;
+	IRegion::permissions_t permissions_;
 	State state_;
 	uint8_t buffer_[N];
 	PlatformRegion *const region_;
 };
 
 /**
- * @brief BackupInfo<N>::BackupInfo
+ * @brief Constructs a BackupInfo handler that backs up the given number of bytes at the given address before applying temporary permission changes.
+ *
  * @param address
  * @param perms
  * @param region
  */
 template <size_t N>
 BackupInfo<N>::BackupInfo(edb::address_t address, IRegion::permissions_t perms, PlatformRegion *region)
-	: address_(address), premissions_(perms), region_(region) {
+	: address_(address), permissions_(perms), region_(region) {
 	edb::v1::add_debug_event_handler(this);
 }
 
 /**
- * @brief BackupInfo<N>::~BackupInfo
+ * @brief Destroys the BackupInfo handler and unregisters it from debug event notifications.
  */
 template <size_t N>
 BackupInfo<N>::~BackupInfo() {
@@ -100,7 +96,8 @@ BackupInfo<N>::~BackupInfo() {
 }
 
 /**
- * @brief BackupInfo<N>::backup
+ * @brief Saves the current register state and memory bytes at the target address.
+ *
  * @return
  */
 template <size_t N>
@@ -117,7 +114,8 @@ bool BackupInfo<N>::backup() {
 }
 
 /**
- * @brief BackupInfo<N>::restore
+ * @brief Restores the saved register state and memory bytes at the target address.
+ *
  * @return
  */
 template <size_t N>
@@ -135,7 +133,8 @@ bool BackupInfo<N>::restore() {
 }
 
 /**
- * @brief BackupInfo<N>::handleEvent
+ * @brief Receives a debug event, unlocks the handler, and restores the backed-up memory and register state.
+ *
  * @param event
  * @return
  */
@@ -157,19 +156,21 @@ edb::EventStatus BackupInfo<N>::handleEvent(const std::shared_ptr<IDebugEvent> &
 }
 
 /**
- * @brief PlatformRegion::PlatformRegion
+ * @brief Constructs a PlatformRegion with the given address range, base, name, and permission flags.
+ *
  * @param start
  * @param end
  * @param base
  * @param name
  * @param permissions
  */
-PlatformRegion::PlatformRegion(edb::address_t start, edb::address_t end, edb::address_t base, const QString &name, permissions_t permissions)
-	: start_(start), end_(end), base_(base), name_(name), permissions_(permissions) {
+PlatformRegion::PlatformRegion(edb::address_t start, edb::address_t end, edb::address_t base, QString name, permissions_t permissions)
+	: start_(start), end_(end), base_(base), name_(std::move(name)), permissions_(permissions) {
 }
 
 /**
- * @brief PlatformRegion::clone
+ * @brief Creates and returns a heap-allocated copy of this memory region.
+ *
  * @return
  */
 IRegion *PlatformRegion::clone() const {
@@ -177,7 +178,8 @@ IRegion *PlatformRegion::clone() const {
 }
 
 /**
- * @brief PlatformRegion::accessible
+ * @brief Returns true if the region has any of read, write, or execute permission.
+ *
  * @return
  */
 bool PlatformRegion::accessible() const {
@@ -185,7 +187,8 @@ bool PlatformRegion::accessible() const {
 }
 
 /**
- * @brief PlatformRegion::readable
+ * @brief Returns true if the region has PROT_READ permission.
+ *
  * @return
  */
 bool PlatformRegion::readable() const {
@@ -193,7 +196,8 @@ bool PlatformRegion::readable() const {
 }
 
 /**
- * @brief PlatformRegion::writable
+ * @brief Returns true if the region has PROT_WRITE permission.
+ *
  * @return
  */
 bool PlatformRegion::writable() const {
@@ -201,7 +205,8 @@ bool PlatformRegion::writable() const {
 }
 
 /**
- * @brief PlatformRegion::executable
+ * @brief Returns true if the region has PROT_EXEC permission.
+ *
  * @return
  */
 bool PlatformRegion::executable() const {
@@ -209,14 +214,16 @@ bool PlatformRegion::executable() const {
 }
 
 /**
- * @brief PlatformRegion::size
+ * @brief Returns the size in bytes of this memory region.
+ *
  * @return
  */
 size_t PlatformRegion::size() const {
 	return end_ - start_;
 }
 /**
- * @brief PlatformRegion::setPermissions
+ * @brief Changes the memory protection of this region via injected shellcode, with user confirmation if removing the last executable region.
+ *
  * @param read
  * @param write
  * @param execute
@@ -264,7 +271,8 @@ void PlatformRegion::setPermissions(bool read, bool write, bool execute) {
 }
 
 /**
- * @brief PlatformRegion::start
+ * @brief Returns the start address of this memory region.
+ *
  * @return
  */
 edb::address_t PlatformRegion::start() const {
@@ -272,7 +280,8 @@ edb::address_t PlatformRegion::start() const {
 }
 
 /**
- * @brief PlatformRegion::end
+ * @brief Returns the end address of this memory region (exclusive).
+ *
  * @return
  */
 edb::address_t PlatformRegion::end() const {
@@ -280,7 +289,8 @@ edb::address_t PlatformRegion::end() const {
 }
 
 /**
- * @brief PlatformRegion::base
+ * @brief Returns the base (file-mapped) address of this memory region.
+ *
  * @return
  */
 edb::address_t PlatformRegion::base() const {
@@ -288,7 +298,8 @@ edb::address_t PlatformRegion::base() const {
 }
 
 /**
- * @brief PlatformRegion::name
+ * @brief Returns the name (filename or label) associated with this memory region.
+ *
  * @return
  */
 QString PlatformRegion::name() const {
@@ -296,7 +307,8 @@ QString PlatformRegion::name() const {
 }
 
 /**
- * @brief PlatformRegion::permissions
+ * @brief Returns the raw POSIX permissions bitmask for this memory region.
+ *
  * @return
  */
 IRegion::permissions_t PlatformRegion::permissions() const {
@@ -304,7 +316,8 @@ IRegion::permissions_t PlatformRegion::permissions() const {
 }
 
 /**
- * @brief PlatformRegion::setPermissions
+ * @brief Injects shellcode to call mprotect() and change this region's protection flags.
+ *
  * @param read
  * @param write
  * @param execute
@@ -356,15 +369,15 @@ void PlatformRegion::setPermissions(bool read, bool write, bool execute, edb::ad
 						state.setInstructionPointer(temp_address);
 
 						if (edb::v1::debuggeeIs32Bit()) {
-							state.setRegister("ecx", len);
-							state.setRegister("ebx", addr);
-							state.setRegister("edx", perms);
-							state.setRegister("eax", syscallnum);
+							state.setRegister(QStringLiteral("ecx"), len);
+							state.setRegister(QStringLiteral("ebx"), addr);
+							state.setRegister(QStringLiteral("edx"), perms);
+							state.setRegister(QStringLiteral("eax"), syscallnum);
 						} else {
-							state.setRegister("rsi", len);
-							state.setRegister("rdi", addr);
-							state.setRegister("rdx", perms);
-							state.setRegister("rax", syscallnum);
+							state.setRegister(QStringLiteral("rsi"), len);
+							state.setRegister(QStringLiteral("rdi"), addr);
+							state.setRegister(QStringLiteral("rdx"), perms);
+							state.setRegister(QStringLiteral("rax"), syscallnum);
 						}
 
 						thread->setState(state);
@@ -391,7 +404,8 @@ void PlatformRegion::setPermissions(bool read, bool write, bool execute, edb::ad
 }
 
 /**
- * @brief PlatformRegion::setStart
+ * @brief Updates the start address of this memory region.
+ *
  * @param address
  */
 void PlatformRegion::setStart(edb::address_t address) {
@@ -399,7 +413,8 @@ void PlatformRegion::setStart(edb::address_t address) {
 }
 
 /**
- * @brief PlatformRegion::setEnd
+ * @brief Updates the end address of this memory region.
+ *
  * @param address
  */
 void PlatformRegion::setEnd(edb::address_t address) {

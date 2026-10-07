@@ -1,17 +1,37 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.15)
 include("GNUInstallDirs")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt5 5.0.0 REQUIRED Widgets Xml XmlPatterns Svg)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED Widgets Xml Svg LinguistTools)
 
-qt5_add_resources(QRC_SOURCES
+
+qt_add_translation(QM_FILES
+	# add translation files in /src/res/translations here
+	res/translations/edb_zh_CN.ts
+)
+
+
+# Create translations QRC file - translations.qrc
+set(TRANSLATIONS_QRC "${CMAKE_CURRENT_BINARY_DIR}/translations.qrc")
+
+file(WRITE ${TRANSLATIONS_QRC} "<RCC>\n\t<qresource prefix=\"/translations\">")
+foreach(QM_FILE ${QM_FILES})
+	get_filename_component(QM_FILE_NAME ${QM_FILE} NAME)
+	file(APPEND ${TRANSLATIONS_QRC} "\n\t\t<file>${QM_FILE_NAME}</file>")
+endforeach()
+
+file(APPEND ${TRANSLATIONS_QRC} "\n\t</qresource>\n</RCC>")
+list(APPEND QRC_FILES ${TRANSLATIONS_QRC})
+
+qt_add_resources(QRC_SOURCES
 	res/debugger.qrc
 	res/themes.qrc
 	res/breeze-edb.qrc
 	res/breeze-dark-edb.qrc
+	${TRANSLATIONS_QRC}
 )
 
 foreach(FILE IN LISTS QRC_SOURCES)
@@ -42,6 +62,9 @@ set(edb_SRCS
 	DialogArguments.cpp
 	DialogArguments.h
 	DialogArguments.ui
+	DialogBreakpoints.cpp
+	DialogBreakpoints.h
+	DialogBreakpoints.ui
 	DialogAttach.cpp
 	DialogAttach.h
 	DialogAttach.ui
@@ -100,9 +123,6 @@ set(edb_SRCS
 	capstone-edb/include/Operand.h
 	edb.cpp
 	main.cpp
-	qhexview/QHexView
-	qhexview/qhexview.cpp
-	qhexview/qhexview.h
 	session/SessionError.cpp
 	session/SessionError.h
 	session/SessionManager.cpp
@@ -111,8 +131,6 @@ set(edb_SRCS
 	widgets/NavigationHistory.h
 	widgets/QDisassemblyView.cpp
 	widgets/QDisassemblyView.h
-	widgets/RegisterViewDelegate.cpp
-	widgets/RegisterViewDelegate.h
 	widgets/SyntaxHighlighter.cpp
 	widgets/SyntaxHighlighter.h
 	widgets/TabWidget.cpp
@@ -169,7 +187,7 @@ set(edb_SRCS
 	${PROJECT_SOURCE_DIR}/include/util/Math.h
 	${PROJECT_SOURCE_DIR}/include/util/String.h
 	${PROJECT_SOURCE_DIR}/include/util/Error.h
-	${PROJECT_SOURCE_DIR}/include/version.h
+	${PROJECT_SOURCE_DIR}/include/version.h.in
 )
 
 if(TARGET_ARCH_FAMILY_X86)
@@ -252,40 +270,45 @@ if(UNIX AND TARGET_ARCH_FAMILY_X86)
 		target_link_libraries(edb
 			gdtoa-desktop
 		)
-		
+
 		add_dependencies(edb gdtoa_h)
 	endif()
 endif()
 
-target_compile_definitions(edb PRIVATE
-	-DDEFAULT_PLUGIN_PATH=\"${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/edb\"
-)
+if (NOT DEFINED DEFAULT_PLUGIN_DIR)
+	message(STATUS "Using default value of EDB Plugin directory")
+	set(DEFAULT_PLUGIN_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/edb")
+endif()
+
+target_compile_definitions(edb PRIVATE -DDEFAULT_PLUGIN_PATH="${DEFAULT_PLUGIN_DIR}")
 
 target_link_libraries(edb
 	${CAPSTONE_LIBRARIES}
-	Qt5::Widgets
-	Qt5::Xml
-	Qt5::XmlPatterns
-	Qt5::Svg
+	Qt::Widgets
+	Qt::Xml
+	Qt::Svg
+	QHexView
 	${DOUBLE_CONVERSION_LIBRARIES}
 )
 
 target_include_directories (edb PRIVATE
 	"capstone-edb"
-	"qhexview"
 	"widgets"
 	"session"
 )
-
 
 target_add_warnings(edb)
 
 install (TARGETS edb DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-set_property(TARGET edb PROPERTY CXX_EXTENSIONS OFF)
-set_property(TARGET edb PROPERTY CXX_STANDARD 17)
-set_property(TARGET edb PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET edb PROPERTY ENABLE_EXPORTS TRUE)
-set_property(TARGET edb PROPERTY RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+set_target_properties(edb
+    PROPERTIES
+    CXX_EXTENSIONS OFF
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+	ENABLE_EXPORTS TRUE
+	RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
+)
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/test")
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/qhexview")

@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogAssembler.h"
 #include "IDebugger.h"
@@ -29,11 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QProcess>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryFile>
 #include <QTextDocument>
-#include <QXmlQuery>
 
 #ifdef Q_OS_UNIX
 #include <sys/types.h>
@@ -45,44 +32,43 @@ namespace AssemblerPlugin {
 namespace {
 
 /**
- * @brief escape_html
- * @param str
- * @return
- */
-QString escape_html(const QString &str) {
-	return str.toHtmlEscaped();
-}
-
-/**
- * @brief assembler_description
- * @return
+ * @brief Loads and returns the XML description for the currently configured assembler helper.
+ *
+ * @return The assembler description, or an empty document if the description could not be loaded.
  */
 QDomDocument assembler_description() {
+	const QString assembler = QSettings().value(QStringLiteral("Assembler/helper"), QStringLiteral("yasm")).toString();
 
-	const QString assembler = QSettings().value("Assembler/helper", "yasm").toString();
-
-	QFile file(":/debugger/Assembler/xml/assemblers.xml");
-	if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-
-		QXmlQuery query;
-		QString assembler_xml;
-		query.setFocus(&file);
-		query.setQuery(QString("assemblers/assembler[@name='%1']").arg(escape_html(assembler)));
-		if (query.isValid()) {
-			query.evaluateTo(&assembler_xml);
-		}
-
-		QDomDocument xml;
-		xml.setContent(assembler_xml);
-		return xml;
+	QFile file(QStringLiteral(":/debugger/Assembler/xml/assemblers.xml"));
+	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+		return {};
 	}
+
+	QDomDocument doc;
+	if (!doc.setContent(&file)) {
+		return {};
+	}
+
+	// Find: assemblers/assembler[@name="..."]
+	const QDomNodeList assemblers = doc.elementsByTagName(QStringLiteral("assembler"));
+	for (int i = 0; i < assemblers.size(); ++i) {
+		const QDomElement el = assemblers.at(i).toElement();
+		if (el.attribute(QStringLiteral("name")) == assembler) {
+			// Wrap the matched element in a new QDomDocument
+			QDomDocument out;
+			out.appendChild(out.importNode(el, true));
+			return out;
+		}
+	}
+
 	return {};
 }
 
 /**
- * @brief fixupSyntax
- * @param insn
- * @return
+ * @brief Translates operand size keywords in an instruction string to the syntax expected by the active assembler.
+ *
+ * @param insn The instruction string to fix up.
+ * @return The instruction with fixed syntax, or the original if no changes were made.
  */
 QString fixup_syntax(QString insn) {
 
@@ -91,25 +77,27 @@ QString fixup_syntax(QString insn) {
 		return insn;
 	}
 
-	const QDomElement opSizes = asmRoot.firstChildElement("operand_sizes");
+	const QDomElement opSizes = asmRoot.firstChildElement(QStringLiteral("operand_sizes"));
 	if (opSizes.isNull()) {
 		return insn;
 	}
 
 	static const QString sizes[] = {
-		"byte",
-		"word",
-		"dword",
-		"qword",
-		"tbyte",
-		"xmmword",
-		"ymmword",
-		"zmmword"};
+		QStringLiteral("byte"),
+		QStringLiteral("word"),
+		QStringLiteral("dword"),
+		QStringLiteral("qword"),
+		QStringLiteral("tbyte"),
+		QStringLiteral("xmmword"),
+		QStringLiteral("ymmword"),
+		QStringLiteral("zmmword"),
+	};
 
 	for (const QString &size : sizes) {
 		const QString replacement = opSizes.attribute(size);
 		if (!replacement.isEmpty()) {
-			insn.replace(QRegExp("\\b" + size + "\\b"), replacement);
+			const QRegularExpression re(QStringLiteral("\\b") + size + QStringLiteral("\\b"));
+			insn.replace(re, replacement);
 		}
 	}
 
@@ -119,7 +107,8 @@ QString fixup_syntax(QString insn) {
 }
 
 /**
- * @brief DialogAssembler::DialogAssembler
+ * @brief Constructs the assembler dialog and configures focus policies on its button widgets.
+ *
  * @param parent
  * @param f
  */
@@ -128,13 +117,14 @@ DialogAssembler::DialogAssembler(QWidget *parent, Qt::WindowFlags f)
 
 	ui.setupUi(this);
 
-	// Disable click focus: we don't want to unnecessarily defocus instruction entry without need
+	// Disable click focus: we don't want to unnecessarily de-focus instruction entry without need
 	ui.fillWithNOPs->setFocusPolicy(Qt::TabFocus);
 	ui.keepSize->setFocusPolicy(Qt::TabFocus);
 }
 
 /**
- * @brief DialogAssembler::setAddress
+ * @brief Sets the target address and pre-fills the assembly input with the current instruction's text.
+ *
  * @param address
  */
 void DialogAssembler::setAddress(edb::address_t address) {
@@ -145,14 +135,14 @@ void DialogAssembler::setAddress(edb::address_t address) {
 	if (const int size = edb::v1::get_instruction_bytes(address, buffer)) {
 		edb::Instruction inst(buffer, buffer + size, address);
 		if (inst) {
-			ui.assembly->setEditText(fixup_syntax(edb::v1::formatter().toString(inst).c_str()).simplified());
+			ui.assembly->setEditText(fixup_syntax(QString::fromStdString(edb::v1::formatter().toString(inst))).simplified());
 			instructionSize_ = inst.byteSize();
 		}
 	}
 }
 
 /**
- * @brief DialogAssembler::on_buttonBox_accepted
+ * @brief Assembles the entered instruction and patches it into the debugged process at the target address.
  */
 void DialogAssembler::on_buttonBox_accepted() {
 
@@ -161,14 +151,17 @@ void DialogAssembler::on_buttonBox_accepted() {
 
 		const QDomElement asm_root = assembler_description().documentElement();
 		if (!asm_root.isNull()) {
-			QDomElement asm_executable = asm_root.firstChildElement("executable");
-			QDomElement asm_template   = asm_root.firstChildElement("template");
+			QDomElement asm_executable = asm_root.firstChildElement(QStringLiteral("executable"));
+			QDomElement asm_template   = asm_root.firstChildElement(QStringLiteral("template"));
+
+			qDebug() << "ASM ROOT: " << asm_root.attribute(QStringLiteral("name")) << asm_executable.attribute(QStringLiteral("command_line")) << asm_template.text();
+
 #if defined(EDB_ARM32)
 			const auto mode = core->cpuMode();
-			while (mode == IDebugger::CpuMode::ARM32 && asm_template.attribute("mode") != "arm" ||
-				   mode == IDebugger::CpuMode::Thumb && asm_template.attribute("mode") != "thumb") {
+			while (mode == IDebugger::CpuMode::ARM32 && asm_template.attribute(QStringLiteral("mode")) != QStringLiteral("arm") ||
+				   mode == IDebugger::CpuMode::Thumb && asm_template.attribute(QStringLiteral("mode")) != QStringLiteral("thumb")) {
 
-				asm_template = asm_template.nextSiblingElement("template");
+				asm_template = asm_template.nextSiblingElement(QStringLiteral("template"));
 				if (asm_template.isNull()) {
 					QMessageBox::critical(
 						this,
@@ -179,9 +172,9 @@ void DialogAssembler::on_buttonBox_accepted() {
 			}
 #endif
 
-			const QString asm_name = asm_root.attribute("name");
-			const QString asm_cmd  = asm_executable.attribute("command_line");
-			const QString asm_ext  = asm_executable.attribute("extension");
+			const QString asm_name = asm_root.attribute(QStringLiteral("name"));
+			const QString asm_cmd  = asm_executable.attribute(QStringLiteral("command_line"));
+			const QString asm_ext  = asm_executable.attribute(QStringLiteral("extension"));
 			Q_UNUSED(asm_name)
 
 			QString asm_code = asm_template.text();
@@ -192,24 +185,24 @@ void DialogAssembler::on_buttonBox_accepted() {
 				return;
 			}
 
-			QTemporaryFile source_file(QString("%1/edb_asm_temp_%2_XXXXXX.%3").arg(QDir::tempPath()).arg(QCoreApplication::applicationPid()).arg(asm_ext));
+			QTemporaryFile source_file(QStringLiteral("%1/edb_asm_temp_%2_XXXXXX.%3").arg(QDir::tempPath()).arg(QCoreApplication::applicationPid()).arg(asm_ext));
 			if (!source_file.open()) {
 				QMessageBox::critical(this, tr("Error Creating File"), tr("Failed to create temporary source file."));
 				return;
 			}
 
-			QTemporaryFile output_file(QString("%1/edb_asm_temp_%2_XXXXXX.bin").arg(QDir::tempPath()).arg(QCoreApplication::applicationPid()));
+			QTemporaryFile output_file(QStringLiteral("%1/edb_asm_temp_%2_XXXXXX.bin").arg(QDir::tempPath()).arg(QCoreApplication::applicationPid()));
 			if (!output_file.open()) {
 				QMessageBox::critical(this, tr("Error Creating File"), tr("Failed to create temporary object file."));
 				return;
 			}
 
-			const QString bitsStr = std::to_string(core->pointerSize() * 8).c_str();
+			const auto bitsStr    = QString::number(core->pointerSize() * 8);
 			const QString addrStr = edb::v1::format_pointer(address_);
 
-			static const char *bitsTag = "%BITS%";
-			static const char *addrTag = "%ADDRESS%";
-			static const char *insnTag = "%INSTRUCTION%";
+			static const auto bitsTag = QStringLiteral("%BITS%");
+			static const auto addrTag = QStringLiteral("%ADDRESS%");
+			static const auto insnTag = QStringLiteral("%INSTRUCTION%");
 
 			asm_code.replace(bitsTag, bitsStr);
 			asm_code.replace(addrTag, addrStr);
@@ -225,8 +218,8 @@ void DialogAssembler::on_buttonBox_accepted() {
 
 			QStringList arguments = command_line;
 			for (QString &arg : arguments) {
-				arg.replace("%OUT%", output_file.fileName());
-				arg.replace("%IN%", source_file.fileName());
+				arg.replace(QLatin1String("%OUT%"), output_file.fileName());
+				arg.replace(QLatin1String("%IN%"), source_file.fileName());
 				arg.replace(bitsTag, bitsStr);
 				arg.replace(addrTag, addrStr);
 				arg.replace(insnTag, nasm_syntax);
@@ -241,7 +234,7 @@ void DialogAssembler::on_buttonBox_accepted() {
 				const int exit_code = process.exitCode();
 
 				if (exit_code != 0) {
-					QMessageBox::warning(this, tr("Error In Code"), process.readAllStandardError());
+					QMessageBox::warning(this, tr("Error In Code"), QString::fromLocal8Bit(process.readAllStandardError()));
 				} else {
 					QByteArray bytes              = output_file.readAll();
 					const size_t replacement_size = bytes.size();
@@ -257,17 +250,17 @@ void DialogAssembler::on_buttonBox_accepted() {
 							}
 						}
 					} else if (replacement_size == 0) {
-						const QString stdError = process.readAllStandardError();
-						QMessageBox::warning(this, tr("Error In Code"), tr("Got zero bytes from the assembler") + (stdError.isEmpty() ? "" : tr(", here's what it has to say:\n\n") + stdError));
+						const auto stdError = QString::fromLocal8Bit(process.readAllStandardError());
+						QMessageBox::warning(this, tr("Error In Code"), tr("Got zero bytes from the assembler") + (stdError.isEmpty() ? QString() : tr(", here's what it has to say:\n\n") + stdError));
 						return;
 					} else {
 						if (ui.keepSize->isChecked()) {
 							QMessageBox::warning(this, tr("Error In Code"), tr("New instruction is too big to fit."));
 							return;
-						} else {
-							if (!edb::v1::modify_bytes(address_, replacement_size, bytes, 0x00)) {
-								return;
-							}
+						}
+
+						if (!edb::v1::modify_bytes(address_, replacement_size, bytes, 0x00)) {
+							return;
 						}
 					}
 
@@ -286,14 +279,15 @@ void DialogAssembler::on_buttonBox_accepted() {
 }
 
 /**
- * @brief DialogAssembler::showEvent
+ * @brief Updates the assembler label and focuses the assembly input when the dialog becomes visible.
+ *
  * @param event
  */
 void DialogAssembler::showEvent(QShowEvent *event) {
 	Q_UNUSED(event)
 
 	QSettings settings;
-	const QString assembler = settings.value("Assembler/helper", "yasm").toString();
+	const QString assembler = settings.value(QStringLiteral("Assembler/helper"), QStringLiteral("yasm")).toString();
 
 	ui.label->setText(tr("Assembler: %1").arg(assembler));
 

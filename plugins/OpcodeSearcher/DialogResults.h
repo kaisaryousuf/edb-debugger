@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef OPCODE_SEARCHER_DIALOG_RESULTS_H_20191119_
 #define OPCODE_SEARCHER_DIALOG_RESULTS_H_20191119_
@@ -24,7 +29,7 @@ private Q_SLOTS:
 	void on_tableView_doubleClicked(const QModelIndex &index);
 
 public:
-	int resultCount() const;
+	[[nodiscard]] int resultCount() const;
 
 private:
 	Ui::DialogResults ui;

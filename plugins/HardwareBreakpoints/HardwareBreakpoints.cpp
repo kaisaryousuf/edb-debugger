@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "HardwareBreakpoints.h"
 #include "DialogHwBreakpoints.h"
@@ -43,15 +31,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace HardwareBreakpointsPlugin {
 
 /**
- * @brief HardwareBreakpoints::HardwareBreakpoints
- * @param parent
+ * @brief Constructor for the HardwareBreakpoints class.
+ *
+ * @param parent The parent QObject for this plugin.
  */
 HardwareBreakpoints::HardwareBreakpoints(QObject *parent)
 	: QObject(parent) {
 }
 
 /**
- * @brief HardwareBreakpoints::private_init
+ * @brief Initializes the HardwareBreakpoints plugin by creating the dialog for hardware breakpoints and setting up connections to handle debug events.
  */
 void HardwareBreakpoints::privateInit() {
 
@@ -83,16 +72,17 @@ void HardwareBreakpoints::privateInit() {
 }
 
 /**
- * @brief HardwareBreakpoints::privateFini
+ * @brief Cleans up the HardwareBreakpoints plugin by removing the debug event handler.
  */
 void HardwareBreakpoints::privateFini() {
 	edb::v1::remove_debug_event_handler(this);
 }
 
 /**
- * @brief HardwareBreakpoints::menu
- * @param parent
- * @return
+ * @brief Creates and returns the menu for the HardwareBreakpoints plugin.
+ *
+ * @param parent The parent widget for the menu.
+ * @return A pointer to the created QMenu.
  */
 QMenu *HardwareBreakpoints::menu(QWidget *parent) {
 
@@ -100,14 +90,18 @@ QMenu *HardwareBreakpoints::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("Hardware BreakpointManager"), parent);
-		menu_->addAction(tr("&Hardware Breakpoints"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+Shift+H")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&Hardware Breakpoints"), QKeySequence(tr("Ctrl+Shift+H")), this, &HardwareBreakpoints::showMenu);
+#else
+		menu_->addAction(tr("&Hardware Breakpoints"), this, &HardwareBreakpoints::showMenu, QKeySequence(tr("Ctrl+Shift+H")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief HardwareBreakpoints::setupBreakpoints
+ * @brief Sets up the hardware breakpoints based on the current state of the dialog.
  */
 void HardwareBreakpoints::setupBreakpoints() {
 
@@ -177,7 +171,8 @@ void HardwareBreakpoints::setupBreakpoints() {
 				thread->getState(&state);
 
 				for (int i = 0; i < RegisterCount; ++i) {
-					if (ok[i]) {
+					const BreakpointState bp_state = breakpoint_state(&state, i);
+					if (ok[i] || bp_state.enabled) {
 						set_breakpoint_state(
 							&state,
 							i,
@@ -206,7 +201,7 @@ void HardwareBreakpoints::setupBreakpoints() {
 }
 
 /**
- * @brief HardwareBreakpoints::showMenu
+ * @brief Displays the hardware breakpoints dialog and sets up the breakpoints if the user accepts the dialog.
  */
 void HardwareBreakpoints::showMenu() {
 
@@ -216,16 +211,14 @@ void HardwareBreakpoints::showMenu() {
 }
 
 /**
- * @brief HardwareBreakpoints::handleEvent
+ * @brief Hooks the debug event handler so we can make the breakpoints able to be resumed
  *
- * this hooks the debug event handler so we can make the breakpoints able to be resumed
- *
- * @param event
- * @return
+ * @param event The debug event to handle.
+ * @return The status indicating how the event was handled.
  */
 edb::EventStatus HardwareBreakpoints::handleEvent(const std::shared_ptr<IDebugEvent> &event) {
 
-	if (event->stopped() && event->isTrap()) {
+	if (event->isTrap()) {
 
 		if (IProcess *process = edb::v1::debugger_core->process()) {
 			if (std::shared_ptr<IThread> thread = process->currentThread()) {
@@ -246,21 +239,23 @@ edb::EventStatus HardwareBreakpoints::handleEvent(const std::shared_ptr<IDebugEv
 }
 
 /**
- * @brief HardwareBreakpoints::stackContextMenu
- * @return
+ * @brief Creates a context menu for stack-related hardware breakpoints, allowing users to set breakpoints on read/write and write operations for the stack.
+ *
+ * @return A list of QActions representing the context menu items.
  */
 QList<QAction *> HardwareBreakpoints::stackContextMenu() {
-	auto menu = new QMenu(tr("Hardware Breakpoints"));
 
-	auto rw1 = menu->addAction(tr("Hardware, On Read/Write #1"), this, SLOT(setAccess1()));
-	auto rw2 = menu->addAction(tr("Hardware, On Read/Write #2"), this, SLOT(setAccess2()));
-	auto rw3 = menu->addAction(tr("Hardware, On Read/Write #3"), this, SLOT(setAccess3()));
-	auto rw4 = menu->addAction(tr("Hardware, On Read/Write #4"), this, SLOT(setAccess4()));
+	auto menu = new QMenu(tr("Hardware Breakpoints"), edb::v1::debugger_ui);
 
-	auto wo1 = menu->addAction(tr("Hardware, On Write #1"), this, SLOT(setWrite1()));
-	auto wo2 = menu->addAction(tr("Hardware, On Write #2"), this, SLOT(setWrite2()));
-	auto wo3 = menu->addAction(tr("Hardware, On Write #3"), this, SLOT(setWrite3()));
-	auto wo4 = menu->addAction(tr("Hardware, On Write #4"), this, SLOT(setWrite4()));
+	auto rw1 = menu->addAction(tr("Hardware, On Read/Write #1"), this, &HardwareBreakpoints::setAccess1);
+	auto rw2 = menu->addAction(tr("Hardware, On Read/Write #2"), this, &HardwareBreakpoints::setAccess2);
+	auto rw3 = menu->addAction(tr("Hardware, On Read/Write #3"), this, &HardwareBreakpoints::setAccess3);
+	auto rw4 = menu->addAction(tr("Hardware, On Read/Write #4"), this, &HardwareBreakpoints::setAccess4);
+
+	auto wo1 = menu->addAction(tr("Hardware, On Write #1"), this, &HardwareBreakpoints::setWrite1);
+	auto wo2 = menu->addAction(tr("Hardware, On Write #2"), this, &HardwareBreakpoints::setWrite2);
+	auto wo3 = menu->addAction(tr("Hardware, On Write #3"), this, &HardwareBreakpoints::setWrite3);
+	auto wo4 = menu->addAction(tr("Hardware, On Write #4"), this, &HardwareBreakpoints::setWrite4);
 
 	rw1->setData(1);
 	rw2->setData(1);
@@ -272,30 +267,30 @@ QList<QAction *> HardwareBreakpoints::stackContextMenu() {
 	wo3->setData(1);
 	wo4->setData(1);
 
-	QList<QAction *> ret;
-
 	auto action = new QAction(tr("Hardware Breakpoints"), this);
 	action->setMenu(menu);
-	ret << action;
-	return ret;
+
+	return {action};
 }
 
 /**
- * @brief HardwareBreakpoints::dataContextMenu
- * @return
+ * @brief Creates a context menu for data-related hardware breakpoints, allowing users to set breakpoints on read/write and write operations for data.
+ *
+ * @return A list of QActions representing the context menu items.
  */
 QList<QAction *> HardwareBreakpoints::dataContextMenu() {
-	auto menu = new QMenu(tr("Hardware Breakpoints"));
 
-	auto rw1 = menu->addAction(tr("Hardware, On Read/Write #1"), this, SLOT(setAccess1()));
-	auto rw2 = menu->addAction(tr("Hardware, On Read/Write #2"), this, SLOT(setAccess2()));
-	auto rw3 = menu->addAction(tr("Hardware, On Read/Write #3"), this, SLOT(setAccess3()));
-	auto rw4 = menu->addAction(tr("Hardware, On Read/Write #4"), this, SLOT(setAccess4()));
+	auto menu = new QMenu(tr("Hardware Breakpoints"), edb::v1::debugger_ui);
 
-	auto wo1 = menu->addAction(tr("Hardware, On Write #1"), this, SLOT(setWrite1()));
-	auto wo2 = menu->addAction(tr("Hardware, On Write #2"), this, SLOT(setWrite2()));
-	auto wo3 = menu->addAction(tr("Hardware, On Write #3"), this, SLOT(setWrite3()));
-	auto wo4 = menu->addAction(tr("Hardware, On Write #4"), this, SLOT(setWrite4()));
+	auto rw1 = menu->addAction(tr("Hardware, On Read/Write #1"), this, &HardwareBreakpoints::setAccess1);
+	auto rw2 = menu->addAction(tr("Hardware, On Read/Write #2"), this, &HardwareBreakpoints::setAccess2);
+	auto rw3 = menu->addAction(tr("Hardware, On Read/Write #3"), this, &HardwareBreakpoints::setAccess3);
+	auto rw4 = menu->addAction(tr("Hardware, On Read/Write #4"), this, &HardwareBreakpoints::setAccess4);
+
+	auto wo1 = menu->addAction(tr("Hardware, On Write #1"), this, &HardwareBreakpoints::setWrite1);
+	auto wo2 = menu->addAction(tr("Hardware, On Write #2"), this, &HardwareBreakpoints::setWrite2);
+	auto wo3 = menu->addAction(tr("Hardware, On Write #3"), this, &HardwareBreakpoints::setWrite3);
+	auto wo4 = menu->addAction(tr("Hardware, On Write #4"), this, &HardwareBreakpoints::setWrite4);
 
 	rw1->setData(2);
 	rw2->setData(2);
@@ -307,35 +302,35 @@ QList<QAction *> HardwareBreakpoints::dataContextMenu() {
 	wo3->setData(2);
 	wo4->setData(2);
 
-	QList<QAction *> ret;
-
 	auto action = new QAction(tr("Hardware Breakpoints"), this);
 	action->setMenu(menu);
-	ret << action;
-	return ret;
+
+	return {action};
 }
 
 /**
- * @brief HardwareBreakpoints::cpuContextMenu
- * @return
+ * @brief Creates a context menu for CPU-related hardware breakpoints, allowing users to set breakpoints on execute, read/write, and write operations for the CPU.
+ *
+ * @return A list of QActions representing the context menu items.
  */
 QList<QAction *> HardwareBreakpoints::cpuContextMenu() {
 
-	auto menu = new QMenu(tr("Hardware Breakpoints"));
-	auto ex1  = menu->addAction(tr("Hardware, On Execute #1"), this, SLOT(setExec1()));
-	auto ex2  = menu->addAction(tr("Hardware, On Execute #2"), this, SLOT(setExec2()));
-	auto ex3  = menu->addAction(tr("Hardware, On Execute #3"), this, SLOT(setExec3()));
-	auto ex4  = menu->addAction(tr("Hardware, On Execute #4"), this, SLOT(setExec4()));
+	auto menu = new QMenu(tr("Hardware Breakpoints"), edb::v1::debugger_ui);
 
-	auto rw1 = menu->addAction(tr("Hardware, On Read/Write #1"), this, SLOT(setAccess1()));
-	auto rw2 = menu->addAction(tr("Hardware, On Read/Write #2"), this, SLOT(setAccess2()));
-	auto rw3 = menu->addAction(tr("Hardware, On Read/Write #3"), this, SLOT(setAccess3()));
-	auto rw4 = menu->addAction(tr("Hardware, On Read/Write #4"), this, SLOT(setAccess4()));
+	auto ex1 = menu->addAction(tr("Hardware, On Execute #1"), this, &HardwareBreakpoints::setExec1);
+	auto ex2 = menu->addAction(tr("Hardware, On Execute #2"), this, &HardwareBreakpoints::setExec2);
+	auto ex3 = menu->addAction(tr("Hardware, On Execute #3"), this, &HardwareBreakpoints::setExec3);
+	auto ex4 = menu->addAction(tr("Hardware, On Execute #4"), this, &HardwareBreakpoints::setExec4);
 
-	auto wo1 = menu->addAction(tr("Hardware, On Write #1"), this, SLOT(setWrite1()));
-	auto wo2 = menu->addAction(tr("Hardware, On Write #2"), this, SLOT(setWrite2()));
-	auto wo3 = menu->addAction(tr("Hardware, On Write #3"), this, SLOT(setWrite3()));
-	auto wo4 = menu->addAction(tr("Hardware, On Write #4"), this, SLOT(setWrite4()));
+	auto rw1 = menu->addAction(tr("Hardware, On Read/Write #1"), this, &HardwareBreakpoints::setAccess1);
+	auto rw2 = menu->addAction(tr("Hardware, On Read/Write #2"), this, &HardwareBreakpoints::setAccess2);
+	auto rw3 = menu->addAction(tr("Hardware, On Read/Write #3"), this, &HardwareBreakpoints::setAccess3);
+	auto rw4 = menu->addAction(tr("Hardware, On Read/Write #4"), this, &HardwareBreakpoints::setAccess4);
+
+	auto wo1 = menu->addAction(tr("Hardware, On Write #1"), this, &HardwareBreakpoints::setWrite1);
+	auto wo2 = menu->addAction(tr("Hardware, On Write #2"), this, &HardwareBreakpoints::setWrite2);
+	auto wo3 = menu->addAction(tr("Hardware, On Write #3"), this, &HardwareBreakpoints::setWrite3);
+	auto wo4 = menu->addAction(tr("Hardware, On Write #4"), this, &HardwareBreakpoints::setWrite4);
 
 	ex1->setData(3);
 	ex2->setData(3);
@@ -352,18 +347,17 @@ QList<QAction *> HardwareBreakpoints::cpuContextMenu() {
 	wo3->setData(3);
 	wo4->setData(3);
 
-	QList<QAction *> ret;
-
 	auto action = new QAction(tr("Hardware Breakpoints"), this);
 	action->setMenu(menu);
-	ret << action;
-	return ret;
+
+	return {action};
 }
 
 /**
- * @brief HardwareBreakpoints::setExecuteBP
- * @param index
- * @param inUse
+ * @brief Sets a hardware breakpoint for execution at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
  */
 void HardwareBreakpoints::setExecuteBP(int index, bool inUse) {
 
@@ -398,11 +392,12 @@ void HardwareBreakpoints::setExecuteBP(int index, bool inUse) {
 }
 
 /**
- * @brief HardwareBreakpoints::setWriteBP
- * @param index
- * @param inUse
- * @param address
- * @param size
+ * @brief Sets a hardware breakpoint for write access at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
+ * @param address The memory address where the breakpoint should be set.
+ * @param size The size of the memory region to monitor for write access (1, 2, 4, or 8 bytes).
  */
 void HardwareBreakpoints::setWriteBP(int index, bool inUse, edb::address_t address, size_t size) {
 
@@ -453,11 +448,12 @@ void HardwareBreakpoints::setWriteBP(int index, bool inUse, edb::address_t addre
 }
 
 /**
- * @brief HardwareBreakpoints::setReadWriteBP
- * @param index
- * @param inUse
- * @param address
- * @param size
+ * @brief Sets a hardware breakpoint for read/write access at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
+ * @param address The memory address where the breakpoint should be set.
+ * @param size The size of the memory region to monitor for read/write access (1, 2, 4, or 8 bytes).
  */
 void HardwareBreakpoints::setReadWriteBP(int index, bool inUse, edb::address_t address, size_t size) {
 
@@ -500,7 +496,7 @@ void HardwareBreakpoints::setReadWriteBP(int index, bool inUse, edb::address_t a
 				set_breakpoint_state(&state, index, {true, address, 2, 3});
 				break;
 			default:
-				QMessageBox::critical(nullptr, tr("Invalid Selection Size"), tr("Please select 1, 2, 4, or 8 bytes for this type of hardward breakpoint"));
+				QMessageBox::critical(nullptr, tr("Invalid Selection Size"), tr("Please select 1, 2, 4, or 8 bytes for this type of hardware breakpoint"));
 				return;
 			}
 
@@ -512,8 +508,9 @@ void HardwareBreakpoints::setReadWriteBP(int index, bool inUse, edb::address_t a
 }
 
 /**
- * @brief HardwareBreakpoints::setExec
- * @param index
+ * @brief Sets a hardware breakpoint for execution at the specified index, based on the action that triggered this slot.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
  */
 void HardwareBreakpoints::setExec(int index) {
 	if (auto a = qobject_cast<QAction *>(sender())) {
@@ -529,8 +526,9 @@ void HardwareBreakpoints::setExec(int index) {
 }
 
 /**
- * @brief HardwareBreakpoints::setWrite
- * @param index
+ * @brief Sets a hardware breakpoint for write access at the specified index, based on the action that triggered this slot.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
  */
 void HardwareBreakpoints::setWrite(int index) {
 	if (auto a = qobject_cast<QAction *>(sender())) {
@@ -552,8 +550,9 @@ void HardwareBreakpoints::setWrite(int index) {
 }
 
 /**
- * @brief HardwareBreakpoints::setAccess
- * @param index
+ * @brief Sets a hardware breakpoint for read/write access at the specified index, based on the action that triggered this slot.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
  */
 void HardwareBreakpoints::setAccess(int index) {
 	if (auto a = qobject_cast<QAction *>(sender())) {
@@ -575,9 +574,10 @@ void HardwareBreakpoints::setAccess(int index) {
 }
 
 /**
- * @brief HardwareBreakpoints::setDataReadWriteBP
- * @param index
- * @param inUse
+ * @brief Sets a hardware breakpoint for read/write access at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
  */
 void HardwareBreakpoints::setDataReadWriteBP(int index, bool inUse) {
 	const edb::address_t address = edb::v1::selected_data_address();
@@ -586,20 +586,22 @@ void HardwareBreakpoints::setDataReadWriteBP(int index, bool inUse) {
 }
 
 /**
- * @brief HardwareBreakpoints::setDataWriteBP
- * @param index
- * @param inUse
+ * @brief Sets a hardware breakpoint for write access at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
  */
 void HardwareBreakpoints::setDataWriteBP(int index, bool inUse) {
 	const edb::address_t address = edb::v1::selected_data_address();
 	const size_t size            = edb::v1::selected_data_size();
-	setReadWriteBP(index, inUse, address, size);
+	setWriteBP(index, inUse, address, size);
 }
 
 /**
- * @brief HardwareBreakpoints::setStackReadWriteBP
- * @param index
- * @param inUse
+ * @brief Sets a hardware breakpoint for read/write access at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
  */
 void HardwareBreakpoints::setStackReadWriteBP(int index, bool inUse) {
 	const edb::address_t address = edb::v1::selected_stack_address();
@@ -608,9 +610,10 @@ void HardwareBreakpoints::setStackReadWriteBP(int index, bool inUse) {
 }
 
 /**
- * @brief HardwareBreakpoints::setStackWriteBP
- * @param index
- * @param inUse
+ * @brief Sets a hardware breakpoint for write access at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
  */
 void HardwareBreakpoints::setStackWriteBP(int index, bool inUse) {
 	const edb::address_t address = edb::v1::selected_stack_address();
@@ -619,20 +622,22 @@ void HardwareBreakpoints::setStackWriteBP(int index, bool inUse) {
 }
 
 /**
- * @brief HardwareBreakpoints::setCPUReadWriteBP
- * @param index
- * @param inUse
+ * @brief Sets a hardware breakpoint for read/write access at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
  */
 void HardwareBreakpoints::setCPUReadWriteBP(int index, bool inUse) {
 	const edb::address_t address = edb::v1::cpu_selected_address();
 	constexpr size_t Size        = 1;
-	setWriteBP(index, inUse, address, Size);
+	setReadWriteBP(index, inUse, address, Size);
 }
 
 /**
- * @brief HardwareBreakpoints::setCPUWriteBP
- * @param index
- * @param inUse
+ * @brief Sets a hardware breakpoint for write access at the specified index, with an option to indicate if the breakpoint is already in use.
+ *
+ * @param index The index of the hardware breakpoint register to set (0-3).
+ * @param inUse Indicates whether the breakpoint is already in use (true) or not (false).
  */
 void HardwareBreakpoints::setCPUWriteBP(int index, bool inUse) {
 	const edb::address_t address = edb::v1::cpu_selected_address();
@@ -641,84 +646,84 @@ void HardwareBreakpoints::setCPUWriteBP(int index, bool inUse) {
 }
 
 /**
- * @brief HardwareBreakpoints::setExec1
+ * @brief Sets a hardware breakpoint for execution at the first register (Register1).
  */
 void HardwareBreakpoints::setExec1() {
 	setExec(Register1);
 }
 
 /**
- * @brief HardwareBreakpoints::setExec2
+ * @brief Sets a hardware breakpoint for execution at the second register (Register2).
  */
 void HardwareBreakpoints::setExec2() {
 	setExec(Register2);
 }
 
 /**
- * @brief HardwareBreakpoints::setExec3
+ * @brief Sets a hardware breakpoint for execution at the third register (Register3).
  */
 void HardwareBreakpoints::setExec3() {
 	setExec(Register3);
 }
 
 /**
- * @brief HardwareBreakpoints::setExec4
+ * @brief Sets a hardware breakpoint for execution at the fourth register (Register4).
  */
 void HardwareBreakpoints::setExec4() {
 	setExec(Register4);
 }
 
 /**
- * @brief HardwareBreakpoints::setAccess1
+ * @brief Sets a hardware breakpoint for read/write access at the first register (Register1).
  */
 void HardwareBreakpoints::setAccess1() {
 	setAccess(Register1);
 }
 
 /**
- * @brief HardwareBreakpoints::setAccess2
+ * @brief Sets a hardware breakpoint for read/write access at the second register (Register2).
  */
 void HardwareBreakpoints::setAccess2() {
 	setAccess(Register2);
 }
 
 /**
- * @brief HardwareBreakpoints::setAccess3
+ * @brief Sets a hardware breakpoint for read/write access at the third register (Register3).
  */
 void HardwareBreakpoints::setAccess3() {
 	setAccess(Register3);
 }
 
 /**
- * @brief HardwareBreakpoints::setAccess4
+ * @brief Sets a hardware breakpoint for read/write access at the fourth register (Register4).
  */
 void HardwareBreakpoints::setAccess4() {
 	setAccess(Register4);
 }
 
 /**
- * @brief HardwareBreakpoints::setWrite1
+ * @brief Sets a hardware breakpoint for write access at the first register (Register1).
  */
 void HardwareBreakpoints::setWrite1() {
 	setWrite(Register1);
 }
 
 /**
- * @brief HardwareBreakpoints::setWrite2
+ * @brief Sets a hardware breakpoint for write access at the second register (Register2).
  */
 void HardwareBreakpoints::setWrite2() {
 	setWrite(Register2);
 }
 
 /**
- * @brief HardwareBreakpoints::setWrite3
+ * @brief Sets a hardware breakpoint for write access at the third register (Register3).
  */
 void HardwareBreakpoints::setWrite3() {
 	setWrite(Register3);
 }
 
 /**
- * @brief HardwareBreakpoints::setWrite4
+ * @brief Sets a hardware breakpoint for write access at the fourth register (Register4).
  */
 void HardwareBreakpoints::setWrite4() {
 	setWrite(Register4);

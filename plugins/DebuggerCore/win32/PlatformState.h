@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef PLATFORM_STATE_H_20110330_
 #define PLATFORM_STATE_H_20110330_
@@ -36,9 +24,9 @@ public:
 	std::unique_ptr<IState> clone() const override;
 
 public:
-	long double fpu_register(int n) const;
-	quint64 mmx_register(int n) const;
-	QByteArray xmm_register(int n) const;
+	[[nodiscard]] long double fpu_register(int n) const;
+	[[nodiscard]] quint64 mmx_register(int n) const;
+	[[nodiscard]] QByteArray xmm_register(int n) const;
 
 public:
 	QString flagsToString() const override;

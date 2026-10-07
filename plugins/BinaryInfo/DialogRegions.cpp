@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogRegions.h"
 #include "DialogHeader.h"
@@ -28,7 +16,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace BinaryInfoPlugin {
 
 /**
- * @brief DialogRegions::DialogRegions
+ * @brief Constructs the memory regions dialog and sets up its table, search filter, and Explore button.
+ *
  * @param parent
  */
 DialogRegions::DialogRegions(QWidget *parent, Qt::WindowFlags f)
@@ -41,12 +30,12 @@ DialogRegions::DialogRegions(QWidget *parent, Qt::WindowFlags f)
 	filterModel_ = new QSortFilterProxyModel(this);
 	connect(ui.txtSearch, &QLineEdit::textChanged, filterModel_, &QSortFilterProxyModel::setFilterFixedString);
 
-	buttonExplore_ = new QPushButton(QIcon::fromTheme("edit-find"), tr("Explore Header"));
+	buttonExplore_ = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-find")), tr("Explore Header"));
 	connect(buttonExplore_, &QPushButton::clicked, this, [this]() {
 		const QItemSelectionModel *const selModel = ui.tableView->selectionModel();
 		const QModelIndexList sel                 = selModel->selectedRows();
 
-		if (sel.size() == 0) {
+		if (sel.empty()) {
 			QMessageBox::critical(
 				this,
 				tr("No Region Selected"),
@@ -68,7 +57,7 @@ DialogRegions::DialogRegions(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogRegions::showEvent
+ * @brief Refreshes the region list from the current memory map when the dialog becomes visible.
  */
 void DialogRegions::showEvent(QShowEvent *) {
 	filterModel_->setFilterKeyColumn(3);

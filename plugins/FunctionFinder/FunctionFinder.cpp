@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "FunctionFinder.h"
 #include "DialogFunctions.h"
@@ -24,24 +12,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace FunctionFinderPlugin {
 
 /**
- * @brief FunctionFinder::FunctionFinder
- * @param parent
+ * @brief Constructs a FunctionFinder object with the specified parent widget.
+ *
+ * @param parent The parent widget for this object.
  */
 FunctionFinder::FunctionFinder(QObject *parent)
 	: QObject(parent) {
 }
 
 /**
- * @brief FunctionFinder::~FunctionFinder
+ * @brief Destroys the FunctionFinder object and frees the dialog.
  */
 FunctionFinder::~FunctionFinder() {
 	delete dialog_;
 }
 
 /**
- * @brief FunctionFinder::menu
- * @param parent
- * @return
+ * @brief Creates and returns the menu for the FunctionFinder plugin, adding a "Function Finder" action to it. The menu is created on the first call.
+ *
+ * @param parent The parent widget for this menu.
+ * @return A pointer to the created menu.
  */
 QMenu *FunctionFinder::menu(QWidget *parent) {
 
@@ -49,14 +39,18 @@ QMenu *FunctionFinder::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("FunctionFinder"), parent);
-		menu_->addAction(tr("&Function Finder"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+Shift+F")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&Function Finder"), QKeySequence(tr("Ctrl+Shift+F")), this, &FunctionFinder::showMenu);
+#else
+		menu_->addAction(tr("&Function Finder"), this, &FunctionFinder::showMenu, QKeySequence(tr("Ctrl+Shift+F")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief FunctionFinder::showMenu
+ * @brief Shows the Function Finder dialog, creating it if it does not already exist.
  */
 void FunctionFinder::showMenu() {
 

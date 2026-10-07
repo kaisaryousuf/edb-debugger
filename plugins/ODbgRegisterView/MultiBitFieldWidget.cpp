@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "MultiBitFieldWidget.h"
 #include "BitFieldDescription.h"
@@ -16,13 +21,14 @@ MultiBitFieldWidget::MultiBitFieldWidget(const QModelIndex &index, const BitFiel
 		const auto &text = bfd.setValueTexts[i];
 		if (!text.isEmpty()) {
 			auto action = new_action(text, this, [this, i]() {
-				setValue(i);
+				setValue(static_cast<int>(i));
 			});
 
 			menuItems_.push_front(action);
 			valueActions_.push_front(menuItems_.front());
-		} else
+		} else {
 			valueActions_.push_front(nullptr);
+		}
 	}
 }
 
@@ -35,8 +41,9 @@ void MultiBitFieldWidget::setValue(int value) {
 	const auto regIndex = index_.parent().sibling(index_.parent().row(), ModelValueColumn);
 	auto byteArr        = regIndex.data(Model::RawValueRole).toByteArray();
 
-	if (byteArr.isEmpty())
+	if (byteArr.isEmpty()) {
 		return;
+	}
 
 	std::uint64_t word(0);
 	std::memcpy(&word, byteArr.constData(), byteArr.size());
@@ -60,12 +67,14 @@ void MultiBitFieldWidget::adjustToData() {
 
 	for (int value = 0; value < valueActions_.size(); ++value) {
 		const auto action = valueActions_[value];
-		if (!action)
+		if (!action) {
 			continue;
-		if (byteArr.isEmpty() || equal_(word, value))
+		}
+		if (byteArr.isEmpty() || equal_(static_cast<unsigned int>(word), value)) {
 			action->setVisible(false);
-		else
+		} else {
 			action->setVisible(true);
+		}
 	}
 }
 

@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef REGISTER_H_20100329_
 #define REGISTER_H_20100329_
@@ -48,45 +36,45 @@ public:
 
 public:
 	Register();
-	Register(const Register &other) = default;
+	Register(const Register &other)          = default;
 	Register &operator=(const Register &rhs) = default;
 
 public:
-	bool operator==(const Register &rhs) const;
-	bool operator!=(const Register &rhs) const;
+	[[nodiscard]] bool operator==(const Register &rhs) const;
+	[[nodiscard]] bool operator!=(const Register &rhs) const;
 
 public:
-	bool valid() const { return type_ != TYPE_INVALID; }
-	explicit operator bool() const { return valid(); }
+	[[nodiscard]] bool valid() const { return type_ != TYPE_INVALID; }
+	[[nodiscard]] explicit operator bool() const { return valid(); }
 
-	Type type() const { return type_; }
-	QString name() const { return name_; }
-	std::size_t bitSize() const { return bitSize_; }
-	const char *rawData() const { return reinterpret_cast<const char *>(&value_); }
+	[[nodiscard]] Type type() const { return type_; }
+	[[nodiscard]] QString name() const { return name_; }
+	[[nodiscard]] std::size_t bitSize() const { return bitSize_; }
+	[[nodiscard]] const char *rawData() const { return reinterpret_cast<const char *>(&value_); }
 
 	template <class T>
-	T value() const { return T(value_); }
+	[[nodiscard]] T value() const { return T(value_); }
 
 	// Return the value, zero-extended to address_t to be usable in address calculations
-	edb::address_t valueAsAddress() const;
+	[[nodiscard]] edb::address_t valueAsAddress() const;
 
-	uint64_t valueAsInteger() const {
+	[[nodiscard]] uint64_t valueAsInteger() const {
 		return valueAsAddress().toUint();
 	}
 
-	int64_t valueAsSignedInteger() const {
+	[[nodiscard]] int64_t valueAsSignedInteger() const {
 		uint64_t result = valueAsInteger();
 		// If MSB is set, sign extend the result
 		if (result & (1ll << (bitSize_ - 1))) {
 			result = -1ll;
 			std::memcpy(&result, &value_, bitSize_ / 8);
 		}
-		return result;
+		return static_cast<int64_t>(result);
 	}
 
 	void setScalarValue(std::uint64_t newValue);
 
-	template <typename T>
+	template <class T>
 	void setValueFrom(const T &source) {
 		assert(bitSize_ <= 8 * sizeof(source));
 
@@ -97,7 +85,7 @@ public:
 		std::memcpy(to, from, bitSize_ / 8);
 	}
 
-	QString toHexString() const;
+	[[nodiscard]] QString toHexString() const;
 
 private:
 	QString name_        = tr("<unknown>");
@@ -105,11 +93,11 @@ private:
 	Type type_           = TYPE_INVALID;
 	std::size_t bitSize_ = 0;
 
-	template <std::size_t bitSize, typename T>
+	template <std::size_t bitSize, class T>
 	friend Register make_Register(const QString &name, T value, Register::Type type);
 };
 
-template <std::size_t BitSize, typename T>
+template <std::size_t BitSize, class T>
 Register make_Register(const QString &name, T value, Register::Type type) {
 
 	constexpr std::size_t bitSize = (BitSize ? BitSize : 8 * sizeof(T));
@@ -133,7 +121,7 @@ Register make_Register(const QString &name, T value, Register::Type type) {
 	return reg;
 }
 
-template <typename T>
+template <class T>
 Register make_Register(const QString &name, T value, Register::Type type) {
 	return make_Register<0>(name, value, type);
 }

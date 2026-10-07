@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogResults.h"
 #include "edb.h"
@@ -6,9 +11,10 @@
 namespace ProcessPropertiesPlugin {
 
 /**
- * @brief DialogResults::DialogResults
- * @param parent
- * @param f
+ * @brief Constructs a DialogResults instance with the specified parent and window flags.
+ *
+ * @param parent The parent widget.
+ * @param f The window flags.
  */
 DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
@@ -26,16 +32,18 @@ DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogResults::addResult
- * @param result
+ * @brief Adds a result to the DialogResults instance.
+ *
+ * @param result The result to be added to the results model.
  */
 void DialogResults::addResult(const ResultsModel::Result &result) {
 	model_->addResult(result);
 }
 
 /**
- * @brief DialogResults::on_tableView_doubleClicked
- * @param index
+ * @brief Handles the double-click event on the table view in the DialogResults instance.
+ *
+ * @param index The index of the double-clicked item in the table view.
  */
 void DialogResults::on_tableView_doubleClicked(const QModelIndex &index) {
 	if (index.isValid()) {
@@ -49,8 +57,9 @@ void DialogResults::on_tableView_doubleClicked(const QModelIndex &index) {
 }
 
 /**
- * @brief DialogResults::resultCount
- * @return
+ * @brief Gets the number of results in the DialogResults instance.
+ *
+ * @return The number of results in the results model.
  */
 int DialogResults::resultCount() const {
 	return model_->rowCount();

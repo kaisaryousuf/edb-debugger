@@ -1,25 +1,17 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "BookmarkWidget.h"
 #include "BookmarksModel.h"
 #include "Expression.h"
+#include "IBreakpoint.h"
+#include "IDebugger.h"
+#include "IProcess.h"
 #include "edb.h"
+
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
@@ -28,7 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace BookmarksPlugin {
 
 /**
- * @brief BookmarkWidget::BookmarkWidget
+ * @brief Constructs the bookmark list widget, sets up its model, and creates toggle/conditional breakpoint actions.
+ *
  * @param parent
  * @param f
  */
@@ -41,20 +34,25 @@ BookmarkWidget::BookmarkWidget(QWidget *parent, Qt::WindowFlags f)
 	ui.tableView->setModel(model_);
 
 	connect(edb::v1::debugger_ui, SIGNAL(detachEvent()), model_, SLOT(clearBookmarks()));
+	connect(edb::v1::disassembly_widget(), SIGNAL(signalUpdated()), model_, SLOT(updateList()));
 	connect(ui.buttonAdd, &QPushButton::clicked, this, &BookmarkWidget::buttonAddClicked);
 	connect(ui.buttonDel, &QPushButton::clicked, this, &BookmarkWidget::buttonDelClicked);
 	connect(ui.buttonClear, &QPushButton::clicked, this, &BookmarkWidget::buttonClearClicked);
+
+	toggleBreakpointAction_      = createAction(tr("&Toggle Breakpoint"), QKeySequence(tr("B")), &BookmarkWidget::toggleBreakpoint);
+	conditionalBreakpointAction_ = createAction(tr("Add &Conditional Breakpoint"), QKeySequence(tr("Shift+B")), &BookmarkWidget::addConditionalBreakpoint);
 }
 
 /**
- * @brief BookmarkWidget::on_tableView_doubleClicked
+ * @brief Navigates to the double-clicked bookmark address, or opens an inline editor for type or comment columns.
+ *
  * @param index
  */
 void BookmarkWidget::on_tableView_doubleClicked(const QModelIndex &index) {
 
 	if (auto item = static_cast<BookmarksModel::Bookmark *>(index.internalPointer())) {
 		switch (index.column()) {
-		case 0: //address
+		case 0: // address
 			switch (item->type) {
 			case BookmarksModel::Bookmark::Code:
 				edb::v1::jump_to_address(item->address);
@@ -74,12 +72,12 @@ void BookmarkWidget::on_tableView_doubleClicked(const QModelIndex &index) {
 			items << tr("Code") << tr("Data") << tr("Stack");
 
 			bool ok;
-			const QString new_type = QInputDialog::getItem(ui.tableView, tr("Comment"), tr("Set Type:"), items, items.indexOf(old_type), false, &ok);
+			const QString new_type = QInputDialog::getItem(ui.tableView, tr("Comment"), tr("Set Type:"), items, static_cast<int>(items.indexOf(old_type)), false, &ok);
 			if (ok) {
 				model_->setType(index, new_type);
 			}
 		} break;
-		case 2: //comment
+		case 2: // comment
 		{
 			QString old_comment = item->comment;
 			bool ok;
@@ -93,7 +91,7 @@ void BookmarkWidget::on_tableView_doubleClicked(const QModelIndex &index) {
 }
 
 /**
- * @brief BookmarkWidget::buttonAddClicked
+ * @brief Prompts the user for an address expression and adds it as a new bookmark.
  */
 void BookmarkWidget::buttonAddClicked() {
 
@@ -103,7 +101,7 @@ void BookmarkWidget::buttonAddClicked() {
 }
 
 /**
- * @brief BookmarkWidget::buttonDelClicked
+ * @brief Removes the currently selected bookmark from the list.
  */
 void BookmarkWidget::buttonDelClicked() {
 
@@ -117,14 +115,52 @@ void BookmarkWidget::buttonDelClicked() {
 }
 
 /**
- * @brief BookmarkWidget::buttonClearClicked
+ * @brief Clears all bookmarks from the list.
  */
 void BookmarkWidget::buttonClearClicked() {
 	model_->clearBookmarks();
 }
 
 /**
- * @brief BookmarkWidget::addAddress
+ * @brief Toggles a breakpoint at each currently selected bookmark's address.
+ */
+void BookmarkWidget::toggleBreakpoint() {
+
+	const QItemSelectionModel *const selModel = ui.tableView->selectionModel();
+	const QModelIndexList selections          = selModel->selectedRows();
+
+	for (const auto index : selections) {
+		auto item = static_cast<BookmarksModel::Bookmark *>(index.internalPointer());
+		edb::v1::toggle_breakpoint(item->address);
+	}
+}
+
+/**
+ * @brief Creates a breakpoint with an optional condition expression at the selected bookmark's address.
+ */
+void BookmarkWidget::addConditionalBreakpoint() {
+
+	const QItemSelectionModel *const selModel = ui.tableView->selectionModel();
+	const QModelIndexList selections          = selModel->selectedRows();
+
+	if (selections.size() == 1) {
+		bool ok;
+		const QString condition = QInputDialog::getText(this, tr("Set Breakpoint Condition"), tr("Expression:"), QLineEdit::Normal, QString(), &ok);
+		auto item               = static_cast<BookmarksModel::Bookmark *>(selections[0].internalPointer());
+
+		if (ok) {
+			if (std::shared_ptr<IBreakpoint> bp = edb::v1::create_breakpoint(item->address)) {
+				if (!condition.isEmpty()) {
+					bp->condition = condition;
+				}
+			}
+		}
+	}
+}
+
+/**
+ * @brief Adds the given address as a new bookmark if it is not already in the list.
+ *
  * @param address
  * @param type
  * @param comment
@@ -142,6 +178,7 @@ void BookmarkWidget::addAddress(edb::address_t address, const QString &type, con
 			address,
 			BookmarksModel::bookmarkStringToType(type),
 			comment,
+			edb::v2::module_for_address(address),
 		};
 
 		model_->addBookmark(bookmark);
@@ -149,7 +186,8 @@ void BookmarkWidget::addAddress(edb::address_t address, const QString &type, con
 }
 
 /**
- * @brief BookmarkWidget::shortcut
+ * @brief Navigates to the bookmark at the given index, used by the Ctrl+0–9 keyboard shortcuts.
+ *
  * @param index
  */
 void BookmarkWidget::shortcut(int index) {
@@ -173,7 +211,8 @@ void BookmarkWidget::shortcut(int index) {
 }
 
 /**
- * @brief BookmarkWidget::on_tableView_customContextMenuRequested
+ * @brief Shows a context menu offering add, delete, clear, comment, type, and breakpoint actions for the selected entry.
+ *
  * @param pos
  */
 void BookmarkWidget::on_tableView_customContextMenuRequested(const QPoint &pos) {
@@ -185,7 +224,9 @@ void BookmarkWidget::on_tableView_customContextMenuRequested(const QPoint &pos) 
 	menu.addSeparator();
 	QAction *const actionComment = menu.addAction(tr("&Set Comment"));
 	QAction *const actionType    = menu.addAction(tr("Set &Type"));
-	QAction *const chosen        = menu.exec(ui.tableView->mapToGlobal(pos));
+	menu.addAction(toggleBreakpointAction_);
+	menu.addAction(conditionalBreakpointAction_);
+	QAction *const chosen = menu.exec(ui.tableView->mapToGlobal(pos));
 
 	if (chosen == actionAdd) {
 		buttonAddClicked();
@@ -224,22 +265,38 @@ void BookmarkWidget::on_tableView_customContextMenuRequested(const QPoint &pos) 
 				items << tr("Code") << tr("Data") << tr("Stack");
 
 				bool ok;
-				const QString new_type = QInputDialog::getItem(ui.tableView, tr("Comment"), tr("Set Type:"), items, items.indexOf(old_type), false, &ok);
+				const QString new_type = QInputDialog::getItem(ui.tableView, tr("Comment"), tr("Set Type:"), items, static_cast<int>(items.indexOf(old_type)), false, &ok);
 				if (ok) {
 					model_->setType(index, new_type);
 				}
 			}
 		}
+	} else if (chosen == toggleBreakpointAction_) {
+		toggleBreakpoint();
+	} else if (chosen == conditionalBreakpointAction_) {
+		addConditionalBreakpoint();
 	}
 }
 
 /**
- * @brief BookmarkWidget::entries
- * @return
+ * @brief Returns a copy of the current bookmark list.
+ *
+ * @return A QVector of BookmarksModel::Bookmark entries.
  */
-QList<BookmarksModel::Bookmark> BookmarkWidget::entries() const {
-	const QVector<BookmarksModel::Bookmark> &bookmarks = model_->bookmarks();
-	return bookmarks.toList();
+QVector<BookmarksModel::Bookmark> BookmarkWidget::entries() const {
+	return model_->bookmarks();
+}
+
+// This is copied from Debugger::createAction, so really there should either be a class that implements
+// this that both inherit from, or this should be a generic function that takes the QObject* to act upon
+// as a parameter.
+template <class F>
+QAction *BookmarkWidget::createAction(const QString &text, const QKeySequence &keySequence, F func) {
+	auto action = new QAction(text, this);
+	action->setShortcut(keySequence);
+	addAction(action);
+	connect(action, &QAction::triggered, this, func);
+	return action;
 }
 
 }

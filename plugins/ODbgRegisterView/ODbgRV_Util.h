@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef ODBG_REG_VIEW_UTIL_H_20170817_
 #define ODBG_REG_VIEW_UTIL_H_20170817_
@@ -32,9 +21,10 @@ static constexpr int ModelCommentColumn = RegisterViewModelBase::Model::COMMENT_
 
 template <class T>
 T valid_index(T index) {
-	static_assert(std::is_same<const typename std::remove_reference<T>::type, const QModelIndex>::value ||
-					  std::is_same<const typename std::remove_reference<T>::type, const QPersistentModelIndex>::value,
-				  "Wrong type passed to valid_index");
+	static_assert(
+		std::is_same_v<std::add_const_t<std::remove_reference_t<T>>, const QModelIndex> ||
+			std::is_same_v<std::add_const_t<std::remove_reference_t<T>>, const QPersistentModelIndex>,
+		"Wrong type passed to valid_index");
 
 	Q_ASSERT(index.isValid());
 	return index;
@@ -46,7 +36,7 @@ T *checked_cast(P p) {
 	return static_cast<T *>(p);
 }
 
-template <typename T>
+template <class T>
 constexpr T square(T v) {
 	return v * v;
 }
@@ -101,8 +91,9 @@ inline QModelIndex find_model_register(QModelIndex categoryIndex, const QString 
 		const auto regIndex = model->index(row, ModelNameColumn, categoryIndex);
 		const auto name     = model->data(regIndex).toString();
 		if (name.toUpper() == regToFind) {
-			if (column == ModelNameColumn)
+			if (column == ModelNameColumn) {
 				return regIndex;
+			}
 			return regIndex.sibling(regIndex.row(), column);
 		}
 	}

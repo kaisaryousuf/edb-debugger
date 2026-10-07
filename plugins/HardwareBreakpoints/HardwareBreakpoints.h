@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef HARDWARE_BREAKPOINTS_H_20080228_
 #define HARDWARE_BREAKPOINTS_H_20080228_
@@ -47,11 +35,11 @@ protected:
 	void privateFini() override;
 
 public:
-	QMenu *menu(QWidget *parent = nullptr) override;
+	[[nodiscard]] QMenu *menu(QWidget *parent = nullptr) override;
 	edb::EventStatus handleEvent(const std::shared_ptr<IDebugEvent> &event) override;
-	QList<QAction *> cpuContextMenu() override;
-	QList<QAction *> stackContextMenu() override;
-	QList<QAction *> dataContextMenu() override;
+	[[nodiscard]] QList<QAction *> cpuContextMenu() override;
+	[[nodiscard]] QList<QAction *> stackContextMenu() override;
+	[[nodiscard]] QList<QAction *> dataContextMenu() override;
 
 public Q_SLOTS:
 	void showMenu();
@@ -90,8 +78,8 @@ private Q_SLOTS:
 	void setExec4();
 
 private:
-	QMenu *menu_              = nullptr;
-	QPointer<QDialog> dialog_ = nullptr;
+	QMenu *menu_ = nullptr;
+	QPointer<QDialog> dialog_;
 
 	QLineEdit *addresses_[4] = {};
 	QCheckBox *enabled_[4]   = {};

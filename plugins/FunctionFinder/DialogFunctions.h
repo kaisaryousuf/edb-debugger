@@ -1,29 +1,25 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DIALOG_FUNCTIONS_H_20061101_
 #define DIALOG_FUNCTIONS_H_20061101_
 
+#include "Function.h"
 #include "Types.h"
 #include "ui_DialogFunctions.h"
 #include <QDialog>
+#include <QFutureWatcher>
+#include <QTimer>
+
+#include <atomic>
+#include <vector>
 
 class QSortFilterProxyModel;
+class IAnalyzer;
+class IRegion;
 
 namespace FunctionFinderPlugin {
 
@@ -35,15 +31,35 @@ public:
 	~DialogFunctions() override = default;
 
 private:
+	void reject() override;
 	void showEvent(QShowEvent *event) override;
 
 private:
-	void doFind();
+	struct RegionScan {
+		std::shared_ptr<IRegion> region;
+	};
+
+	struct SearchResult {
+		std::vector<Function> functions;
+		bool cancelled = false;
+	};
+
+	void onFindClicked();
+	void onFindFinished();
+	void updateProgressBar();
+	void setSearchRunning(bool running);
+	SearchResult doFind(const std::vector<RegionScan> &regions);
 
 private:
 	Ui::DialogFunctions ui;
 	QSortFilterProxyModel *filterModel_ = nullptr;
 	QPushButton *buttonFind_            = nullptr;
+	QFutureWatcher<SearchResult> searchWatcher_;
+	QTimer progressTimer_;
+	std::atomic_bool cancelRequested_ = false;
+	std::atomic_size_t progressDone_  = 0;
+	std::atomic_size_t progressTotal_ = 0;
+	bool searchRunning_               = false;
 };
 
 }

@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogStrings.h"
 #include "Configuration.h"
@@ -29,13 +17,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSortFilterProxyModel>
+#include <QVector>
+#include <QtConcurrent/QtConcurrentRun>
+
+#include <algorithm>
+#include <numeric>
 
 namespace ProcessPropertiesPlugin {
 
 /**
- * @brief DialogStrings::DialogStrings
- * @param parent
- * @param f
+ * @brief Constructor for the DialogStrings class.
+ *
+ * @param parent The parent widget for this dialog.
+ * @param f The window flags for this dialog.
  */
 DialogStrings::DialogStrings(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
@@ -47,20 +41,18 @@ DialogStrings::DialogStrings(QWidget *parent, Qt::WindowFlags f)
 	filterModel_ = new QSortFilterProxyModel(this);
 	connect(ui.txtSearch, &QLineEdit::textChanged, filterModel_, &QSortFilterProxyModel::setFilterFixedString);
 
-	buttonFind_ = new QPushButton(QIcon::fromTheme("edit-find"), tr("Find"));
-	connect(buttonFind_, &QPushButton::clicked, this, [this]() {
-		buttonFind_->setEnabled(false);
-		ui.progressBar->setValue(0);
-		doFind();
-		ui.progressBar->setValue(100);
-		buttonFind_->setEnabled(true);
-	});
+	buttonFind_ = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-find")), tr("Find"));
+	connect(buttonFind_, &QPushButton::clicked, this, &DialogStrings::onFindClicked);
+	connect(&searchWatcher_, &QFutureWatcher<SearchResult>::finished, this, &DialogStrings::onFindFinished);
+
+	progressTimer_.setInterval(50);
+	connect(&progressTimer_, &QTimer::timeout, this, &DialogStrings::updateProgressBar);
 
 	ui.buttonBox->addButton(buttonFind_, QDialogButtonBox::ActionRole);
 }
 
 /**
- * @brief DialogStrings::showEvent
+ * @brief Handles the show event for the dialog, initializing the filter model and setting up the table view.
  */
 void DialogStrings::showEvent(QShowEvent *) {
 	filterModel_->setFilterKeyColumn(3);
@@ -70,18 +62,94 @@ void DialogStrings::showEvent(QShowEvent *) {
 }
 
 /**
- * @brief DialogStrings::doFind
+ * @brief Performs the string search operation within the selected memory regions.
  */
-void DialogStrings::doFind() {
+void DialogStrings::reject() {
+	if (searchRunning_) {
+		cancelRequested_.store(true);
+		buttonFind_->setEnabled(false);
+		buttonFind_->setText(tr("Cancelling..."));
+		return;
+	}
+
+	QDialog::reject();
+}
+
+DialogStrings::SearchResult DialogStrings::doFind(const std::vector<RegionScan> &regions, bool searchUnicode, int minStringLength) {
+	SearchResult result;
+	progressDone_.store(0);
+	progressTotal_.store(0);
+
+	if (edb::v1::debugger_core == nullptr) {
+		return result;
+	}
+
+	const size_t totalBytes = std::accumulate(regions.begin(), regions.end(), size_t(0), [](size_t total, const RegionScan &region) {
+		return total + static_cast<size_t>(region.end - region.start);
+	});
+	progressTotal_.store(totalBytes);
+
+	QString str;
+
+	for (const RegionScan &region : regions) {
+
+		if (cancelRequested_.load()) {
+			result.cancelled = true;
+			break;
+		}
+
+		if (!region.accessible) {
+			progressDone_.fetch_add(static_cast<size_t>(region.end - region.start));
+			continue;
+		}
+
+		edb::address_t start_address     = region.start;
+		const edb::address_t end_address = region.end;
+		const edb::address_t orig_start  = start_address;
+
+		while (start_address < end_address) {
+
+			if (cancelRequested_.load()) {
+				result.cancelled = true;
+				break;
+			}
+
+			int string_length = 0;
+			bool ok           = edb::v1::get_ascii_string_at_address(start_address, str, minStringLength, 256, string_length);
+			if (ok) {
+				result.results.push_back({start_address, str, ResultsModel::Result::Ascii});
+			} else if (searchUnicode) {
+				string_length = 0;
+				ok            = edb::v1::get_utf16_string_at_address(start_address, str, minStringLength, 256, string_length);
+				if (ok) {
+					result.results.push_back({start_address, str, ResultsModel::Result::Utf16});
+				}
+			}
+
+			const size_t advance = ok ? static_cast<size_t>(string_length) : 1;
+			progressDone_.fetch_add(advance);
+			start_address += advance;
+		}
+	}
+
+	return result;
+}
+
+void DialogStrings::onFindClicked() {
+	if (searchRunning_) {
+		cancelRequested_.store(true);
+		buttonFind_->setEnabled(false);
+		buttonFind_->setText(tr("Cancelling..."));
+		return;
+	}
 
 	const int min_string_length = edb::v1::config().min_string_length;
+	const bool searchUnicode    = ui.search_unicode->isChecked();
 
 	const QItemSelectionModel *const selection_model = ui.tableView->selectionModel();
 	const QModelIndexList sel                        = selection_model->selectedRows();
 
-	QString str;
-
-	if (sel.size() == 0) {
+	if (sel.empty()) {
 		QMessageBox::critical(
 			this,
 			tr("No Region Selected"),
@@ -89,42 +157,53 @@ void DialogStrings::doFind() {
 		return;
 	}
 
+	if (edb::v1::debugger_core == nullptr) {
+		return;
+	}
+
+	edb::v1::memory_regions().sync();
+	const QList<std::shared_ptr<IRegion>> currentRegions = edb::v1::memory_regions().regions();
+
+	std::vector<RegionScan> regions;
+	regions.reserve(static_cast<size_t>(currentRegions.size()));
+	for (const std::shared_ptr<IRegion> &region : currentRegions) {
+		regions.push_back({region->start(), region->end(), region->accessible()});
+	}
+
+	if (regions.empty()) {
+		return;
+	}
+
+	ui.progressBar->setValue(0);
+	cancelRequested_.store(false);
+	progressDone_.store(0);
+	progressTotal_.store(0);
+	setSearchRunning(true);
+	progressTimer_.start();
+	searchWatcher_.setFuture(QtConcurrent::run([this, regions, searchUnicode, min_string_length]() {
+		return doFind(regions, searchUnicode, min_string_length);
+	}));
+}
+
+void DialogStrings::onFindFinished() {
+	progressTimer_.stop();
+	updateProgressBar();
+
+	const SearchResult result = searchWatcher_.result();
+	setSearchRunning(false);
+
+	if (result.allocationFailed) {
+		QMessageBox::critical(this, tr("Memory Allocation Error"), tr("Unable to satisfy memory allocation request for search string."));
+		return;
+	}
+
+	if (result.cancelled) {
+		return;
+	}
+
 	auto resultsDialog = new DialogResults(this);
-
-	for (const QModelIndex &selected_item : sel) {
-
-		const QModelIndex index = filterModel_->mapToSource(selected_item);
-
-		if (auto region = *reinterpret_cast<const std::shared_ptr<IRegion> *>(index.internalPointer())) {
-
-			edb::address_t start_address     = region->start();
-			const edb::address_t end_address = region->end();
-			const edb::address_t orig_start  = start_address;
-
-			// do the search for this region!
-			while (start_address < end_address) {
-
-				int string_length = 0;
-				bool ok           = edb::v1::get_ascii_string_at_address(start_address, str, min_string_length, 256, string_length);
-				if (ok) {
-					resultsDialog->addResult({start_address, str, ResultsModel::Result::Ascii});
-				} else if (ui.search_unicode->isChecked()) {
-					string_length = 0;
-					ok            = edb::v1::get_utf16_string_at_address(start_address, str, min_string_length, 256, string_length);
-					if (ok) {
-						resultsDialog->addResult({start_address, str, ResultsModel::Result::Utf16});
-					}
-				}
-
-				ui.progressBar->setValue(util::percentage((start_address - orig_start), region->size()));
-
-				if (ok) {
-					start_address += string_length;
-				} else {
-					++start_address;
-				}
-			}
-		}
+	for (const ResultsModel::Result &r : result.results) {
+		resultsDialog->addResult(r);
 	}
 
 	if (resultsDialog->resultCount() == 0) {
@@ -132,6 +211,33 @@ void DialogStrings::doFind() {
 		delete resultsDialog;
 	} else {
 		resultsDialog->show();
+	}
+}
+
+void DialogStrings::updateProgressBar() {
+	const size_t done  = progressDone_.load();
+	const size_t total = progressTotal_.load();
+
+	if (total == 0) {
+		ui.progressBar->setValue(0);
+		return;
+	}
+
+	ui.progressBar->setValue(util::percentage(done, total));
+}
+
+void DialogStrings::setSearchRunning(bool running) {
+	searchRunning_ = running;
+
+	if (searchRunning_) {
+		buttonFind_->setEnabled(true);
+		buttonFind_->setIcon(QIcon::fromTheme(QStringLiteral("process-stop")));
+		buttonFind_->setText(tr("Cancel"));
+	} else {
+		buttonFind_->setEnabled(true);
+		buttonFind_->setIcon(QIcon::fromTheme(QStringLiteral("edit-find")));
+		buttonFind_->setText(tr("Find"));
+		ui.progressBar->setValue(100);
 	}
 }
 

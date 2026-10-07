@@ -1,28 +1,23 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DIALOG_OPCODES_H_20061101_
 #define DIALOG_OPCODES_H_20061101_
 
+#include "ResultsModel.h"
 #include "ui_DialogOpcodes.h"
 #include <QDialog>
+#include <QFutureWatcher>
+#include <QTimer>
 
 class QSortFilterProxyModel;
+class IProcess;
+
+#include <atomic>
+#include <vector>
 
 namespace OpcodeSearcherPlugin {
 
@@ -36,7 +31,24 @@ public:
 	~DialogOpcodes() override = default;
 
 private:
-	void doFind();
+	void reject() override;
+
+private:
+	struct RegionScan {
+		edb::address_t start = 0;
+		edb::address_t end   = 0;
+	};
+
+	struct SearchResult {
+		QVector<ResultsModel::Result> results;
+		bool cancelled = false;
+	};
+
+	void onFindClicked();
+	void onFindFinished();
+	void updateProgressBar();
+	void setSearchRunning(bool running);
+	SearchResult doFind(int classtype, bool is32Bit, const IProcess *process, const std::vector<RegionScan> &regions);
 
 private:
 	void showEvent(QShowEvent *event) override;
@@ -45,6 +57,12 @@ private:
 	Ui::DialogOpcodes ui;
 	QSortFilterProxyModel *filterModel_ = nullptr;
 	QPushButton *buttonFind_            = nullptr;
+	QFutureWatcher<SearchResult> searchWatcher_;
+	QTimer progressTimer_;
+	std::atomic_bool cancelRequested_ = false;
+	std::atomic_size_t progressDone_  = 0;
+	std::atomic_size_t progressTotal_ = 0;
+	bool searchRunning_               = false;
 };
 
 }

@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef OPERAND_H_20191119_
 #define OPERAND_H_20191119_
@@ -29,20 +34,20 @@ private:
 	}
 
 public:
-	Operand()                = default;
-	Operand(const Operand &) = default;
+	Operand()                           = default;
+	Operand(const Operand &)            = default;
 	Operand &operator=(const Operand &) = default;
 	~Operand()                          = default;
 
 public:
-	bool valid() const { return operand_; }
-	explicit operator bool() const { return valid(); }
+	[[nodiscard]] bool valid() const { return operand_; }
+	[[nodiscard]] explicit operator bool() const { return valid(); }
 	const op_type *operator->() const { return operand_; }
-	const op_type *native() const { return operand_; }
-	size_t index() const { return index_; }
+	[[nodiscard]] const op_type *native() const { return operand_; }
+	[[nodiscard]] size_t index() const { return index_; }
 
 public:
-	const Instruction *owner() const {
+	[[nodiscard]] const Instruction *owner() const {
 		return owner_;
 	}
 

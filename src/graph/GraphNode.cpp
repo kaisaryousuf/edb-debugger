@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "GraphNode.h"
 #include "Configuration.h"
@@ -37,16 +25,15 @@ namespace {
 const QColor TextColor   = Qt::black;
 const QColor BorderColor = Qt::blue;
 const QColor SelectColor = Qt::lightGray;
-const QString NodeFont   = "Monospace";
+const auto NodeFont      = QStringLiteral("Monospace");
 
 }
 
-//------------------------------------------------------------------------------
-// Name: GraphNode
-// Desc:
-//------------------------------------------------------------------------------
-GraphNode::GraphNode(GraphWidget *graph, const QString &text, const QColor &color)
-	: color_(color), graph_(graph) {
+/**
+ * @brief
+ */
+GraphNode::GraphNode(GraphWidget *graph, const QString &text, QColor color)
+	: color_(std::move(color)), graph_(graph) {
 
 	setFlag(QGraphicsItem::ItemIsMovable, true);
 	setFlag(QGraphicsItem::ItemIsSelectable, true);
@@ -59,42 +46,38 @@ GraphNode::GraphNode(GraphWidget *graph, const QString &text, const QColor &colo
 
 	graph->scene()->addItem(this);
 
-	QString name = QString("Node%1").arg(reinterpret_cast<uintptr_t>(this));
-	node_        = _agnode(graph->graph_, name);
+	auto name = QStringLiteral("Node%1").arg(reinterpret_cast<uintptr_t>(this));
+	node_     = _agnode(graph->graph_, name);
 
-	_agset(node_, "fixedsize", "0");
-	_agset(node_, "width", QString("%1").arg(boundingRect().width() / 96.0));
-	_agset(node_, "height", QString("%1").arg(boundingRect().height() / 96.0));
+	_agset(node_, QStringLiteral("fixedsize"), QStringLiteral("0"));
+	_agset(node_, QStringLiteral("width"), QString::number(boundingRect().width() / 96.0));
+	_agset(node_, QStringLiteral("height"), QString::number(boundingRect().height() / 96.0));
 }
 
-//------------------------------------------------------------------------------
-// Name: ~GraphNode
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 GraphNode::~GraphNode() {
 
-	// NOTE(eteran): we use Q_FOREACH because it operates on a *copy*
-	// of the list, which is important because deleting an
-	// edge removes it from the list
-	Q_FOREACH (GraphEdge *const edge, edges_) {
+	// Iterate over a copy because deleting an edge removes it from edges_.
+	const auto edgesCopy = edges_;
+	for (GraphEdge *edge : edgesCopy) {
 		delete edge;
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: boundingRect
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 QRectF GraphNode::boundingRect() const {
 	constexpr int weight = 2;
 	const int width      = std::log2(weight) * BorderScaleFactor;
 	return picture_.boundingRect().adjusted(-width, -width, +width, +width);
 }
 
-//------------------------------------------------------------------------------
-// Name: paint
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void GraphNode::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
 
 	Q_UNUSED(option)
@@ -122,10 +105,9 @@ void GraphNode::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 	picture_.play(painter);
 }
 
-//------------------------------------------------------------------------------
-// Name: paint
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 QVariant GraphNode::itemChange(GraphicsItemChange change, const QVariant &value) {
 	if (!graph_->inLayout_) {
 
@@ -143,26 +125,23 @@ QVariant GraphNode::itemChange(GraphicsItemChange change, const QVariant &value)
 	return QGraphicsItem::itemChange(change, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: addEdge
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void GraphNode::addEdge(GraphEdge *edge) {
 	edges_.insert(edge);
 }
 
-//------------------------------------------------------------------------------
-// Name: removeEdge
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void GraphNode::removeEdge(GraphEdge *edge) {
 	edges_.remove(edge);
 }
 
-//------------------------------------------------------------------------------
-// Name: drawLabel
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void GraphNode::drawLabel(const QString &text) {
 
 	const bool syntax_highlighting_enabled = edb::v1::config().syntax_highlighting_enabled;
@@ -177,8 +156,8 @@ void GraphNode::drawLabel(const QString &text) {
 	font.setPixelSize(LabelFontSize);
 
 	if (!font.exactMatch()) {
-		QFontInfo fontinfo(font);
-		qWarning("replacing font '%s' by font '%s'", qPrintable(font.family()), qPrintable(fontinfo.family()));
+		QFontInfo fi(font);
+		qWarning("replacing font '%s' by font '%s'", qPrintable(font.family()), qPrintable(fi.family()));
 	}
 
 	painter.setFont(font);
@@ -220,9 +199,9 @@ void GraphNode::drawLabel(const QString &text) {
 				break;
 			}
 
-			line.setNumColumns(l.length());
+			line.setNumColumns(static_cast<int>(l.length()));
 			line.setPosition(QPoint(0, y));
-			y += fm.lineSpacing();
+			y += static_cast<int>(fm.lineSpacing());
 		}
 
 		textLayout.endLayout();
@@ -235,18 +214,16 @@ void GraphNode::drawLabel(const QString &text) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: hoverEnterEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void GraphNode::hoverEnterEvent(QGraphicsSceneHoverEvent *e) {
 	Q_UNUSED(e)
 }
 
-//------------------------------------------------------------------------------
-// Name: hoverLeaveEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void GraphNode::hoverLeaveEvent(QGraphicsSceneHoverEvent *e) {
 	Q_UNUSED(e)
 }

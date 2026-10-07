@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DIALOG_EDIT_SIMD_REGISTER_H_20151010_
 #define DIALOG_EDIT_SIMD_REGISTER_H_20151010_
@@ -31,7 +20,7 @@ class QDialogButtonBox;
 class QHBoxLayout;
 class QLongValidator;
 class QRadioButton;
-class QRegExpValidator;
+class QRegularExpressionValidator;
 class QULongValidator;
 class QValidator;
 
@@ -71,7 +60,7 @@ public:
 	explicit DialogEditSimdRegister(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
 	void setValue(const Register &value);
 	void set_current_element(RegisterViewModelBase::Model::ElementSize size, NumberDisplayMode format, int elementIndex);
-	Register value() const;
+	[[nodiscard]] Register value() const;
 
 protected:
 	bool eventFilter(QObject *, QEvent *) override;
@@ -82,25 +71,25 @@ private:
 
 	std::uint64_t readInteger(const NumberEdit *edit) const;
 
-	template <typename Integer>
+	template <class Integer>
 	void formatInteger(NumberEdit *edit, Integer integer) const;
 
 	void updateAllEntriesExcept(NumberEdit *notUpdated);
-	void hideColumns(EntriesCols preLast);
+	void hideColumns(EntriesCols afterLastToHide);
 	void hideRows(EntriesRows rowToHide);
 	void resetLayout();
 
 private:
-	template <typename Integer>
+	template <class Integer>
 	void onIntegerEdited(QObject *sender, const std::array<NumberEdit *, NumBytes / sizeof(Integer)> &elements);
 
-	template <typename Float>
+	template <class Float>
 	void onFloatEdited(QObject *sender, const std::array<NumberEdit *, NumBytes / sizeof(Float)> &elements);
 
-	template <typename T>
+	template <class T>
 	void updateIntegralEntries(const std::array<NumberEdit *, NumBytes / sizeof(T)> &entries, NumberEdit *notUpdated);
 
-	template <typename T>
+	template <class T>
 	void updateFloatEntries(const std::array<NumberEdit *, NumBytes / sizeof(T)> &entries, NumberEdit *notUpdated);
 
 private Q_SLOTS:
@@ -128,10 +117,10 @@ private:
 	std::array<NumberEdit *, NumBytes> bytes_;
 	std::array<QLabel *, NumBytes> columnLabels_;
 
-	QRegExpValidator *byteHexValidator_;
-	QRegExpValidator *wordHexValidator_;
-	QRegExpValidator *dwordHexValidator_;
-	QRegExpValidator *qwordHexValidator_;
+	QRegularExpressionValidator *byteHexValidator_;
+	QRegularExpressionValidator *wordHexValidator_;
+	QRegularExpressionValidator *dwordHexValidator_;
+	QRegularExpressionValidator *qwordHexValidator_;
 
 	QLongValidator *byteSignedValidator_;
 	QLongValidator *wordSignedValidator_;

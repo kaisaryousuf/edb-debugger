@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "SymbolViewer.h"
 #include "DialogSymbolViewer.h"
@@ -24,24 +12,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace SymbolViewerPlugin {
 
 /**
- * @brief SymbolViewer::SymbolViewer
- * @param parent
+ * @brief Constructor for the SymbolViewer plugin.
+ *
+ * @param parent The parent QObject for this plugin.
  */
 SymbolViewer::SymbolViewer(QObject *parent)
 	: QObject(parent) {
 }
 
 /**
- * @brief SymbolViewer::~SymbolViewer
+ * @brief Destructor for the SymbolViewer plugin.
  */
 SymbolViewer::~SymbolViewer() {
 	delete dialog_;
 }
 
 /**
- * @brief SymbolViewer::menu
- * @param parent
- * @return
+ * @brief Returns the context menu for this plugin, creating it if it doesn't already exist.
+ *
+ * @param parent The parent widget for the menu.
+ * @return A pointer to the created menu.
  */
 QMenu *SymbolViewer::menu(QWidget *parent) {
 
@@ -49,14 +39,18 @@ QMenu *SymbolViewer::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("SymbolViewer"), parent);
-		menu_->addAction(tr("&Symbol Viewer"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+Alt+S")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&Symbol Viewer"), QKeySequence(tr("Ctrl+Alt+S")), this, &SymbolViewer::showMenu);
+#else
+		menu_->addAction(tr("&Symbol Viewer"), this, &SymbolViewer::showMenu, QKeySequence(tr("Ctrl+Alt+S")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief SymbolViewer::showMenu
+ * @brief Slot to show the Symbol Viewer dialog. If the dialog does not already exist, it is created and then shown.
  */
 void SymbolViewer::showMenu() {
 

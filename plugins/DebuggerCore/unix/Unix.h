@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef UNIX_H_20181211_
 #define UNIX_H_20181211_
@@ -7,15 +12,13 @@
 #include <QString>
 #include <QtGlobal>
 
-namespace DebuggerCorePlugin {
-namespace Unix {
+namespace DebuggerCorePlugin::Unix {
 
 QMap<qlonglong, QString> exceptions();
 QString exception_name(qlonglong value);
 qlonglong exception_value(const QString &name);
 Status execute_process(const QString &path, const QString &cwd, const QList<QByteArray> &args);
 
-}
 }
 
 #endif

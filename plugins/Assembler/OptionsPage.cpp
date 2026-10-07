@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "OptionsPage.h"
 #include <QDebug>
@@ -25,7 +13,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace AssemblerPlugin {
 
 /**
- * @brief OptionsPage::OptionsPage
+ * @brief Constructs the Assembler options page, populating the assembler list from the XML resource for the current architecture.
+ *
  * @param parent
  * @param f
  */
@@ -35,7 +24,7 @@ OptionsPage::OptionsPage(QWidget *parent, Qt::WindowFlags f)
 	ui.setupUi(this);
 
 	QSettings settings;
-	const QString name = settings.value("Assembler/helper", "yasm").toString();
+	const QString name = settings.value(QStringLiteral("Assembler/helper"), QStringLiteral("yasm")).toString();
 
 	ui.assemblerName->clear();
 
@@ -47,15 +36,15 @@ OptionsPage::OptionsPage(QWidget *parent, Qt::WindowFlags f)
 	const QLatin1String targetArch("aarch64");
 #endif
 
-	QFile file(":/debugger/Assembler/xml/assemblers.xml");
+	QFile file(QStringLiteral(":/debugger/Assembler/xml/assemblers.xml"));
 	if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
 		QDomDocument xml;
 		xml.setContent(&file);
 		QDomElement root = xml.documentElement();
 
-		for (QDomElement assembler = root.firstChildElement("assembler"); !assembler.isNull(); assembler = assembler.nextSiblingElement("assembler")) {
-			const QString name = assembler.attribute("name");
-			const QString arch = assembler.attribute("arch");
+		for (QDomElement assembler = root.firstChildElement(QStringLiteral("assembler")); !assembler.isNull(); assembler = assembler.nextSiblingElement(QStringLiteral("assembler"))) {
+			const QString name = assembler.attribute(QStringLiteral("name"));
+			const QString arch = assembler.attribute(QStringLiteral("arch"));
 			if (arch == targetArch) {
 				ui.assemblerName->addItem(name);
 			}
@@ -70,13 +59,27 @@ OptionsPage::OptionsPage(QWidget *parent, Qt::WindowFlags f)
 	}
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 /**
- * @brief OptionsPage::on_assemblerName_currentIndexChanged
- * @param text
+ * @brief Saves the newly selected assembler name to persistent settings when the combo box selection changes.
+ *
+ * @param index The index of the newly selected item in the combo box.
+ */
+void OptionsPage::on_assemblerName_currentIndexChanged(int index) {
+	const QString text = ui.assemblerName->itemText(index);
+	QSettings settings;
+	settings.setValue(QStringLiteral("Assembler/helper"), text);
+}
+#else
+/**
+ * @brief Saves the newly selected assembler name to persistent settings when the combo box selection changes.
+ *
+ * @param text The text of the newly selected item in the combo box.
  */
 void OptionsPage::on_assemblerName_currentIndexChanged(const QString &text) {
 	QSettings settings;
-	settings.setValue("Assembler/helper", text);
+	settings.setValue(QStringLiteral("Assembler/helper"), text);
 }
+#endif
 
 }

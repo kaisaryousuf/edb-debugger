@@ -1,80 +1,34 @@
 /*
-Copyright (C) 2016 - 2016 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2016- 2025 Evan Teran
+ *                          evan.teran@gmail.com
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "FeatureDetect.h"
+#include "PlatformFile.h"
 #include "edb.h"
 
+#include <cstdint>
+#include <cstdio>
 #include <fcntl.h>
 #include <iomanip>
 #include <iostream>
+#include <linux/limits.h>
 #include <string>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-namespace DebuggerCorePlugin {
-namespace feature {
+namespace DebuggerCorePlugin::feature {
+
 namespace {
 
-// Custom class to work with files, since various wrappers
-// appear to be unreliable to check whether writes succeeded
-class File {
-public:
-	explicit File(const std::string &filename) {
-		fd_      = ::open(filename.c_str(), O_RDWR);
-		success_ = fd_ != -1;
-	}
-
-	ssize_t write(const void *buf, size_t count) {
-		const ssize_t result = ::write(fd_, buf, count);
-		success_             = result != -1;
-		return result;
-	}
-
-	ssize_t read(void *buf, size_t count) {
-		const ssize_t result = ::read(fd_, buf, count);
-		success_             = result != -1;
-		return result;
-	}
-
-	off_t seekp(size_t offset) {
-		const off_t result = ::lseek(fd_, offset, SEEK_SET);
-		success_           = result != -1;
-		return result;
-	}
-
-	~File() {
-		close(fd_);
-	}
-
-	explicit operator bool() {
-		return success_;
-	}
-
-private:
-	int fd_       = -1;
-	bool success_ = false;
-};
-
 /**
- * @brief kill_child
- * @param pid
+ * @brief Kills the child process
+ *
+ * @param pid the process ID of the child process
  */
 void kill_child(int pid) {
 	if (kill(pid, SIGKILL) == -1) {
@@ -85,12 +39,11 @@ void kill_child(int pid) {
 }
 
 /**
- * detects whether or not reads/writes through /proc/<pid>/mem work correctly
+ * @brief Detects whether or not reads/writes through /proc/<pid>/mem work correctly.
  *
- * @brief detect_proc_access
- * @param read_broken
- * @param write_broken
- * @return
+ * @param read_broken A pointer to a boolean indicating if reads are broken.
+ * @param write_broken A pointer to a boolean indicating if writes are broken.
+ * @return True if the detection was successful, false otherwise.
  */
 bool detect_proc_access(bool *read_broken, bool *write_broken) {
 
@@ -127,7 +80,10 @@ bool detect_proc_access(bool *read_broken, bool *write_broken) {
 			return false;
 		}
 
-		File file("/proc/" + std::to_string(pid) + "/mem");
+		char path[PATH_MAX];
+		snprintf(path, sizeof(path), "/proc/%d/mem", pid);
+
+		PlatformFile file(path);
 		if (!file) {
 			perror("failed to open memory file");
 			kill_child(pid);
@@ -136,46 +92,28 @@ bool detect_proc_access(bool *read_broken, bool *write_broken) {
 
 		const auto pageAlignMask = ~(sysconf(_SC_PAGESIZE) - 1);
 		const auto addr          = reinterpret_cast<uintptr_t>(&edb::v1::debugger_ui) & pageAlignMask;
-		file.seekp(addr);
-		if (!file) {
-			perror("failed to seek to address to read");
-			kill_child(pid);
-			return false;
-		}
 
 		int buf = 0x12345678;
-		{
-			file.read(&buf, sizeof(buf));
-			if (!file) {
-				*read_broken  = true;
-				*write_broken = true;
-				kill_child(pid);
-				return false;
-			}
-		}
 
-		file.seekp(addr);
-		if (!file) {
-			perror("failed to seek to address to write");
+		if (file.readAt(&buf, sizeof(buf), addr) == -1) {
+			*read_broken  = true;
+			*write_broken = true;
 			kill_child(pid);
 			return false;
 		}
 
-		{
-			file.write(&buf, sizeof(buf));
-			if (!file) {
-				*read_broken  = false;
-				*write_broken = true;
-			} else {
-				*read_broken  = false;
-				*write_broken = false;
-			}
+		if (file.writeAt(&buf, sizeof(buf), addr) == -1) {
+			*read_broken  = false;
+			*write_broken = true;
+		} else {
+			*read_broken  = false;
+			*write_broken = false;
 		}
+
 		kill_child(pid);
 		return true;
 	}
 	}
 }
 
-}
 }

@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 // inspired from code from mozilla: https://github.com/mozilla/rr/blob/master/src/Registers.cc
 
@@ -16,19 +21,19 @@ public:
 		: name_(name), ptr_(ptr), size_(size) {
 	}
 
-	constexpr RegisterRef()          = default;
-	RegisterRef(const RegisterRef &) = default;
+	constexpr RegisterRef()                     = default;
+	RegisterRef(const RegisterRef &)            = default;
 	RegisterRef &operator=(const RegisterRef &) = default;
 
 public:
-	const void *data() const { return ptr_; }
+	[[nodiscard]] const void *data() const { return ptr_; }
 
 public:
-	bool operator==(const RegisterRef &rhs) const { return size_ == rhs.size_ && std::memcmp(ptr_, rhs.ptr_, size_) == 0; }
-	bool operator!=(const RegisterRef &rhs) const { return size_ != rhs.size_ || std::memcmp(ptr_, rhs.ptr_, size_) != 0; }
+	[[nodiscard]] bool operator==(const RegisterRef &rhs) const { return size_ == rhs.size_ && std::memcmp(ptr_, rhs.ptr_, size_) == 0; }
+	[[nodiscard]] bool operator!=(const RegisterRef &rhs) const { return size_ != rhs.size_ || std::memcmp(ptr_, rhs.ptr_, size_) != 0; }
 
 public:
-	bool valid() const { return ptr_ != nullptr; }
+	[[nodiscard]] bool valid() const { return ptr_ != nullptr; }
 
 public:
 	// The name of this register.

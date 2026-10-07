@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogResults.h"
 #include "edb.h"
@@ -5,7 +10,8 @@
 namespace BinarySearcherPlugin {
 
 /**
- * @brief DialogResults::DialogResults
+ * @brief Constructs the search results dialog and sets up its UI.
+ *
  * @param parent
  * @param f
  */
@@ -16,9 +22,8 @@ DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * follows the found item in the appropriate view
+ * @brief Navigates to the double-clicked result address in the appropriate view (code, stack, or data).
  *
- * @brief DialogResults::on_listWidget_itemDoubleClicked
  * @param item
  */
 void DialogResults::on_listWidget_itemDoubleClicked(QListWidgetItem *item) {
@@ -37,7 +42,8 @@ void DialogResults::on_listWidget_itemDoubleClicked(QListWidgetItem *item) {
 }
 
 /**
- * @brief DialogResults::addResult
+ * @brief Adds a search result entry with the given region type and address to the results list.
+ *
  * @param address
  */
 void DialogResults::addResult(RegionType region, edb::address_t address) {
@@ -48,7 +54,8 @@ void DialogResults::addResult(RegionType region, edb::address_t address) {
 }
 
 /**
- * @brief DialogResults::resultCount
+ * @brief Returns the total number of results currently shown in the list.
+ *
  * @return
  */
 int DialogResults::resultCount() const {

@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Assembler.h"
 #include "DialogAssembler.h"
@@ -29,7 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace AssemblerPlugin {
 
 /**
- * @brief Assembler::Assembler
+ * @brief Constructs the Assembler plugin object.
+ *
  * @param parent
  */
 Assembler::Assembler(QObject *parent)
@@ -37,31 +26,30 @@ Assembler::Assembler(QObject *parent)
 }
 
 /**
- * @brief Assembler::~Assembler
+ * @brief Destroys the Assembler plugin and frees the assembler dialog.
  */
 Assembler::~Assembler() {
 	delete dialog_;
 }
 
 /**
- * @brief Assembler::cpuContextMenu
+ * @brief Returns the CPU context menu actions contributed by the Assembler plugin.
+ *
  * @return
  */
 QList<QAction *> Assembler::cpuContextMenu() {
-
-	QList<QAction *> ret;
 
 	auto action_assemble = new QAction(tr("&Assemble..."), this);
 	action_assemble->setShortcut(QKeySequence(tr("Space")));
 
 	connect(action_assemble, &QAction::triggered, this, &Assembler::showDialog);
-	ret << action_assemble;
 
-	return ret;
+	return {action_assemble};
 }
 
 /**
- * @brief Assembler::menu
+ * @brief Returns nullptr, as the Assembler plugin contributes no top-level menu.
+ *
  * @param parent
  * @return
  */
@@ -71,7 +59,7 @@ QMenu *Assembler::menu(QWidget *parent) {
 }
 
 /**
- * @brief Assembler::showDialog
+ * @brief Opens the assembler dialog at the currently selected CPU address.
  */
 void Assembler::showDialog() {
 
@@ -89,7 +77,8 @@ void Assembler::showDialog() {
 }
 
 /**
- * @brief Assembler::optionsPage
+ * @brief Returns the plugin's configuration options widget.
+ *
  * @return
  */
 QWidget *Assembler::optionsPage() {

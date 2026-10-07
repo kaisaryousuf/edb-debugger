@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogEditFPU.h"
 #include "EntryGridKeyUpDownEventFilter.h"
@@ -25,7 +14,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QRegExp>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include <QVBoxLayout>
 #include <array>
 #include <cmath>
@@ -58,20 +48,21 @@ long double readFloat(const QString &strInput, bool &ok) {
 	static const std::array<std::uint8_t, 16> positiveQNaN{0, 0, 0, 0, 0, 0, 0, 0xc0, 0xff, 0x7f, 0, 0, 0, 0, 0, 0};
 	static const std::array<std::uint8_t, 16> negativeQNaN{0, 0, 0, 0, 0, 0, 0, 0xc0, 0xff, 0xff, 0, 0, 0, 0, 0, 0};
 
-	if (str == "+snan" || str == "snan")
+	if (str == QLatin1String("+snan") || str == QLatin1String("snan")) {
 		std::memcpy(&value, &positiveSNaN, sizeof(value));
-	else if (str == "-snan")
+	} else if (str == QLatin1String("-snan")) {
 		std::memcpy(&value, &negativeSNaN, sizeof(value));
-	else if (str == "+qnan" || str == "qnan" || str == "nan")
+	} else if (str == QLatin1String("+qnan") || str == QLatin1String("qnan") || str == QLatin1String("nan")) {
 		std::memcpy(&value, &positiveQNaN, sizeof(value));
-	else if (str == "-qnan")
+	} else if (str == QLatin1String("-qnan")) {
 		std::memcpy(&value, &negativeQNaN, sizeof(value));
-	else if (str == "+inf" || str == "inf")
+	} else if (str == QLatin1String("+inf") || str == QLatin1String("inf")) {
 		std::memcpy(&value, &positiveInf, sizeof(value));
-	else if (str == "-inf")
+	} else if (str == QLatin1String("-inf")) {
 		std::memcpy(&value, &negativeInf, sizeof(value));
-	else
+	} else {
 		return 0;
+	}
 
 	ok = true;
 	return value;
@@ -94,7 +85,7 @@ DialogEditFPU::DialogEditFPU(QWidget *parent, Qt::WindowFlags f)
 	connect(floatEntry_, &Float80Edit::textEdited, this, &DialogEditFPU::onFloatEdited);
 	connect(hexEntry_, &QLineEdit::textEdited, this, &DialogEditFPU::onHexEdited);
 
-	hexEntry_->setValidator(new QRegExpValidator(QRegExp("[0-9a-fA-F ]{,20}"), this));
+	hexEntry_->setValidator(new QRegularExpressionValidator(QRegularExpression(QStringLiteral("[0-9a-fA-F ]{,20}")), this));
 	connect(floatEntry_, &Float80Edit::defocussed, this, &DialogEditFPU::updateFloatEntry);
 
 	hexEntry_->installEventFilter(this);
@@ -143,10 +134,10 @@ Register DialogEditFPU::value() const {
 
 void DialogEditFPU::onHexEdited(const QString &input) {
 	QString readable(input.trimmed());
-	readable.replace(' ', "");
+	readable.replace(QLatin1Char(' '), QString());
 
 	while (readable.size() < 20) {
-		readable = '0' + readable;
+		readable = QLatin1Char('0') + readable;
 	}
 
 	const auto byteArray = QByteArray::fromHex(readable.toLatin1());

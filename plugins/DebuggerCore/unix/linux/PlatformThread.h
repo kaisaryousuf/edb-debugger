@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef PLATFORM_THREAD_H_20151013_
 #define PLATFORM_THREAD_H_20151013_
@@ -37,16 +25,16 @@ class PlatformThread final : public IThread {
 
 public:
 	PlatformThread(DebuggerCore *core, std::shared_ptr<IProcess> &process, edb::tid_t tid);
-	~PlatformThread() override             = default;
-	PlatformThread(const PlatformThread &) = delete;
+	~PlatformThread() override                        = default;
+	PlatformThread(const PlatformThread &)            = delete;
 	PlatformThread &operator=(const PlatformThread &) = delete;
 
 public:
-	edb::tid_t tid() const override;
-	QString name() const override;
-	int priority() const override;
-	edb::address_t instructionPointer() const override;
-	QString runState() const override;
+	[[nodiscard]] edb::tid_t tid() const override;
+	[[nodiscard]] QString name() const override;
+	[[nodiscard]] int priority() const override;
+	[[nodiscard]] edb::address_t instructionPointer() const override;
+	[[nodiscard]] QString runState() const override;
 
 public:
 	void getState(State *state) override;
@@ -59,7 +47,7 @@ public:
 	Status resume(edb::EventStatus status) override;
 
 public:
-	bool isPaused() const override;
+	[[nodiscard]] bool isPaused() const override;
 
 private:
 	void fillSegmentBases(PlatformState *state);
@@ -70,8 +58,8 @@ private:
 #endif
 
 private:
-	unsigned long getDebugRegister(std::size_t n);
-	long setDebugRegister(std::size_t n, unsigned long value);
+	[[nodiscard]] unsigned long getDebugRegister(std::size_t n) const;
+	long setDebugRegister(std::size_t n, unsigned long value) const;
 
 private:
 	DebuggerCore *core_ = nullptr;

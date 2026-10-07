@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015	Armen Boursalian
-					aboursalian@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Armen Boursalian <aboursalian@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Backtrace.h"
 #include "DialogBacktrace.h"
@@ -26,7 +14,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace BacktracePlugin {
 
 /**
- * @brief Backtrace::Backtrace
+ * @brief Constructs the Backtrace plugin object.
+ *
  * @param parent
  */
 Backtrace::Backtrace(QObject *parent)
@@ -34,14 +23,15 @@ Backtrace::Backtrace(QObject *parent)
 }
 
 /**
- * @brief Backtrace::~Backtrace
+ * @brief Destroys the Backtrace plugin and frees the backtrace dialog.
  */
 Backtrace::~Backtrace() {
 	delete dialog_;
 }
 
 /**
- * @brief Backtrace::menu
+ * @brief Creates and returns the Call Stack plugin menu with a backtrace action, building it on first call.
+ *
  * @param parent
  * @return
  */
@@ -50,18 +40,22 @@ QMenu *Backtrace::menu(QWidget *parent) {
 
 	if (!menu_) {
 
-		//So it will appear as Plugins > Call Stack > Backtrace in the menu.
+		// So it will appear as Plugins > Call Stack > Backtrace in the menu.
 		menu_ = new QMenu(tr("Call Stack"), parent);
 
-		//Ctrl + K shortcut, reminiscent of OllyDbg
-		menu_->addAction(tr("Backtrace"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+K")));
+		// Ctrl + K shortcut, reminiscent of OllyDbg
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("Backtrace"), QKeySequence(tr("Ctrl+K")), this, &Backtrace::showMenu);
+#else
+		menu_->addAction(tr("Backtrace"), this, &Backtrace::showMenu, QKeySequence(tr("Ctrl+K")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief Backtrace::showMenu
+ * @brief Opens or raises the backtrace dialog.
  */
 void Backtrace::showMenu() {
 	if (!dialog_) {

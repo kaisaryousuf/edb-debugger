@@ -1,22 +1,11 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PlatformCommon.h"
+#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <linux/limits.h>
@@ -25,9 +14,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace DebuggerCorePlugin {
 
 /**
- * @brief resume_code
- * @param status
- * @return
+ * @brief Returns the resume code appropriate for the given wait status.
+ *
+ * @param status the wait status returned by waitpid.
+ * @return the resume code to use with ptrace based on the wait status.
  */
 int resume_code(int status) {
 
@@ -47,14 +37,14 @@ int resume_code(int status) {
 }
 
 /**
- * gets the contents of /proc/<pid>/stat
+ * @brief Gets the contents of /proc/<pid>/stat.
  *
- * @brief get_user_stat
- * @param path
- * @param user_stat
- * @return the number of elements successfully parsed
+ * @param path the path to the stat file.
+ * @param user_stat a pointer to the struct to fill with the stat information.
+ * @return the number of elements successfully parsed.
  */
 int get_user_stat(const char *path, struct user_stat *user_stat) {
+	Q_ASSERT(path);
 	Q_ASSERT(user_stat);
 
 	std::ifstream stream(path);
@@ -129,7 +119,7 @@ int get_user_stat(const char *path, struct user_stat *user_stat) {
 					   &user_stat->exit_code);
 
 		// fill in the pid
-		r += sscanf(&line[0], "%d", &user_stat->pid);
+		r += sscanf(line.data(), "%d", &user_stat->pid);
 
 		// fill in the comm field
 		const size_t len = std::min(sizeof(user_stat->comm), (right - left) - 1);
@@ -144,12 +134,11 @@ int get_user_stat(const char *path, struct user_stat *user_stat) {
 }
 
 /**
- * gets the contents of /proc/<pid>/stat
+ * @brief Gets the contents of /proc/<pid>/stat.
  *
- * @brief get_user_stat
- * @param pid
- * @param user_stat
- * @return the number of elements or -1 on error
+ * @param pid the process ID of the process to get the stat information for.
+ * @param user_stat a pointer to the struct to fill with the stat information.
+ * @return The number of elements or -1 on error.
  */
 int get_user_stat(edb::pid_t pid, struct user_stat *user_stat) {
 	char path[PATH_MAX];
@@ -158,13 +147,12 @@ int get_user_stat(edb::pid_t pid, struct user_stat *user_stat) {
 }
 
 /**
- * gets the contents of /proc/<pid>/task/<tid>/stat
+ * @brief Gets the contents of /proc/<pid>/task/<tid>/stat.
  *
- * @brief get_user_task_stat
- * @param pid
- * @param tid
- * @param user_stat
- * @return the number of elements or -1 on error
+ * @param pid the process ID of the process to get the task stat information for.
+ * @param tid the thread ID of the thread to get the stat information for.
+ * @param user_stat a pointer to the struct to fill with the stat information.
+ * @return The number of elements or -1 on error.
  */
 int get_user_task_stat(edb::pid_t pid, edb::tid_t tid, struct user_stat *user_stat) {
 	char path[PATH_MAX];

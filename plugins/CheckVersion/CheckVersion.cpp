@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "CheckVersion.h"
 #include "OptionsPage.h"
@@ -36,7 +24,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace CheckVersionPlugin {
 
 /**
- * @brief CheckVersion::CheckVersion
+ * @brief Constructs the CheckVersion plugin object.
+ *
  * @param parent
  */
 CheckVersion::CheckVersion(QObject *parent)
@@ -44,17 +33,18 @@ CheckVersion::CheckVersion(QObject *parent)
 }
 
 /**
- * @brief CheckVersion::privateInit
+ * @brief Performs an automatic version check on startup if enabled in settings.
  */
 void CheckVersion::privateInit() {
 	QSettings settings;
-	if (settings.value("CheckVersion/check_on_start.enabled", true).toBool()) {
+	if (settings.value(QStringLiteral("CheckVersion/check_on_start.enabled"), true).toBool()) {
 		doCheck();
 	}
 }
 
 /**
- * @brief CheckVersion::optionsPage
+ * @brief Returns the plugin's configuration options widget.
+ *
  * @return
  */
 QWidget *CheckVersion::optionsPage() {
@@ -62,7 +52,8 @@ QWidget *CheckVersion::optionsPage() {
 }
 
 /**
- * @brief CheckVersion::menu
+ * @brief Creates and returns the CheckVersion plugin menu, building it on first call.
+ *
  * @param parent
  * @return
  */
@@ -72,14 +63,14 @@ QMenu *CheckVersion::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("CheckVersion"), parent);
-		menu_->addAction(tr("&Check For Latest Version"), this, SLOT(showMenu()));
+		menu_->addAction(tr("&Check For Latest Version"), this, &CheckVersion::showMenu);
 	}
 
 	return menu_;
 }
 
 /**
- * @brief CheckVersion::doCheck
+ * @brief Initiates an HTTP request to fetch the latest version information from the project server.
  */
 void CheckVersion::doCheck() {
 
@@ -88,7 +79,7 @@ void CheckVersion::doCheck() {
 		connect(network_, &QNetworkAccessManager::finished, this, &CheckVersion::requestFinished);
 	}
 
-	QUrl update_url(QString("https://codef00.com/projects/debugger-latest.json?v=%1").arg(EDB_VERSION_STRING));
+	QUrl update_url(QStringLiteral("https://codef00.com/projects/debugger-latest.json?v=%1").arg(QLatin1String(EDB_VERSION_STRING)));
 	QNetworkRequest request(update_url);
 
 	setProxy(update_url);
@@ -96,7 +87,8 @@ void CheckVersion::doCheck() {
 }
 
 /**
- * @brief CheckVersion::setProxy
+ * @brief Configures the network manager's proxy from the HTTP_PROXY environment variable or system settings.
+ *
  * @param url
  */
 void CheckVersion::setProxy(const QUrl &url) {
@@ -112,8 +104,10 @@ void CheckVersion::setProxy(const QUrl &url) {
 
 	if (!proxy_str.isEmpty()) {
 		const QUrl proxy_url = QUrl::fromUserInput(proxy_str);
+		const int port       = proxy_url.port(80);
+		const auto qport     = static_cast<quint16>(qBound(0, port, 65535));
 
-		proxy = QNetworkProxy(QNetworkProxy::HttpProxy, proxy_url.host(), proxy_url.port(80), proxy_url.userName(), proxy_url.password());
+		proxy = QNetworkProxy(QNetworkProxy::HttpProxy, proxy_url.host(), qport, proxy_url.userName(), proxy_url.password());
 	}
 
 #else
@@ -126,7 +120,7 @@ void CheckVersion::setProxy(const QUrl &url) {
 }
 
 /**
- * @brief CheckVersion::showMenu
+ * @brief Triggers a manual version check when the user selects it from the menu.
  */
 void CheckVersion::showMenu() {
 	initialCheck_ = false;
@@ -134,7 +128,8 @@ void CheckVersion::showMenu() {
 }
 
 /**
- * @brief CheckVersion::requestFinished
+ * @brief Handles the HTTP version check response, showing a notification dialog if a newer version is available.
+ *
  * @param reply
  */
 void CheckVersion::requestFinished(QNetworkReply *reply) {
@@ -143,7 +138,7 @@ void CheckVersion::requestFinished(QNetworkReply *reply) {
 		if (!initialCheck_) {
 			QMessageBox::critical(
 				nullptr,
-				tr("An Error Occured"),
+				tr("An Error Occurred"),
 				reply->errorString());
 		}
 	} else {
@@ -164,17 +159,17 @@ void CheckVersion::requestFinished(QNetworkReply *reply) {
 
 		QJsonObject obj = d.object();
 
-		QString version = obj["version"].toString();
-		QString url     = obj["url"].toString();
-		QString md5     = obj["md5"].toString();
-		QString sha1    = obj["sha1"].toString();
+		QString version = obj[QStringLiteral("version")].toString();
+		QString url     = obj[QStringLiteral("url")].toString();
+		QString md5     = obj[QStringLiteral("md5")].toString();
+		QString sha1    = obj[QStringLiteral("sha1")].toString();
 
 		if (version.isEmpty() || url.isEmpty() || md5.isEmpty() || sha1.isEmpty()) {
 			qDebug("[CheckVersion] Unexpected data format in JSON response");
 			return;
 		}
 
-		qDebug("comparing versions: [%d] [%d]", edb::v1::int_version(version), edb::v1::edb_version());
+		qDebug("[CheckVersion] comparing versions: [%d] [%d]", edb::v1::int_version(version), edb::v1::edb_version());
 
 		if (edb::v1::int_version(version) > edb::v1::edb_version()) {
 			QMessageBox msg;

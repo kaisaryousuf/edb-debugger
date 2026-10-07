@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef UTIL_INTEGER_H_2020227_
 #define UTIL_INTEGER_H_2020227_
@@ -15,12 +20,12 @@ enum class NumberDisplayMode {
 
 namespace util {
 
-template <typename T>
-constexpr typename std::make_unsigned<T>::type to_unsigned(T x) {
+template <class T>
+constexpr std::make_unsigned_t<T> to_unsigned(T x) {
 	return x;
 }
 
-template <typename T>
+template <class T>
 QString format_int(T value, NumberDisplayMode mode) {
 	switch (mode) {
 	case NumberDisplayMode::Hex:

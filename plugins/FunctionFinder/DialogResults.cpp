@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2019 Evan Teran
-						  evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogResults.h"
 #include "IAnalyzer.h"
@@ -37,9 +25,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace FunctionFinderPlugin {
 
 /**
- * @brief DialogResults::DialogResults
- * @param parent
- * @param f
+ * @brief Constructs a DialogResults object with the specified parent widget and window flags.
+ *
+ * @param parent The parent widget for this dialog.
+ * @param f The window flags for this dialog.
  */
 DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
@@ -55,7 +44,7 @@ DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 	connect(ui.textFilter, &QLineEdit::textChanged, filterModel_, &QSortFilterProxyModel::setFilterFixedString);
 	ui.tableView->setModel(filterModel_);
 
-	buttonGraph_ = new QPushButton(QIcon::fromTheme("distribute-graph"), tr("Graph Selected Function"));
+	buttonGraph_ = new QPushButton(QIcon::fromTheme(QStringLiteral("distribute-graph")), tr("Graph Selected Function"));
 #if defined(ENABLE_GRAPH)
 	connect(buttonGraph_, &QPushButton::clicked, this, [this]() {
 		// this code is not very pretty...
@@ -85,14 +74,16 @@ DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 
 						// first create all of the nodes
 						for (const auto &pair : f) {
-							const BasicBlock &bb = pair.second;
-							auto node            = new GraphNode(graph, bb.toString(), Qt::lightGray);
+							const auto &[address, bb] = pair;
+							Q_UNUSED(address)
+							auto node = new GraphNode(graph, bb.toString(), Qt::lightGray);
 							nodes.insert(bb.firstAddress(), node);
 						}
 
 						// then connect them!
 						for (const auto &pair : f) {
-							const BasicBlock &bb = pair.second;
+							const auto &[address, bb] = pair;
+							Q_UNUSED(address)
 
 							if (!bb.empty()) {
 
@@ -135,6 +126,17 @@ DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 										}
 									}
 								} else if (is_terminator(inst)) {
+								} else {
+									// if the bb's last address is another blocks first address
+									// connect them because they run into each other
+
+									auto to = nodes.find(bb.lastAddress());
+									if (to != nodes.end()) {
+										auto from = nodes.find(bb.firstAddress());
+										if (to != nodes.end() && from != nodes.end()) {
+											new GraphEdge(from.value(), to.value(), Qt::blue);
+										}
+									}
 								}
 							}
 						}
@@ -158,8 +160,9 @@ DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogResults::on_tableView_doubleClicked
- * @param index
+ * @brief Handles the double-click event on the table view, jumping to the selected function's start address in the debugger.
+ *
+ * @param index The model index of the double-clicked item in the table view.
  */
 void DialogResults::on_tableView_doubleClicked(const QModelIndex &index) {
 
@@ -172,8 +175,9 @@ void DialogResults::on_tableView_doubleClicked(const QModelIndex &index) {
 }
 
 /**
- * @brief DialogResults::addResult
- * @param function
+ * @brief Adds a function result to the dialog.
+ *
+ * @param function The function to add.
  */
 void DialogResults::addResult(const Function &function) {
 
@@ -190,7 +194,7 @@ void DialogResults::addResult(const Function &function) {
 	result.score = function.referenceCount();
 
 	// type
-	result.type = function.type();
+	result.type = function.type;
 
 	QString symbol_name = edb::v1::symbol_manager().findAddressName(function.entryAddress());
 	if (!symbol_name.isEmpty()) {
@@ -201,8 +205,9 @@ void DialogResults::addResult(const Function &function) {
 }
 
 /**
- * @brief DialogResults::resultCount
- * @return
+ * @brief Returns the number of results in the dialog.
+ *
+ * @return The number of results in the dialog.
  */
 int DialogResults::resultCount() const {
 	return resultsModel_->rowCount();

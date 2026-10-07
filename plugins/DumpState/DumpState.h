@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DUMP_STATE_H_20061122_
 #define DUMP_STATE_H_20061122_
@@ -39,20 +27,20 @@ public:
 	~DumpState() override = default;
 
 public:
-	QMenu *menu(QWidget *parent = nullptr) override;
+	[[nodiscard]] QMenu *menu(QWidget *parent = nullptr) override;
 
 public Q_SLOTS:
-	void showMenu();
+	void dumpCurrentState();
 
 private:
-	QWidget *optionsPage() override;
+	[[nodiscard]] QWidget *optionsPage() override;
 
 private:
-	void dumpCode(const State &state);
-	void dumpRegisters(const State &state);
-	void dumpStack(const State &state);
-	void dumpData(edb::address_t address);
-	void dumpLines(edb::address_t address, int lines);
+	static void dumpCode(const State &state);
+	static void dumpRegisters(const State &state);
+	static void dumpStack(const State &state);
+	static void dumpData(edb::address_t address);
+	static void dumpLines(edb::address_t address, int lines);
 
 private:
 	QMenu *menu_ = nullptr;

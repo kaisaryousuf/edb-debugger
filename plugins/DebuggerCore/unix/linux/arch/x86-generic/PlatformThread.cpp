@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PlatformThread.h"
 #include "DebuggerCore.h"
@@ -58,8 +46,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace DebuggerCorePlugin {
 
 /**
- * @brief PlatformThread::fillSegmentBases
- * @param state
+ * @brief Fills the segment bases in the provided PlatformState object by retrieving them from the debugged process.
+ *
+ * @param state A pointer to the PlatformState object to fill with segment bases.
  */
 void PlatformThread::fillSegmentBases(PlatformState *state) {
 
@@ -92,9 +81,10 @@ void PlatformThread::fillSegmentBases(PlatformState *state) {
 }
 
 /**
- * @brief PlatformThread::fillStateFromPrStatus
- * @param state
- * @return
+ * @brief Fills the provided PlatformState object with register values obtained from the debugged process using the NT_PRSTATUS register set.
+ *
+ * @param state A pointer to the PlatformState object to fill with register values.
+ * @return True if the register values were successfully filled, false otherwise.
  */
 bool PlatformThread::fillStateFromPrStatus(PlatformState *state) {
 
@@ -138,9 +128,10 @@ bool PlatformThread::fillStateFromPrStatus(PlatformState *state) {
 }
 
 /**
- * @brief PlatformThread::fillStateFromSimpleRegs
- * @param state
- * @return
+ * @brief Fills the provided PlatformState object with register values obtained from the debugged process using the PTRACE_GETREGS request.
+ *
+ * @param state A pointer to the PlatformState object to fill with register values.
+ * @return True if the register values were successfully filled, false otherwise.
  */
 bool PlatformThread::fillStateFromSimpleRegs(PlatformState *state) {
 
@@ -150,15 +141,16 @@ bool PlatformThread::fillStateFromSimpleRegs(PlatformState *state) {
 		state->fillFrom(regs);
 		fillSegmentBases(state);
 		return true;
-	} else {
-		perror("PTRACE_GETREGS failed");
-		return false;
 	}
+
+	perror("PTRACE_GETREGS failed");
+	return false;
 }
 
 /**
- * @brief PlatformThread::getState
- * @param state
+ * @brief Gets the state of the thread and fills the provided State object with the retrieved information.
+ *
+ * @param state A pointer to the State object to fill with the thread's state.
  */
 void PlatformThread::getState(State *state) {
 	// TODO: assert that we are paused
@@ -171,7 +163,7 @@ void PlatformThread::getState(State *state) {
 		// may remain not updated. Also, this way we'll mark all the unfilled values.
 		state_impl->clear();
 
-		if (EDB_IS_64_BIT) {
+		if constexpr (EDB_IS_64_BIT) {
 			// 64-bit GETREGS call always returns 64-bit state, so use it
 			fillStateFromSimpleRegs(state_impl);
 		} else if (!fillStateFromPrStatus(state_impl)) {
@@ -223,8 +215,9 @@ void PlatformThread::getState(State *state) {
 }
 
 /**
- * @brief PlatformThread::setState
- * @param state
+ * @brief Sets the state of the thread based on the provided State object.
+ *
+ * @param state A reference to the State object containing the desired thread state.
  */
 void PlatformThread::setState(const State &state) {
 
@@ -295,8 +288,9 @@ void PlatformThread::setState(const State &state) {
 }
 
 /**
- * @brief PlatformThread::instructionPointer
- * @return
+ * @brief Gets the instruction pointer (IP) of the thread.
+ *
+ * @return The instruction pointer address of the thread.
  */
 edb::address_t PlatformThread::instructionPointer() const {
 #if defined(EDB_X86)
@@ -313,44 +307,44 @@ edb::address_t PlatformThread::instructionPointer() const {
 }
 
 /**
- * @brief PlatformThread::getDebugRegister
- * @param n
- * @return
+ * @brief Gets the value of the specified debug register for this thread.
+ *
+ * @param n The index of the debug register to retrieve
+ * @return The value of the specified debug register
  */
-unsigned long PlatformThread::getDebugRegister(std::size_t n) {
+unsigned long PlatformThread::getDebugRegister(std::size_t n) const {
 	size_t drOffset = offsetof(struct user, u_debugreg) + n * sizeof(user::u_debugreg[0]);
 	return ptrace(PTRACE_PEEKUSER, tid_, drOffset, 0);
 }
 
 /**
- * @brief PlatformThread::setDebugRegister
- * @param n
- * @param value
- * @return
+ * @brief Sets the value of the specified debug register for this thread.
+ *
+ * @param n The index of the debug register to set
+ * @param value The value to set the debug register to
+ * @return The result of the ptrace operation, or -1 on failure
  */
-long PlatformThread::setDebugRegister(std::size_t n, unsigned long value) {
+long PlatformThread::setDebugRegister(std::size_t n, unsigned long value) const {
 	size_t drOffset = offsetof(struct user, u_debugreg) + n * sizeof(user::u_debugreg[0]);
 	return ptrace(PTRACE_POKEUSER, tid_, drOffset, value);
 }
 
 /**
- * steps this thread one instruction, passing the signal that stopped it
+ * @brief Steps this thread one instruction, passing the signal that stopped it
  * (unless the signal was SIGSTOP)
  *
- * @brief PlatformThread::step
- * @return
+ * @return The result of the ptrace operation, or -1 on failure
  */
 Status PlatformThread::step() {
 	return core_->ptraceStep(tid_, resume_code(status_));
 }
 
 /**
- * steps this thread one instruction, passing the signal that stopped it
+ * @brief Steps this thread one instruction, passing the signal that stopped it
  * (unless the signal was SIGSTOP, or the passed status != DEBUG_EXCEPTION_NOT_HANDLED)
  *
- * @brief PlatformThread::step
- * @param status
- * @return
+ * @param status The status to pass to the ptrace step operation
+ * @return The result of the ptrace operation, or -1 on failure
  */
 Status PlatformThread::step(edb::EventStatus status) {
 	const int code = (status == edb::DEBUG_EXCEPTION_NOT_HANDLED) ? resume_code(status_) : 0;

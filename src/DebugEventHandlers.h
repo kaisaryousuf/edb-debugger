@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2018 Ivan Sorokin
-                   vanyacpp@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2018 Ivan Sorokin <vanyacpp@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DEBUG_EVENT_HANDLERS_H_20180312_
 #define DEBUG_EVENT_HANDLERS_H_20180312_
@@ -40,7 +28,7 @@ case.
 
 This class supports adding new handlers during iteration. Removing
 during iteration is also supported, but is restricted: only the
-handler that is currectly being executed can be removed.
+handler that is currently being executed can be removed.
 
 In order to support removing handlers during iteration the iterator
 is incremented before calling corresponding handler.
@@ -52,8 +40,8 @@ program termination (std::abort is called).
 */
 class DebugEventHandlers {
 public:
-	DebugEventHandlers()                           = default;
-	DebugEventHandlers(const DebugEventHandlers &) = delete;
+	DebugEventHandlers()                                      = default;
+	DebugEventHandlers(const DebugEventHandlers &)            = delete;
 	DebugEventHandlers &operator=(const DebugEventHandlers &) = delete;
 	~DebugEventHandlers();
 
@@ -63,7 +51,7 @@ public:
 
 private:
 	/*
-	list of registed handlers
+	list of registered handlers
 	*/
 	std::list<IDebugEventHandler *> handlers_;
 

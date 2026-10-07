@@ -1,22 +1,9 @@
 /*
-Copyright (C) 2017 - 2017 Evan Teran
-                          evan.teran@gmail.com
-Copyright (C) 2017 - 2017 Ruslan Kabatsayev
-                          b7.10110111@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ * Copyright (C) 2017 - 2017 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "RegisterViewModel.h"
 #include <QDebug>
@@ -99,7 +86,7 @@ QVariant RegisterViewModel::data(QModelIndex const &index, int role) const {
 		if (index.column() == NAME_COLUMN && name.length() >= 2) {
 			const QString nameLower = name.toLower();
 			if ((nameLower[0] == 'r' && '0' <= nameLower[1] && nameLower[1] <= '9') ||
-				nameLower == "sp" || nameLower == "lr" || nameLower == "pc")
+				nameLower == QStringLiteral("sp") || nameLower == QStringLiteral("lr") || nameLower == QStringLiteral("pc"))
 				return 3;
 		}
 	}
@@ -107,30 +94,30 @@ QVariant RegisterViewModel::data(QModelIndex const &index, int role) const {
 }
 
 void addGPRs(RegisterViewModelBase::Category *gprs) {
-	gprs->addRegister(std::make_unique<GPR>("R0"));
-	gprs->addRegister(std::make_unique<GPR>("R1"));
-	gprs->addRegister(std::make_unique<GPR>("R2"));
-	gprs->addRegister(std::make_unique<GPR>("R3"));
-	gprs->addRegister(std::make_unique<GPR>("R4"));
-	gprs->addRegister(std::make_unique<GPR>("R5"));
-	gprs->addRegister(std::make_unique<GPR>("R6"));
-	gprs->addRegister(std::make_unique<GPR>("R7"));
-	gprs->addRegister(std::make_unique<GPR>("R8"));
-	gprs->addRegister(std::make_unique<GPR>("R9"));
-	gprs->addRegister(std::make_unique<GPR>("R10"));
-	gprs->addRegister(std::make_unique<GPR>("R11"));
-	gprs->addRegister(std::make_unique<GPR>("R12"));
-	gprs->addRegister(std::make_unique<GPR>("SP"));
-	gprs->addRegister(std::make_unique<GPR>("LR"));
-	gprs->addRegister(std::make_unique<GPR>("PC"));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R0")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R1")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R2")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R3")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R4")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R5")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R6")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R7")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R8")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R9")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R10")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R11")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("R12")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("SP")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("LR")));
+	gprs->addRegister(std::make_unique<GPR>(QStringLiteral("PC")));
 }
 
 void addGenStatusRegs(RegisterViewModelBase::Category *cat) {
-	cat->addRegister(std::make_unique<CPSR>("CPSR", cpsrDescription));
+	cat->addRegister(std::make_unique<CPSR>(QStringLiteral("CPSR"), cpsrDescription));
 }
 
 void addVFPRegs(RegisterViewModelBase::Category *cat) {
-	cat->addRegister(std::make_unique<FPSCR>("FPSCR", fpscrDescription));
+	cat->addRegister(std::make_unique<FPSCR>(QStringLiteral("FPSCR"), fpscrDescription));
 	// TODO: add data registers: Sn, Dn, Qn...
 }
 
@@ -148,15 +135,17 @@ RegisterViewModel::RegisterViewModel(int cpuSuppFlags, QObject *parent)
 }
 
 void invalidate(RegisterViewModelBase::Category *cat, int row, const char *nameToCheck) {
-	if (!cat) return;
+	if (!cat) {
+		return;
+	}
 	Q_ASSERT(row < cat->childCount());
 	const auto reg = cat->getRegister(row);
-	Q_ASSERT(!nameToCheck || reg->name() == nameToCheck);
+	Q_ASSERT(!nameToCheck || reg->name() == QLatin1String(nameToCheck));
 	Q_UNUSED(nameToCheck)
 	reg->invalidate();
 }
 
-template <typename RegType, typename ValueType>
+template <class RegType, class ValueType>
 void updateRegister(RegisterViewModelBase::Category *cat, int row, ValueType value, QString const &comment, const char *nameToCheck = 0) {
 	const auto reg = cat->getRegister(row);
 	if (!dynamic_cast<RegType *>(reg)) {
@@ -164,7 +153,7 @@ void updateRegister(RegisterViewModelBase::Category *cat, int row, ValueType val
 		invalidate(cat, row, nameToCheck);
 		return;
 	}
-	Q_ASSERT(!nameToCheck || reg->name() == nameToCheck);
+	Q_ASSERT(!nameToCheck || reg->name() == QLatin1String(nameToCheck));
 	Q_UNUSED(nameToCheck)
 	static_cast<RegType *>(reg)->update(value, comment);
 }
@@ -189,7 +178,9 @@ void RegisterViewModel::showAll() {
 }
 
 void RegisterViewModel::setCpuMode(CpuMode newMode) {
-	if (mode == newMode) return;
+	if (mode == newMode) {
+		return;
+	}
 
 	beginResetModel();
 	mode = newMode;

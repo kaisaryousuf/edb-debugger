@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "HexStringValidator.h"
 
@@ -22,18 +10,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <cctype> // for std::isxdigit
 
-//------------------------------------------------------------------------------
-// Name: HexStringValidator
-// Desc: constructor
-//------------------------------------------------------------------------------
+/**
+ * @brief Constructor for the HexStringValidator class.
+ *
+ * @param parent The parent object.
+ */
 HexStringValidator::HexStringValidator(QObject *parent)
 	: QValidator(parent) {
 }
 
-//------------------------------------------------------------------------------
-// Name: fixup
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void HexStringValidator::fixup(QString &input) const {
 	QString temp;
 	int index = 0;
@@ -43,7 +31,7 @@ void HexStringValidator::fixup(QString &input) const {
 		if (c < 0x80 && std::isxdigit(c)) {
 
 			if (index != 0 && (index & 1) == 0) {
-				temp += ' ';
+				temp += QLatin1Char(' ');
 			}
 
 			temp += ch.toUpper();
@@ -54,32 +42,34 @@ void HexStringValidator::fixup(QString &input) const {
 	input = temp;
 }
 
-//------------------------------------------------------------------------------
-// Name: validate
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 QValidator::State HexStringValidator::validate(QString &input, int &pos) const {
 	if (!input.isEmpty()) {
 		// TODO: can we detect if the char which was JUST deleted
 		// (if any was deleted) was a space? and special case this?
 		// as to not have the minor bug in this case?
 
-		const int char_pos = pos - input.leftRef(pos).count(' ');
-		int chars          = 0;
+		const qsizetype char_pos = pos - input.left(pos).count(QLatin1Char(' '));
+		int chars                = 0;
 		fixup(input);
 
 		pos = 0;
 
-		while (chars != char_pos) {
-			if (input[pos] != ' ') {
+		while (pos < input.size() && chars != char_pos) {
+			if (input[pos] != QLatin1Char(' ')) {
 				++chars;
 			}
 			++pos;
 		}
 
-		// favor the right side of a space
-		if (input[pos] == ' ') {
-			++pos;
+		if (pos < input.size()) {
+
+			// favor the right side of a space
+			if (input[pos] == QLatin1Char(' ')) {
+				++pos;
+			}
 		}
 	}
 	return QValidator::Acceptable;

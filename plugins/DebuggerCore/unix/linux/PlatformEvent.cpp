@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PlatformEvent.h"
 #include "edb.h"
@@ -22,28 +10,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace DebuggerCorePlugin {
 
 /**
- * @brief PlatformEvent::clone
- * @return
- */
-IDebugEvent *PlatformEvent::clone() const {
-	return new PlatformEvent(*this);
-}
-
-/**
- * @brief PlatformEvent::createUnexpectedSignalMessage
+ * @brief Constructs a generic unexpected-signal Message with the given signal name and number.
+ *
  * @param name
  * @param number
  * @return
  */
 IDebugEvent::Message PlatformEvent::createUnexpectedSignalMessage(const QString &name, int number) {
-	return Message(
+	return Message{
 		tr("Unexpected Signal Encountered"),
 		tr("<p>The debugged application encountered a %1 (%2).</p>").arg(name).arg(number),
-		tr("% received").arg(name));
+		tr("% received").arg(name),
+	};
 }
 
 /**
- * @brief PlatformEvent::errorDescription
+ * @brief Returns a human-readable Message describing the error signal, fault address, and reason code.
+ *
  * @return
  */
 IDebugEvent::Message PlatformEvent::errorDescription() const {
@@ -60,244 +43,262 @@ IDebugEvent::Message PlatformEvent::errorDescription() const {
 	case SIGSEGV:
 		switch (siginfo_.si_code) {
 		case SEGV_MAPERR:
-			message = Message(
+			message = Message{
 				tr("Illegal Access Fault"),
 				tr("<p>The debugged application encountered a segmentation fault.<br />The address <strong>%1</strong> does not appear to be mapped.</p>").arg(addressString),
-				tr("SIGSEGV: SEGV_MAPERR: Accessed address %1 not mapped").arg(addressString));
+				tr("SIGSEGV: SEGV_MAPERR: Accessed address %1 not mapped").arg(addressString),
+			};
 			break;
 		case SEGV_ACCERR:
-			message = Message(
+			message = Message{
 				tr("Illegal Access Fault"),
 				tr("<p>The debugged application encountered a segmentation fault.<br />The address <strong>%1</strong> could not be accessed.</p>").arg(addressString),
-				tr("SIGSEGV: SEGV_ACCERR: Access to address %1 not permitted").arg(addressString));
+				tr("SIGSEGV: SEGV_ACCERR: Access to address %1 not permitted").arg(addressString),
+			};
 			break;
 		default:
-			message = Message(
+			message = Message{
 				tr("Illegal Access Fault"),
 				tr("<p>The debugged application encountered a segmentation fault.<br />The instruction could not be executed.</p>"),
-				tr("SIGSEGV: Segmentation fault"));
+				tr("SIGSEGV: Segmentation fault"),
+			};
 			break;
 		}
 		break;
 
 	case SIGILL:
-		message = Message(
+		message = Message{
 			tr("Illegal Instruction Fault"),
 			tr("<p>The debugged application attempted to execute an illegal instruction.</p>"),
-			tr("SIGILL: Illegal instruction"));
+			tr("SIGILL: Illegal instruction"),
+		};
 		break;
 	case SIGFPE:
 		switch (siginfo_.si_code) {
 		case FPE_INTDIV:
-			message = Message(
+			message = Message{
 				tr("Divide By Zero"),
 				tr("<p>The debugged application tried to divide an integer value by an integer divisor of zero or encountered integer division overflow.</p>"),
-				tr("SIGFPE: FPE_INTDIV: Integer division by zero or division overflow"));
+				tr("SIGFPE: FPE_INTDIV: Integer division by zero or division overflow"),
+			};
 			break;
 		case FPE_FLTDIV:
-			message = Message(
+			message = Message{
 				tr("Divide By Zero"),
 				tr("<p>The debugged application tried to divide an floating-point value by a floating-point divisor of zero.</p>"),
-				tr("SIGFPE: FPE_FLTDIV: Floating-point division by zero"));
+				tr("SIGFPE: FPE_FLTDIV: Floating-point division by zero"),
+			};
 			break;
 		case FPE_FLTOVF:
-			message = Message(
+			message = Message{
 				tr("Numeric Overflow"),
 				tr("<p>The debugged application encountered a numeric overflow while performing a floating-point computation.</p>"),
-				tr("SIGFPE: FPE_FLTOVF: Numeric overflow exception"));
+				tr("SIGFPE: FPE_FLTOVF: Numeric overflow exception"),
+			};
 			break;
 		case FPE_FLTUND:
-			message = Message(
+			message = Message{
 				tr("Numeric Underflow"),
 				tr("<p>The debugged application encountered a numeric underflow while performing a floating-point computation.</p>"),
-				tr("SIGFPE: FPE_FLTUND: Numeric underflow exception"));
+				tr("SIGFPE: FPE_FLTUND: Numeric underflow exception"),
+			};
 			break;
 		case FPE_FLTRES:
-			message = Message(
+			message = Message{
 				tr("Inexact Result"),
 				tr("<p>The debugged application encountered an inexact result of a floating-point computation it was performing.</p>"),
-				tr("SIGFPE: FPE_FLTRES: Inexact result exception"));
+				tr("SIGFPE: FPE_FLTRES: Inexact result exception"),
+			};
 			break;
 		case FPE_FLTINV:
-			message = Message(
+			message = Message{
 				tr("Invalid Operation"),
 				tr("<p>The debugged application attempted to perform an invalid floating-point operation.</p>"),
-				tr("SIGFPE: FPE_FLTINV: Invalid floating-point operation"));
+				tr("SIGFPE: FPE_FLTINV: Invalid floating-point operation"),
+			};
 			break;
 		default:
-			message = Message(
+			message = Message{
 				tr("Floating Point Exception"),
 				tr("<p>The debugged application encountered a floating-point exception.</p>"),
-				tr("SIGFPE: Floating-point exception"));
+				tr("SIGFPE: Floating-point exception"),
+			};
 			break;
 		}
 		break;
 
 	case SIGABRT:
-		message = Message(
+		message = Message{
 			tr("Application Aborted"),
 			tr("<p>The debugged application has aborted.</p>"),
-			tr("SIGABRT: Application aborted"));
+			tr("SIGABRT: Application aborted"),
+		};
 		break;
 	case SIGBUS:
-		message = Message(
+		message = Message{
 			tr("Bus Error"),
 			tr("<p>The debugged application received a bus error. Typically, this means that it tried to read or write data that is misaligned.</p>"),
-			tr("SIGBUS: Bus error"));
+			tr("SIGBUS: Bus error"),
+		};
 		break;
 #ifdef SIGSTKFLT
 	case SIGSTKFLT:
-		message = Message(
+		message = Message{
 			tr("Stack Fault"),
 			tr("<p>The debugged application encountered a stack fault.</p>"),
-			tr("SIGSTKFLT: Stack fault"));
+			tr("SIGSTKFLT: Stack fault"),
+		};
 		break;
 #endif
 	case SIGPIPE:
-		message = Message(
+		message = Message{
 			tr("Broken Pipe Fault"),
 			tr("<p>The debugged application encountered a broken pipe fault.</p>"),
-			tr("SIGPIPE: Pipe broken"));
+			tr("SIGPIPE: Pipe broken"),
+		};
 		break;
 #ifdef SIGHUP
 	case SIGHUP:
-		message = createUnexpectedSignalMessage("SIGHUP", SIGHUP);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGHUP"), SIGHUP);
 		break;
 #endif
 #ifdef SIGINT
 	case SIGINT:
-		message = createUnexpectedSignalMessage("SIGINT", SIGINT);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGINT"), SIGINT);
 		break;
 #endif
 #ifdef SIGQUIT
 	case SIGQUIT:
-		message = createUnexpectedSignalMessage("SIGQUIT", SIGQUIT);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGQUIT"), SIGQUIT);
 		break;
 #endif
 #ifdef SIGTRAP
 	case SIGTRAP:
-		message = createUnexpectedSignalMessage("SIGTRAP", SIGTRAP);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGTRAP"), SIGTRAP);
 		break;
 #endif
 #ifdef SIGKILL
 	case SIGKILL:
-		message = createUnexpectedSignalMessage("SIGKILL", SIGKILL);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGKILL"), SIGKILL);
 		break;
 #endif
 #ifdef SIGUSR1
 	case SIGUSR1:
-		message = createUnexpectedSignalMessage("SIGUSR1", SIGUSR1);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGUSR1"), SIGUSR1);
 		break;
 #endif
 #ifdef SIGUSR2
 	case SIGUSR2:
-		message = createUnexpectedSignalMessage("SIGUSR2", SIGUSR2);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGUSR2"), SIGUSR2);
 		break;
 #endif
 #ifdef SIGALRM
 	case SIGALRM:
-		message = createUnexpectedSignalMessage("SIGALRM", SIGALRM);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGALRM"), SIGALRM);
 		break;
 #endif
 #ifdef SIGTERM
 	case SIGTERM:
-		message = createUnexpectedSignalMessage("SIGTERM", SIGTERM);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGTERM"), SIGTERM);
 		break;
 #endif
 #ifdef SIGCHLD
 	case SIGCHLD:
-		message = createUnexpectedSignalMessage("SIGCHLD", SIGCHLD);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGCHLD"), SIGCHLD);
 		break;
 #endif
 #ifdef SIGCONT
 	case SIGCONT:
-		message = createUnexpectedSignalMessage("SIGCONT", SIGCONT);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGCONT"), SIGCONT);
 		break;
 #endif
 #ifdef SIGSTOP
 	case SIGSTOP:
-		message = createUnexpectedSignalMessage("SIGSTOP", SIGSTOP);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGSTOP"), SIGSTOP);
 		break;
 #endif
 #ifdef SIGTSTP
 	case SIGTSTP:
-		message = createUnexpectedSignalMessage("SIGTSTP", SIGTSTP);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGTSTP"), SIGTSTP);
 		break;
 #endif
 #ifdef SIGTTIN
 	case SIGTTIN:
-		message = createUnexpectedSignalMessage("SIGTTIN", SIGTTIN);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGTTIN"), SIGTTIN);
 		break;
 #endif
 #ifdef SIGTTOU
 	case SIGTTOU:
-		message = createUnexpectedSignalMessage("SIGTTOU", SIGTTOU);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGTTOU"), SIGTTOU);
 		break;
 #endif
 #ifdef SIGURG
 	case SIGURG:
-		message = createUnexpectedSignalMessage("SIGURG", SIGURG);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGURG"), SIGURG);
 		break;
 #endif
 #ifdef SIGXCPU
 	case SIGXCPU:
-		message = createUnexpectedSignalMessage("SIGXCPU", SIGXCPU);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGXCPU"), SIGXCPU);
 		break;
 #endif
 #ifdef SIGXFSZ
 	case SIGXFSZ:
-		message = createUnexpectedSignalMessage("SIGXFSZ", SIGXFSZ);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGXFSZ"), SIGXFSZ);
 		break;
 #endif
 #ifdef SIGVTALRM
 	case SIGVTALRM:
-		message = createUnexpectedSignalMessage("SIGVTALRM", SIGVTALRM);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGVTALRM"), SIGVTALRM);
 		break;
 #endif
 #ifdef SIGPROF
 	case SIGPROF:
-		message = createUnexpectedSignalMessage("SIGPROF", SIGPROF);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGPROF"), SIGPROF);
 		break;
 #endif
 #ifdef SIGWINCH
 	case SIGWINCH:
-		message = createUnexpectedSignalMessage("SIGWINCH", SIGWINCH);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGWINCH"), SIGWINCH);
 		break;
 #endif
 #ifdef SIGIO
 	case SIGIO:
-		message = createUnexpectedSignalMessage("SIGIO", SIGIO);
+		message = createUnexpectedSignalMessage(QStringLiteral("SIGIO"), SIGIO);
 		break;
 #endif
 	default:
 		return Message();
 	}
 
-	message.message += "<p>If you would like to pass this exception to the application press Shift+[F7/F8/F9]</p>";
-	message.statusMessage += ". Shift+Run/Step to pass signal to the program";
+	message.message += tr("<p>If you would like to pass this exception to the application press Shift+[F7/F8/F9]</p>");
+	message.statusMessage += tr(". Shift+Run/Step to pass signal to the program");
 	return message;
 }
 
 /**
- * @brief PlatformEvent::reason
+ * @brief Returns the high-level reason category (signal, trap, etc.) for this debug event.
+ *
  * @return
  */
 IDebugEvent::REASON PlatformEvent::reason() const {
-	// this basically converts our value into a 'switchable' value for convenience
-
+	// this basically converts our event type into a 'switchable' value for convenience
 	if (stopped()) {
 		return EVENT_STOPPED;
-	} else if (terminated()) {
-		return EVENT_TERMINATED;
-	} else if (exited()) {
-		return EVENT_EXITED;
-	} else {
-		return EVENT_UNKNOWN;
 	}
+	if (terminated()) {
+		return EVENT_TERMINATED;
+	}
+	if (exited()) {
+		return EVENT_EXITED;
+	}
+
+	return EVENT_UNKNOWN;
 }
 
 /**
- * @brief PlatformEvent::trapReason
+ * @brief Returns the specific trap reason (breakpoint, single-step, etc.) for a REASON_TRAP event.
+ *
  * @return
  */
 IDebugEvent::TRAP_REASON PlatformEvent::trapReason() const {
@@ -310,7 +311,8 @@ IDebugEvent::TRAP_REASON PlatformEvent::trapReason() const {
 }
 
 /**
- * @brief PlatformEvent::exited
+ * @brief Returns true if the debugged process exited normally.
+ *
  * @return
  */
 bool PlatformEvent::exited() const {
@@ -318,7 +320,8 @@ bool PlatformEvent::exited() const {
 }
 
 /**
- * @brief PlatformEvent::isError
+ * @brief Returns true if this event represents a fatal error signal (e.g. SIGSEGV, SIGILL).
+ *
  * @return
  */
 bool PlatformEvent::isError() const {
@@ -346,7 +349,8 @@ bool PlatformEvent::isError() const {
 }
 
 /**
- * @brief PlatformEvent::isKill
+ * @brief Returns true if the process was killed by a signal.
+ *
  * @return
  */
 bool PlatformEvent::isKill() const {
@@ -354,7 +358,8 @@ bool PlatformEvent::isKill() const {
 }
 
 /**
- * @brief PlatformEvent::isStop
+ * @brief Returns true if the process was stopped by delivery of a signal.
+ *
  * @return
  */
 bool PlatformEvent::isStop() const {
@@ -362,7 +367,8 @@ bool PlatformEvent::isStop() const {
 }
 
 /**
- * @brief PlatformEvent::isTrap
+ * @brief Returns true if this event is a SIGTRAP (breakpoint or single-step).
+ *
  * @return
  */
 bool PlatformEvent::isTrap() const {
@@ -370,7 +376,8 @@ bool PlatformEvent::isTrap() const {
 }
 
 /**
- * @brief PlatformEvent::terminated
+ * @brief Returns true if the process terminated due to an unhandled signal.
+ *
  * @return
  */
 bool PlatformEvent::terminated() const {
@@ -378,7 +385,8 @@ bool PlatformEvent::terminated() const {
 }
 
 /**
- * @brief PlatformEvent::stopped
+ * @brief Returns true if the process is currently stopped (but has not exited).
+ *
  * @return
  */
 bool PlatformEvent::stopped() const {
@@ -386,7 +394,8 @@ bool PlatformEvent::stopped() const {
 }
 
 /**
- * @brief PlatformEvent::process
+ * @brief Returns the PID of the process that generated this event.
+ *
  * @return
  */
 edb::pid_t PlatformEvent::process() const {
@@ -394,7 +403,8 @@ edb::pid_t PlatformEvent::process() const {
 }
 
 /**
- * @brief PlatformEvent::thread
+ * @brief Returns the TID of the thread that generated this event.
+ *
  * @return
  */
 edb::tid_t PlatformEvent::thread() const {
@@ -402,7 +412,8 @@ edb::tid_t PlatformEvent::thread() const {
 }
 
 /**
- * @brief PlatformEvent::code
+ * @brief Returns the signal number or exit code associated with this event.
+ *
  * @return
  */
 int64_t PlatformEvent::code() const {

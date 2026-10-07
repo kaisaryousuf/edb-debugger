@@ -1,59 +1,43 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "RegionBuffer.h"
 #include "IDebugger.h"
 #include "IProcess.h"
 #include "edb.h"
 
-//------------------------------------------------------------------------------
-// Name: RegionBuffer
-// Desc:
-//------------------------------------------------------------------------------
-RegionBuffer::RegionBuffer(const std::shared_ptr<IRegion> &region)
-	: QIODevice(), region_(region) {
+/**
+ * @brief
+ */
+RegionBuffer::RegionBuffer(std::shared_ptr<IRegion> region)
+	: region_(std::move(region)) {
 
 	setOpenMode(QIODevice::ReadOnly);
 }
 
-//------------------------------------------------------------------------------
-// Name: RegionBuffer
-// Desc:
-//------------------------------------------------------------------------------
-RegionBuffer::RegionBuffer(const std::shared_ptr<IRegion> &region, QObject *parent)
-	: QIODevice(parent), region_(region) {
+/**
+ * @brief
+ */
+RegionBuffer::RegionBuffer(std::shared_ptr<IRegion> region, QObject *parent)
+	: QIODevice(parent), region_(std::move(region)) {
 
 	setOpenMode(QIODevice::ReadOnly);
 }
 
-//------------------------------------------------------------------------------
-// Name: set_region
-// Desc:
-//------------------------------------------------------------------------------
-void RegionBuffer::setRegion(const std::shared_ptr<IRegion> &region) {
-	region_ = region;
+/**
+ * @brief
+ */
+void RegionBuffer::setRegion(std::shared_ptr<IRegion> region) {
+	region_ = std::move(region);
 	reset();
 }
 
-//------------------------------------------------------------------------------
-// Name: readData
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 qint64 RegionBuffer::readData(char *data, qint64 maxSize) {
 
 	if (region_) {
@@ -71,19 +55,18 @@ qint64 RegionBuffer::readData(char *data, qint64 maxSize) {
 
 			if (process->readBytes(start, data, maxSize)) {
 				return maxSize;
-			} else {
-				return -1;
 			}
+
+			return -1;
 		}
 	}
 
 	return -1;
 }
 
-//------------------------------------------------------------------------------
-// Name: writeData
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 qint64 RegionBuffer::writeData(const char *, qint64) {
 	return -1;
 }

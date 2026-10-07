@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PlatformThread.h"
 #include "DebuggerCore.h"
@@ -32,7 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace DebuggerCorePlugin {
 
 /**
- * @brief PlatformThread::PlatformThread
+ * @brief Constructs a PlatformThread for the given core, process, and thread ID.
+ *
  * @param core
  * @param process
  * @param tid
@@ -44,7 +33,8 @@ PlatformThread::PlatformThread(DebuggerCore *core, std::shared_ptr<IProcess> &pr
 }
 
 /**
- * @brief PlatformThread::tid
+ * @brief Returns the thread ID of this thread.
+ *
  * @return
  */
 edb::tid_t PlatformThread::tid() const {
@@ -52,35 +42,38 @@ edb::tid_t PlatformThread::tid() const {
 }
 
 /**
- * @brief PlatformThread::name
+ * @brief Returns the thread's comm name by reading /proc/[pid]/task/[tid]/stat.
+ *
  * @return
  */
 QString PlatformThread::name() const {
 	struct user_stat thread_stat;
 	int n = get_user_task_stat(process_->pid(), tid_, &thread_stat);
 	if (n >= 2) {
-		return thread_stat.comm;
+		return QString::fromLocal8Bit(thread_stat.comm);
 	}
 
 	return QString();
 }
 
 /**
- * @brief PlatformThread::priority
+ * @brief Returns the thread's scheduling priority by reading /proc/[pid]/task/[tid]/stat.
+ *
  * @return
  */
 int PlatformThread::priority() const {
 	struct user_stat thread_stat;
 	int n = get_user_task_stat(process_->pid(), tid_, &thread_stat);
 	if (n >= 18) {
-		return thread_stat.priority;
+		return static_cast<int>(thread_stat.priority);
 	}
 
 	return 0;
 }
 
 /**
- * @brief PlatformThread::runState
+ * @brief Returns a human-readable run state string for this thread.
+ *
  * @return
  */
 QString PlatformThread::runState() const {
@@ -118,10 +111,8 @@ QString PlatformThread::runState() const {
 }
 
 /**
- * resumes this thread, passing the signal that stopped it
- * (unless the signal was SIGSTOP)
+ * @brief Resumes this thread via ptrace, re-delivering the signal that stopped it (unless it was SIGSTOP).
  *
- * @brief PlatformThread::resume
  * @return
  */
 Status PlatformThread::resume() {
@@ -129,9 +120,8 @@ Status PlatformThread::resume() {
 }
 
 /**
- * resumes this thread, passing the signal that stopped it
- * (unless the signal was SIGSTOP, or the passed status != DEBUG_EXCEPTION_NOT_HANDLED)
- * @brief PlatformThread::resume
+ * @brief Resumes this thread via ptrace, re-delivering the signal only if status is DEBUG_EXCEPTION_NOT_HANDLED.
+ *
  * @param status
  * @return
  */
@@ -141,7 +131,8 @@ Status PlatformThread::resume(edb::EventStatus status) {
 }
 
 /**
- * @brief PlatformThread::isPaused
+ * @brief Returns true if this thread is currently in the debugger's waited-thread set.
+ *
  * @return true if this thread is currently in the debugger's wait list
  */
 bool PlatformThread::isPaused() const {

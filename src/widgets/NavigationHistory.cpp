@@ -1,27 +1,25 @@
 /*
-Copyright (C) 2017 - 2017 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "NavigationHistory.h"
 
+/**
+ * @brief Constructs a NavigationHistory object with the specified maximum count.
+ *
+ * @param count The maximum number of addresses to store in the navigation history.
+ */
 NavigationHistory::NavigationHistory(int count)
 	: maxCount_(count) {
 }
 
+/**
+ * @brief Adds an address to the navigation history.
+ *
+ * @param address The address to add to the history.
+ */
 void NavigationHistory::add(edb::address_t address) {
 	if (list_.size() == maxCount_) {
 		list_.removeFirst();
@@ -29,43 +27,58 @@ void NavigationHistory::add(edb::address_t address) {
 	}
 
 	if (!list_.isEmpty()) {
-		if (lastop_ == LASTOP_PREV && address == list_.at(pos_))
+		if (lastOp_ == LastOp::Prev && address == list_.at(pos_)) {
 			return;
-		if (lastop_ == LASTOP_NEXT && address == list_.at(pos_ - 1))
+		}
+
+		if (lastOp_ == LastOp::Next && address == list_.at(pos_ - 1)) {
 			return;
-		for (int i = list_.size() - 1; i >= pos_; i--) {
-			if (address == list_.at(i))
+		}
+
+		for (auto i = static_cast<int>(list_.size()) - 1; i >= pos_; i--) {
+			if (address == list_.at(i)) {
 				return;
+			}
 		}
 	}
 
-	pos_ = list_.size();
+	pos_ = static_cast<int>(list_.size());
 	list_.append(address);
-	lastop_ = LASTOP_NONE;
+	lastOp_ = LastOp::None;
 }
 
-edb::address_t NavigationHistory::getNext() {
+/**
+ * @brief Retrieves the next address in the navigation history.
+ *
+ * @return The next address in the history, or std::nullopt if there is no next address.
+ */
+std::optional<edb::address_t> NavigationHistory::getNext() {
 	if (list_.isEmpty()) {
-		return edb::address_t(0);
+		return std::nullopt;
 	}
 
 	if (pos_ != (list_.size() - 1)) {
 		++pos_;
 	}
 
-	lastop_ = LASTOP_NEXT;
+	lastOp_ = LastOp::Next;
 	return list_.at(pos_);
 }
 
-edb::address_t NavigationHistory::getPrev() {
+/**
+ * @brief Retrieves the previous address in the navigation history.
+ *
+ * @return The previous address in the history, or std::nullopt if there is no previous address.
+ */
+std::optional<edb::address_t> NavigationHistory::getPrev() {
 	if (list_.isEmpty()) {
-		return edb::address_t(0);
+		return std::nullopt;
 	}
 
 	if (pos_ != 0) {
 		--pos_;
 	}
 
-	lastop_ = LASTOP_PREV;
+	lastOp_ = LastOp::Prev;
 	return list_.at(pos_);
 }

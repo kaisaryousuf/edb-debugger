@@ -1,33 +1,23 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef IBREAKPOINT_H_20060720_
 #define IBREAKPOINT_H_20060720_
 
+#include "Module.h"
 #include "Types.h"
 
 #include <QString>
 #include <exception>
+#include <optional>
 
 class QByteArray;
 
 class BreakpointCreationError : public std::exception {
-	const char *what() const noexcept override {
+	[[nodiscard]] const char *what() const noexcept override {
 		return "BreakpointCreationError";
 	}
 };
@@ -49,14 +39,15 @@ public:
 	};
 
 public:
-	virtual edb::address_t address() const       = 0;
-	virtual uint64_t hitCount() const            = 0;
-	virtual bool enabled() const                 = 0;
-	virtual bool oneTime() const                 = 0;
-	virtual bool internal() const                = 0;
-	virtual const uint8_t *originalBytes() const = 0;
-	virtual size_t size() const                  = 0;
-	virtual TypeId type() const                  = 0;
+	[[nodiscard]] virtual edb::address_t address() const       = 0;
+	[[nodiscard]] virtual uint64_t hitCount() const            = 0;
+	[[nodiscard]] virtual bool enabled() const                 = 0;
+	[[nodiscard]] virtual bool oneTime() const                 = 0;
+	[[nodiscard]] virtual bool internal() const                = 0;
+	[[nodiscard]] virtual const uint8_t *originalBytes() const = 0;
+	[[nodiscard]] virtual size_t size() const                  = 0;
+	[[nodiscard]] virtual TypeId type() const                  = 0;
+	[[nodiscard]] virtual std::optional<Module> module() const = 0;
 
 public:
 	virtual bool enable()                = 0;

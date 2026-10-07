@@ -1,24 +1,13 @@
 /*
-Copyright (C) 2017 - 2017 Evan Teran
-						  evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "FloatX.h"
 #include "util/Float.h"
 
+#include <array>
 #include <iomanip>
 #include <sstream>
 
@@ -92,31 +81,6 @@ struct SpecialValues<long double> {
 #endif
 #endif
 
-constexpr std::array<std::uint8_t, 4> SpecialValues<float>::positiveInf;
-constexpr std::array<std::uint8_t, 4> SpecialValues<float>::negativeInf;
-constexpr std::array<std::uint8_t, 4> SpecialValues<float>::positiveSNaN;
-constexpr std::array<std::uint8_t, 4> SpecialValues<float>::negativeSNaN;
-constexpr std::array<std::uint8_t, 4> SpecialValues<float>::positiveQNaN;
-constexpr std::array<std::uint8_t, 4> SpecialValues<float>::negativeQNaN;
-
-constexpr std::array<std::uint8_t, 8> SpecialValues<double>::positiveInf;
-constexpr std::array<std::uint8_t, 8> SpecialValues<double>::negativeInf;
-constexpr std::array<std::uint8_t, 8> SpecialValues<double>::positiveSNaN;
-constexpr std::array<std::uint8_t, 8> SpecialValues<double>::negativeSNaN;
-constexpr std::array<std::uint8_t, 8> SpecialValues<double>::positiveQNaN;
-constexpr std::array<std::uint8_t, 8> SpecialValues<double>::negativeQNaN;
-
-#ifndef _MSC_VER
-#if defined(EDB_X86) || defined(EDB_X86_64)
-constexpr std::array<std::uint8_t, 16> SpecialValues<long double>::positiveInf;
-constexpr std::array<std::uint8_t, 16> SpecialValues<long double>::negativeInf;
-constexpr std::array<std::uint8_t, 16> SpecialValues<long double>::positiveSNaN;
-constexpr std::array<std::uint8_t, 16> SpecialValues<long double>::negativeSNaN;
-constexpr std::array<std::uint8_t, 16> SpecialValues<long double>::positiveQNaN;
-constexpr std::array<std::uint8_t, 16> SpecialValues<long double>::negativeQNaN;
-#endif
-#endif
-
 float to_real(edb::value32 value) {
 	float result;
 	std::memcpy(&result, &value, sizeof(result));
@@ -133,7 +97,7 @@ long double to_real(edb::value80 value) {
 	return value.toFloatValue();
 }
 
-template <unsigned MantissaLength, typename FloatHolder>
+template <unsigned MantissaLength, class FloatHolder>
 FloatValueClass ieee_classify(FloatHolder value) {
 
 	constexpr auto ExpLength = 8 * sizeof(value) - MantissaLength - 1;
@@ -146,20 +110,24 @@ FloatValueClass ieee_classify(FloatHolder value) {
 	if (exponent == ExpMax) {
 		if (mantissa == 0u) {
 			return FloatValueClass::Infinity; // |S|11..11|00..00|
-		} else if (mantissa & QNaN_mask) {
-			return FloatValueClass::QNaN; // |S|11..11|1XX..XX|
-		} else {
-			return FloatValueClass::SNaN; // |S|11..11|0XX..XX|
 		}
-	} else if (exponent == 0u) {
+
+		if (mantissa & QNaN_mask) {
+			return FloatValueClass::QNaN; // |S|11..11|1XX..XX|
+		}
+
+		return FloatValueClass::SNaN; // |S|11..11|0XX..XX|
+	}
+
+	if (exponent == 0u) {
 		if (mantissa == 0u) {
 			return FloatValueClass::Zero; // |S|00..00|00..00|
-		} else {
-			return FloatValueClass::Denormal; // |S|00..00|XX..XX|
 		}
-	} else {
-		return FloatValueClass::Normal;
+
+		return FloatValueClass::Denormal; // |S|00..00|XX..XX|
 	}
+
+	return FloatValueClass::Normal;
 }
 
 #if defined(HAVE_GDTOA)
@@ -226,14 +194,16 @@ const char *fixup_g_Yfmt(char *buffer, int digits10) {
 		if (c == '.') {
 			pointPos = i;
 			continue;
-		} else if ('0' <= c && c <= '9') {
+		}
+
+		if ('0' <= c && c <= '9') {
 			++digitCount;
 		}
 	}
 
 	// If point wasn't found, assume it's at the end of the number
 	if (pointPos < 0) {
-		pointPos = len;
+		pointPos = static_cast<int>(len);
 	}
 
 	const int signChars = buffer[0] == '-';
@@ -249,7 +219,7 @@ const char *fixup_g_Yfmt(char *buffer, int digits10) {
 		// The original string may contain a point, may not contain any. In the
 		// former case we must move everything including the null terminator. In
 		// the latter case only the chunk up to the original point needs moving.
-		const int lenWithNull = len + 1;
+		const auto lenWithNull = static_cast<int>(len + 1);
 
 		char next = buf[1];
 		for (int i = 0; i < lenWithNull - signChars; ++i) {
@@ -274,8 +244,8 @@ const char *fixup_g_Yfmt(char *buffer, int digits10) {
 		// Append the exponent
 		buf[len]     = 'e';
 		buf[len + 1] = '+';
-		buf[len + 2] = exp / 10 + '0';
-		buf[len + 3] = exp % 10 + '0';
+		buf[len + 2] = static_cast<char>(exp / 10 + '0');
+		buf[len + 3] = static_cast<char>(exp % 10 + '0');
 		buf[len + 4] = 0;
 	}
 
@@ -298,17 +268,17 @@ Float read_float(const QString &input, bool &ok) {
 	// OK, so either it is invalid/unfinished, or it's some special value
 	// We still do want the user to be able to enter common special values
 	Float value;
-	if (str == "+snan" || str == "snan") {
+	if (str == QStringLiteral("+snan") || str == QStringLiteral("snan")) {
 		std::memcpy(&value, &SpecialValues<Float>::positiveSNaN, sizeof(value));
-	} else if (str == "-snan") {
+	} else if (str == QStringLiteral("-snan")) {
 		std::memcpy(&value, &SpecialValues<Float>::negativeSNaN, sizeof(value));
-	} else if (str == "+qnan" || str == "qnan" || str == "nan") {
+	} else if (str == QStringLiteral("+qnan") || str == QStringLiteral("qnan") || str == QStringLiteral("nan")) {
 		std::memcpy(&value, &SpecialValues<Float>::positiveQNaN, sizeof(value));
-	} else if (str == "-qnan") {
+	} else if (str == QStringLiteral("-qnan")) {
 		std::memcpy(&value, &SpecialValues<Float>::negativeQNaN, sizeof(value));
-	} else if (str == "+inf" || str == "inf") {
+	} else if (str == QStringLiteral("+inf") || str == QStringLiteral("inf")) {
 		std::memcpy(&value, &SpecialValues<Float>::positiveInf, sizeof(value));
-	} else if (str == "-inf") {
+	} else if (str == QStringLiteral("-inf")) {
 		std::memcpy(&value, &SpecialValues<Float>::negativeInf, sizeof(value));
 	} else {
 		return 0;
@@ -351,33 +321,39 @@ FloatValueClass float_type(edb::value80 value) {
 	if (exponent == ExpMax) {
 		if (mantissa == IntegerBitOnly) {
 			return FloatValueClass::Infinity; // |S|11..11|1.000..0|
-		} else if ((mantissa & QNaN_mask) == QNaN_mask) {
-			return FloatValueClass::QNaN; // |S|11..11|1.1XX..X|
-		} else if ((mantissa & QNaN_mask) == IntegerBitOnly) {
-			return FloatValueClass::SNaN; // |S|11..11|1.0XX..X|
-		} else {
-			return FloatValueClass::Unsupported; // all exp bits set, but integer bit reset - pseudo-NaN/Inf
 		}
-	} else if (exponent == 0u) {
+
+		if ((mantissa & QNaN_mask) == QNaN_mask) {
+			return FloatValueClass::QNaN; // |S|11..11|1.1XX..X|
+		}
+
+		if ((mantissa & QNaN_mask) == IntegerBitOnly) {
+			return FloatValueClass::SNaN; // |S|11..11|1.0XX..X|
+		}
+
+		return FloatValueClass::Unsupported; // all exp bits set, but integer bit reset - pseudo-NaN/Inf
+	}
+
+	if (exponent == 0u) {
 		if (mantissa == 0u) {
 			return FloatValueClass::Zero; // |S|00..00|00..00|
-		} else {
-			if (!integerBitSet) {
-				return FloatValueClass::Denormal; // |S|00..00|0.XXXX..X|
-			} else {
-				return FloatValueClass::PseudoDenormal; // |S|00..00|1.XXXX..X|
-			}
 		}
-	} else {
-		if (integerBitSet) {
-			return FloatValueClass::Normal;
-		} else {
-			return FloatValueClass::Unsupported; // integer bit reset but exp is as if normal - unnormal
+
+		if (!integerBitSet) {
+			return FloatValueClass::Denormal; // |S|00..00|0.XXXX..X|
 		}
+
+		return FloatValueClass::PseudoDenormal; // |S|00..00|1.XXXX..X|
 	}
+
+	if (integerBitSet) {
+		return FloatValueClass::Normal;
+	}
+
+	return FloatValueClass::Unsupported; // integer bit reset but exp is as if normal - unnormal
 }
 
-template <typename Float>
+template <class Float>
 QValidator::State FloatXValidator<Float>::validate(QString &input, int &) const {
 
 	if (input.isEmpty()) {
@@ -391,24 +367,29 @@ QValidator::State FloatXValidator<Float>::validate(QString &input, int &) const 
 	}
 
 	// OK, so we failed to read it or it is unfinished. Let's check whether it's intermediate or invalid.
-	QRegExp basicFormat("[+-]?[0-9]*\\.?[0-9]*(e([+-]?[0-9]*)?)?");
-	QRegExp specialFormat("[+-]?[sq]?nan|[+-]?inf", Qt::CaseInsensitive);
-	QRegExp hexfloatFormat("[+-]?0x[0-9a-f]*\\.?[0-9a-f]*(p([+-]?[0-9]*)?)?", Qt::CaseInsensitive);
-	QRegExp specialFormatUnfinished("[+-]?[sq]?(n(an?)?)?|[+-]?(i(nf?)?)?", Qt::CaseInsensitive);
+	static const QRegularExpression basicFormat(QStringLiteral("^[+-]?[0-9]*\\.?[0-9]*(e([+-]?[0-9]*)?)?$"));
+	static const QRegularExpression specialFormat(QStringLiteral("^[+-]?[sq]?nan|[+-]?inf$"), QRegularExpression::CaseInsensitiveOption);
+	static const QRegularExpression hexfloatFormat(QStringLiteral("^[+-]?0x[0-9a-f]*\\.?[0-9a-f]*(p([+-]?[0-9]*)?)?$"), QRegularExpression::CaseInsensitiveOption);
+	static const QRegularExpression specialFormatUnfinished(QStringLiteral("^[+-]?[sq]?(n(an?)?)?|[+-]?(i(nf?)?)?$"), QRegularExpression::CaseInsensitiveOption);
 
-	if (hexfloatFormat.exactMatch(input)) {
+	const QRegularExpressionMatch match                  = basicFormat.match(input);
+	const QRegularExpressionMatch matchSpecial           = specialFormat.match(input);
+	const QRegularExpressionMatch matchHex               = hexfloatFormat.match(input);
+	const QRegularExpressionMatch matchSpecialUnfinished = specialFormatUnfinished.match(input);
+
+	if (matchHex.hasMatch()) {
 		return QValidator::Intermediate;
 	}
 
-	if (basicFormat.exactMatch(input)) {
+	if (match.hasMatch()) {
 		return QValidator::Intermediate;
 	}
 
-	if (specialFormat.exactMatch(input)) {
+	if (matchSpecial.hasMatch()) {
 		return QValidator::Acceptable;
 	}
 
-	if (specialFormatUnfinished.exactMatch(input)) {
+	if (matchSpecialUnfinished.hasMatch()) {
 		return QValidator::Intermediate;
 	}
 
@@ -420,15 +401,15 @@ template QValidator::State FloatXValidator<float>::validate(QString &input, int 
 template QValidator::State FloatXValidator<double>::validate(QString &input, int &) const;
 template QValidator::State FloatXValidator<long double>::validate(QString &input, int &) const;
 
-template <typename Float>
+template <class Float>
 EDB_EXPORT QString format_float(Float value) {
 
-	const auto type    = float_type(value);
-	QString specialStr = "???? ";
+	const auto type = float_type(value);
+	auto specialStr = QStringLiteral("???? ");
 
 	switch (type) {
 	case FloatValueClass::Zero:
-		return value.negative() ? "-0.0" : "0.0";
+		return value.negative() ? QStringLiteral("-0.0") : QStringLiteral("0.0");
 
 	case FloatValueClass::PseudoDenormal:
 		if constexpr (sizeof(value) >= 10) {
@@ -446,8 +427,8 @@ EDB_EXPORT QString format_float(Float value) {
 	case FloatValueClass::Normal:
 	case FloatValueClass::Denormal: {
 #ifdef HAVE_DOUBLE_CONVERSION
-		constexpr bool isDouble = std::is_same<Float, edb::value64>::value;
-		constexpr bool isFloat  = std::is_same<Float, edb::value32>::value;
+		constexpr bool isDouble = std::is_same_v<Float, edb::value64>;
+		constexpr bool isFloat  = std::is_same_v<Float, edb::value32>;
 		if constexpr (isDouble || isFloat) {
 			using namespace double_conversion;
 
@@ -469,9 +450,9 @@ EDB_EXPORT QString format_float(Float value) {
 			}
 
 			if (ret && builder.Finalize()) {
-				const QString result = buffer;
+				auto result = QString::fromLatin1(buffer);
 				if (result.size() == 1 && result[0].isDigit()) {
-					return result + ".0"; // avoid printing small whole numbers as integers
+					return result + QStringLiteral(".0"); // avoid printing small whole numbers as integers
 				}
 
 				return result;
@@ -479,14 +460,14 @@ EDB_EXPORT QString format_float(Float value) {
 		}
 #endif
 #if defined(HAVE_GDTOA)
-		if constexpr (std::is_same<Float, edb::value80>::value) {
+		if constexpr (std::is_same_v<Float, edb::value80>) {
 			char buffer[64] = {};
 			gdtoa_g_xfmt(buffer, &value, -1, sizeof buffer);
 			fixup_g_Yfmt(buffer, std::numeric_limits<long double>::digits10);
 
-			const QString result = buffer;
+			auto result = QString::fromLatin1(buffer);
 			if (result.size() == 1 && result[0].isDigit()) {
-				return result + ".0"; // avoid printing small whole numbers as integers
+				return result + QStringLiteral(".0"); // avoid printing small whole numbers as integers
 			}
 
 			return result;
@@ -495,30 +476,30 @@ EDB_EXPORT QString format_float(Float value) {
 		std::ostringstream ss;
 		ss << std::setprecision(std::numeric_limits<decltype(to_real(value))>::max_digits10) << to_real(value);
 
-		const auto result = QString::fromStdString(ss.str());
+		auto result = QString::fromStdString(ss.str());
 		if (result.size() == 1 && result[0].isDigit()) {
-			return result + ".0"; // avoid printing small whole numbers as integers
+			return result + QStringLiteral(".0"); // avoid printing small whole numbers as integers
 		}
 
 		return result;
 	}
 	case FloatValueClass::Infinity:
-		return QString(value.negative() ? "-" : "+") + "INF";
+		return (value.negative() ? QStringLiteral("-") : QStringLiteral("+")) + QStringLiteral("INF");
 	case FloatValueClass::QNaN:
-		specialStr = QString(value.negative() ? "-" : "+") + "QNAN ";
+		specialStr = (value.negative() ? QStringLiteral("-") : QStringLiteral("+")) + QStringLiteral("QNAN ");
 		break;
 	case FloatValueClass::SNaN:
-		specialStr = QString(value.negative() ? "-" : "+") + "SNAN ";
+		specialStr = (value.negative() ? QStringLiteral("-") : QStringLiteral("+")) + QStringLiteral("SNAN ");
 		break;
 	case FloatValueClass::Unsupported:
-		specialStr = QString(value.negative() ? "-" : "+") + "BAD ";
+		specialStr = (value.negative() ? QStringLiteral("-") : QStringLiteral("+")) + QStringLiteral("BAD ");
 		break;
 	}
 
 	// If we are here, then the value is special
 	auto hexStr = value.toHexString();
 
-	const QChar groupSeparator(' ');
+	const QChar groupSeparator(QLatin1Char(' '));
 	if (hexStr.size() > 8) {
 		hexStr.insert(hexStr.size() - 8, groupSeparator);
 	}

@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015	Armen Boursalian
-					aboursalian@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Armen Boursalian <aboursalian@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "CallStack.h"
 #include "Expression.h"
@@ -30,16 +18,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // TODO: This may be specific to x86... Maybe abstract this in the future.
 
 /**
- * @brief CallStack::CallStack
+ * @brief Constructs a CallStack by immediately snapshotting the current call stack state.
  */
 CallStack::CallStack() {
 	getCallStack();
 }
 
 /**
- * @brief CallStack::get_call_stack
- *
- * Gets the state of the call stack at the time the object is created.
+ * @brief Walks the stack frame chain from the current frame pointer to build the list of return addresses.
  */
 void CallStack::getCallStack() {
 	/*
@@ -106,9 +92,7 @@ void CallStack::getCallStack() {
 }
 
 /**
- * @brief CallStack::operator []
- *
- * Provides array-like access to the stack_frames_
+ * @brief Returns a pointer to the stack frame at the given index, or nullptr if the index is out of range.
  *
  * @param index
  * @return
@@ -122,7 +106,8 @@ CallStack::StackFrame *CallStack::operator[](size_t index) {
 }
 
 /**
- * @brief CallStack::size
+ * @brief Returns the number of frames captured in the call stack.
+ *
  * @return the number of frames in the call stack.
  */
 size_t CallStack::size() const {
@@ -130,7 +115,8 @@ size_t CallStack::size() const {
 }
 
 /**
- * @brief CallStack::top
+ * @brief Returns a pointer to the topmost (most recent) stack frame, or nullptr if the stack is empty.
+ *
  * @return a pointer to the frame at the top of the call stack or nullptr
  * if there are no frames on the stack
  */
@@ -143,7 +129,8 @@ CallStack::StackFrame *CallStack::top() {
 }
 
 /**
- * @brief CallStack::bottom
+ * @brief Returns a pointer to the bottommost (oldest) stack frame, or nullptr if the stack is empty.
+ *
  * @return a pointer to the frame at the bottom of the call stack or nullptr
  * if there are no frames on the stack
  */
@@ -156,9 +143,7 @@ CallStack::StackFrame *CallStack::bottom() {
 }
 
 /**
- * @brief CallStack::push
- *
- * Pushes a stack frame onto the top of the call stack.
+ * @brief Pushes a new stack frame onto the top of the call stack.
  *
  * @param frame
  */

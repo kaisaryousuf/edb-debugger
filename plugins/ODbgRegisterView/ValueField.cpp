@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ValueField.h"
 #include "DialogEditGPR.h"
@@ -49,16 +38,17 @@ ValueField::ValueField(int fieldWidth, const QModelIndex &index, QWidget *parent
 ValueField::ValueField(int fieldWidth, const QModelIndex &index, const std::function<QString(const QString &)> &valueFormatter, QWidget *parent, Qt::WindowFlags f)
 	: FieldWidget(fieldWidth, index, parent, f), valueFormatter_(valueFormatter) {
 
-	setObjectName("ValueField");
+	setObjectName(QStringLiteral("ValueField"));
 	setDisabled(false);
 	setMouseTracking(true);
 
-// Set some known style to avoid e.g. Oxygen's label transition animations, which
-// break updating of colors such as "register changed" when single-stepping frequently
-#define FLAT_STYLE_NAME "fusion"
+	// Set some known style to avoid e.g. Oxygen's label transition animations, which
+	// break updating of colors such as "register changed" when single-stepping frequently
+	static const auto kFlatStyleName = QStringLiteral("fusion");
 
-	if (!flatStyle)
-		flatStyle = QStyleFactory::create(FLAT_STYLE_NAME);
+	if (!flatStyle) {
+		flatStyle = QStyleFactory::create(kFlatStyleName);
+	}
 
 	assert(flatStyle);
 	setStyle(flatStyle);
@@ -86,7 +76,7 @@ ValueField::ValueField(int fieldWidth, const QModelIndex &index, const std::func
 	menuItems_.back()->setShortcut(QKeySequence::Copy);
 
 #if defined(EDB_X86) || defined(EDB_X86_64)
-	if (index.sibling(index.row(), ModelNameColumn).data().toString() == FsrName) {
+	if (index.sibling(index.row(), ModelNameColumn).data().toString() == QString::fromLatin1(FsrName)) {
 		menuItems_.push_back(new_action(tr("P&ush FPU stack"), this, [this](bool) {
 			pushFPUStack();
 		}));
@@ -97,7 +87,7 @@ ValueField::ValueField(int fieldWidth, const QModelIndex &index, const std::func
 	}
 #endif
 
-	if (index.parent().data().toString() == GprCategoryName) {
+	if (index.parent().data().toString() == QString::fromLatin1(GprCategoryName)) {
 		// These should be above others, so prepending instead of appending
 		menuItems_.push_front(new_action(tr("In&vert"), this, [this](bool) {
 			invert();
@@ -142,7 +132,7 @@ RegisterViewModelBase::Model *ValueField::model() const {
 
 ValueField *ValueField::bestNeighbor(const std::function<bool(const QPoint &, const ValueField *, const QPoint &)> &firstIsBetter) const {
 	ValueField *result = nullptr;
-	Q_FOREACH (const auto neighbor, regView()->valueFields()) {
+	for (const auto neighbor : regView()->valueFields()) {
 		if (neighbor->isVisible() && firstIsBetter(field_position(neighbor), result, field_position(this))) {
 			result = neighbor;
 		}
@@ -261,8 +251,9 @@ void ValueField::defaultAction() {
 		//              I.e. set value without knowing field offset, then setData(fieldIndex,word)
 		const auto regIndex = index_.parent().sibling(index_.parent().row(), ModelValueColumn);
 		auto byteArr        = regIndex.data(Model::RawValueRole).toByteArray();
-		if (byteArr.isEmpty())
+		if (byteArr.isEmpty()) {
 			return;
+		}
 		std::uint64_t word(0);
 		std::memcpy(&word, byteArr.constData(), byteArr.size());
 		const auto offset = valid_variant(index_.data(Model::BitFieldOffsetRole)).toInt();
@@ -279,7 +270,7 @@ void ValueField::defaultAction() {
 }
 
 void ValueField::adjustToData() {
-	if (index_.parent().data().toString() == GprCategoryName) {
+	if (index_.parent().data().toString() == QString::fromLatin1(GprCategoryName)) {
 		using RegisterViewModelBase::Model;
 		auto byteArr = index_.data(Model::RawValueRole).toByteArray();
 		if (byteArr.isEmpty()) {
@@ -304,16 +295,24 @@ void ValueField::updatePalette() {
 		palette.setColor(foregroundRole(), changedFGColor);
 		palette.setColor(QPalette::HighlightedText, changedFGColor);
 		setPalette(palette);
-	} else
+	} else {
 		setPalette(QApplication::palette());
+	}
 
 	QLabel::update();
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+void ValueField::enterEvent(QEnterEvent *) {
+	hovered_ = true;
+	updatePalette();
+}
+#else
 void ValueField::enterEvent(QEvent *) {
 	hovered_ = true;
 	updatePalette();
 }
+#endif
 
 void ValueField::leaveEvent(QEvent *) {
 	hovered_ = false;
@@ -341,7 +340,11 @@ void ValueField::mousePressEvent(QMouseEvent *event) {
 	}
 
 	if (event->button() == Qt::RightButton && event->type() != QEvent::MouseButtonDblClick) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		showMenu(event->globalPosition().toPoint());
+#else
 		showMenu(event->globalPos());
+#endif
 	}
 }
 
@@ -398,8 +401,9 @@ void add_to_top(RegisterViewModelBase::Model *model, const QModelIndex &fsrIndex
 	// TODO: Model: make it possible to set bit field itself, without manipulating parent directly
 	//              I.e. set value without knowing field offset, then setData(fieldIndex,word)
 	auto byteArr = fsrIndex.data(Model::RawValueRole).toByteArray();
-	if (byteArr.isEmpty())
+	if (byteArr.isEmpty()) {
 		return;
+	}
 
 	std::uint16_t word(0);
 	assert(byteArr.size() == sizeof(word));
@@ -414,12 +418,12 @@ void add_to_top(RegisterViewModelBase::Model *model, const QModelIndex &fsrIndex
 
 #if defined(EDB_X86) || defined(EDB_X86_64)
 void ValueField::pushFPUStack() {
-	assert(index_.sibling(index_.row(), ModelNameColumn).data().toString() == FsrName);
+	assert(index_.sibling(index_.row(), ModelNameColumn).data().toString() == QString::fromLatin1(FsrName));
 	add_to_top(model(), index_, -1);
 }
 
 void ValueField::popFPUStack() {
-	assert(index_.sibling(index_.row(), ModelNameColumn).data().toString() == FsrName);
+	assert(index_.sibling(index_.row(), ModelNameColumn).data().toString() == QString::fromLatin1(FsrName));
 	add_to_top(model(), index_, +1);
 }
 #endif
@@ -430,10 +434,10 @@ void ValueField::copyToClipboard() const {
 
 namespace {
 
-template <typename Op>
+template <class Op>
 void change_gpr(const QModelIndex &index, RegisterViewModelBase::Model *const model, const Op &change) {
 
-	if (index.parent().data().toString() != GprCategoryName) {
+	if (index.parent().data().toString() != QString::fromLatin1(GprCategoryName)) {
 		return;
 	}
 
@@ -473,13 +477,13 @@ void ValueField::invert() {
 }
 
 void ValueField::setZero() {
-	change_gpr(index_, model(), [](int) {
+	change_gpr(index_, model(), [](std::uint64_t) {
 		return 0;
 	});
 }
 
 void ValueField::setToOne() {
-	change_gpr(index_, model(), [](int) {
+	change_gpr(index_, model(), [](std::uint64_t) {
 		return 1;
 	});
 }

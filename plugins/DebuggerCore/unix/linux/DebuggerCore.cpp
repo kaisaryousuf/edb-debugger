@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-						  evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DebuggerCore.h"
 #include "Configuration.h"
@@ -85,7 +73,7 @@ namespace {
 constexpr size_t PageSize = 0x1000;
 
 /**
- * @brief disable_aslr
+ * @brief Disables address space layout randomization for the current process using personality().
  */
 void disable_aslr() {
 	const int current = ::personality(UINT32_MAX);
@@ -98,7 +86,7 @@ void disable_aslr() {
 }
 
 /**
- * @brief disable_lazy_binding
+ * @brief Forces eager binding of shared library symbols by setting the LD_BIND_NOW environment variable.
  */
 void disable_lazy_binding() {
 	if (setenv("LD_BIND_NOW", "1", true) == -1) {
@@ -107,7 +95,8 @@ void disable_lazy_binding() {
 }
 
 /**
- * @brief is_clone_event
+ * @brief Returns true if the given waitpid status encodes a PTRACE_EVENT_CLONE trace event.
+ *
  * @param status
  * @return
  */
@@ -116,7 +105,8 @@ constexpr bool is_clone_event(int status) {
 }
 
 /**
- * @brief is_exit_trace_event
+ * @brief Returns true if the given waitpid status encodes a PTRACE_EVENT_EXIT trace event.
+ *
  * @param status
  * @return
  */
@@ -126,7 +116,8 @@ constexpr bool is_exit_trace_event(int status) {
 
 #if defined(EDB_X86) || defined(EDB_X86_64)
 /**
- * @brief in_64bit_segment
+ * @brief Returns true if edb is currently executing in a 64-bit code segment (as opposed to 32-bit compatibility mode).
+ *
  * @return
  */
 bool in_64bit_segment() {
@@ -143,7 +134,8 @@ bool in_64bit_segment() {
 }
 
 /**
- * @brief os_is_64_bit
+ * @brief Returns true if the underlying operating system kernel is 64-bit.
+ *
  * @param edbIsIn64BitSegment
  * @return
  */
@@ -174,7 +166,7 @@ bool os_is_64_bit() {
 }
 
 /**
- * @brief DebuggerCore::DebuggerCore
+ * @brief Constructs the DebuggerCore, detects proc/mem access capabilities, and warns the user if broken.
  */
 DebuggerCore::DebuggerCore()
 #if defined(EDB_X86) || defined(EDB_X86_64)
@@ -184,7 +176,6 @@ DebuggerCore::DebuggerCore()
 	  userStackSegment_(osIs64Bit_ ? 0x2b : 0x7b)
 #endif
 {
-	Posix::initialize();
 
 	feature::detect_proc_access(&procMemReadBroken_, &procMemWriteBroken_);
 
@@ -194,22 +185,23 @@ DebuggerCore::DebuggerCore()
 		qDebug() << "Detect that write /proc/<pid>/mem works = " << !procMemWriteBroken_;
 
 		QSettings settings;
-		const bool warn = settings.value("DebuggerCore/warn_on_broken_proc_mem.enabled", true).toBool();
+		const bool warn = settings.value(QStringLiteral("DebuggerCore/warn_on_broken_proc_mem.enabled"), true).toBool();
 		if (warn) {
 			auto dialog = std::make_unique<DialogMemoryAccess>(nullptr);
 			dialog->exec();
 
-			settings.setValue("DebuggerCore/warn_on_broken_proc_mem.enabled", dialog->warnNextTime());
+			settings.setValue(QStringLiteral("DebuggerCore/warn_on_broken_proc_mem.enabled"), dialog->warnNextTime());
 		}
 	}
 }
 
 /**
- * @brief DebuggerCore::hasExtension
+ * @brief Returns true if the debugged CPU supports the requested extension (MMX, SSE, AVX, etc.).
+ *
  * @param ext
  * @return
  */
-bool DebuggerCore::hasExtension(uint64_t ext) const {
+bool DebuggerCore::hasExtension([[maybe_unused]] uint64_t ext) const {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	static constexpr auto mmxHash = edb::string_hash("MMX");
 	static constexpr auto xmmHash = edb::string_hash("XMM");
@@ -253,13 +245,13 @@ bool DebuggerCore::hasExtension(uint64_t ext) const {
 		return false;
 	}
 #else
-	Q_UNUSED(ext)
 	return false;
 #endif
 }
 
 /**
- * @brief DebuggerCore::pageSize
+ * @brief Returns the system page size in bytes.
+ *
  * @return the size of a page on this system
  */
 size_t DebuggerCore::pageSize() const {
@@ -267,7 +259,8 @@ size_t DebuggerCore::pageSize() const {
 }
 
 /**
- * @brief DebuggerCore::pointerSize
+ * @brief Returns the pointer size in bytes for the debugged process.
+ *
  * @return
  */
 std::size_t DebuggerCore::pointerSize() const {
@@ -275,14 +268,15 @@ std::size_t DebuggerCore::pointerSize() const {
 }
 
 /**
- * @brief DebuggerCore::~DebuggerCore
+ * @brief Destroys the DebuggerCore and ends any active debug session.
  */
 DebuggerCore::~DebuggerCore() {
 	endDebugSession();
 }
 
 /**
- * @brief DebuggerCore::ptraceGetSigInfo
+ * @brief Retrieves signal information for the given thread via PTRACE_GETSIGINFO.
+ *
  * @param tid
  * @param siginfo
  * @return
@@ -294,13 +288,14 @@ Status DebuggerCore::ptraceGetSigInfo(edb::tid_t tid, siginfo_t *siginfo) {
 	if (ptrace(PTRACE_GETSIGINFO, tid, 0, siginfo) == -1) {
 		const char *const strError = strerror(errno);
 		qWarning() << "Unable to get signal info for thread" << tid << ": PTRACE_GETSIGINFO failed:" << strError;
-		return Status(strError);
+		return Status(QString::fromLatin1(strError));
 	}
 	return Status::Ok;
 }
 
 /**
- * @brief DebuggerCore::ptraceTraceme
+ * @brief Requests that the current process be traced by its parent via PTRACE_TRACEME.
+ *
  * @return
  */
 long DebuggerCore::ptraceTraceme() {
@@ -308,7 +303,8 @@ long DebuggerCore::ptraceTraceme() {
 }
 
 /**
- * @brief DebuggerCore::ptraceContinue
+ * @brief Resumes the given thread via PTRACE_CONT, delivering the specified signal if non-zero.
+ *
  * @param tid
  * @param status
  * @return
@@ -322,7 +318,7 @@ Status DebuggerCore::ptraceContinue(edb::tid_t tid, long status) {
 		if (ptrace(PTRACE_CONT, tid, 0, status) == -1) {
 			const char *const strError = strerror(errno);
 			qWarning() << "Unable to continue thread" << tid << ": PTRACE_CONT failed:" << strError;
-			return Status(strError);
+			return Status(QString::fromLatin1(strError));
 		}
 		waitedThreads_.erase(tid);
 		return Status::Ok;
@@ -331,10 +327,11 @@ Status DebuggerCore::ptraceContinue(edb::tid_t tid, long status) {
 }
 
 /**
- * @brief DebuggerCore::ptraceStep
- * @param tid
- * @param status
- * @return
+ * @brief Single-steps the given thread via PTRACE_SINGLESTEP, delivering the specified signal if non-zero.
+ *
+ * @param tid The thread ID of the thread to single-step.
+ * @param status The signal to deliver to the thread after single-stepping. If zero, no signal is delivered.
+ * @return A Status object indicating success or failure of the operation.
  */
 Status DebuggerCore::ptraceStep(edb::tid_t tid, long status) {
 	// TODO(eteran): perhaps address this at a higher layer?
@@ -345,7 +342,7 @@ Status DebuggerCore::ptraceStep(edb::tid_t tid, long status) {
 		if (ptrace(PTRACE_SINGLESTEP, tid, 0, status) == -1) {
 			const char *const strError = strerror(errno);
 			qWarning() << "Unable to step thread" << tid << ": PTRACE_SINGLESTEP failed:" << strError;
-			return Status(strError);
+			return Status(QString::fromLatin1(strError));
 		}
 		waitedThreads_.erase(tid);
 		return Status::Ok;
@@ -354,10 +351,11 @@ Status DebuggerCore::ptraceStep(edb::tid_t tid, long status) {
 }
 
 /**
- * @brief DebuggerCore::ptraceSetOptions
- * @param tid
- * @param options
- * @return
+ * @brief Sets ptrace options for the given thread via PTRACE_SETOPTIONS.
+ *
+ * @param tid The thread ID of the thread for which to set options.
+ * @param options The ptrace options to set for the thread.
+ * @return A Status object indicating success or failure of the operation.
  */
 Status DebuggerCore::ptraceSetOptions(edb::tid_t tid, long options) {
 	Q_ASSERT(util::contains(waitedThreads_, tid));
@@ -365,16 +363,17 @@ Status DebuggerCore::ptraceSetOptions(edb::tid_t tid, long options) {
 	if (ptrace(PTRACE_SETOPTIONS, tid, 0, options) == -1) {
 		const char *const strError = strerror(errno);
 		qWarning() << "Unable to set ptrace options for thread" << tid << ": PTRACE_SETOPTIONS failed:" << strError;
-		return Status(strError);
+		return Status(QString::fromLatin1(strError));
 	}
 	return Status::Ok;
 }
 
 /**
- * @brief DebuggerCore::ptraceGetEventMessage
- * @param tid
- * @param message
- * @return
+ * @brief Retrieves the extended ptrace event message for the given thread via PTRACE_GETEVENTMSG.
+ *
+ * @param tid The thread ID of the thread for which to retrieve the event message.
+ * @param message A pointer to an unsigned long variable where the event message will be stored.
+ * @return A Status object indicating success or failure of the operation.
  */
 Status DebuggerCore::ptraceGetEventMessage(edb::tid_t tid, unsigned long *message) {
 	Q_ASSERT(util::contains(waitedThreads_, tid));
@@ -384,13 +383,14 @@ Status DebuggerCore::ptraceGetEventMessage(edb::tid_t tid, unsigned long *messag
 	if (ptrace(PTRACE_GETEVENTMSG, tid, 0, message) == -1) {
 		const char *const strError = strerror(errno);
 		qWarning() << "Unable to get event message for thread" << tid << ": PTRACE_GETEVENTMSG failed:" << strError;
-		return Status(strError);
+		return Status(QString::fromLatin1(strError));
 	}
 	return Status::Ok;
 }
 
 /**
- * @brief DebuggerCore::ptraceOptions
+ * @brief Returns the ptrace option flags appropriate for the current debugger configuration.
+ *
  * @return
  */
 long DebuggerCore::ptraceOptions() const {
@@ -413,16 +413,14 @@ long DebuggerCore::ptraceOptions() const {
 		break;
 	}
 
-#if 0
-	// TODO(eteran): research this option for issue #46
+	// NOTE(eteran): enable this option for issue #46
 	options |= PTRACE_O_TRACEEXIT;
-#endif
-
 	return options;
 }
 
 /**
- * @brief DebuggerCore::handleThreadExit
+ * @brief Removes the exiting thread from the tracked thread map and waited-thread set.
+ *
  * @param tid
  * @param status
  */
@@ -434,7 +432,8 @@ void DebuggerCore::handleThreadExit(edb::tid_t tid, int status) {
 }
 
 /**
- * @brief DebuggerCore::handleThreadCreate
+ * @brief Handles a thread-creation ptrace event by registering the new thread and setting its trace options.
+ *
  * @param tid
  * @param status
  * @return
@@ -489,10 +488,11 @@ std::shared_ptr<IDebugEvent> DebuggerCore::handleThreadCreate(edb::tid_t tid, in
 }
 
 /**
- * @brief DebuggerCore::handleEvent
- * @param tid
- * @param status
- * @return
+ * @brief Processes the waitpid status for the given thread and returns the corresponding debug event.
+ *
+ * @param tid The thread ID of the thread for which the event is being handled.
+ * @param status The waitpid status value for the thread.
+ * @return The corresponding IDebugEvent, or nullptr if no event should be reported.
  */
 std::shared_ptr<IDebugEvent> DebuggerCore::handleEvent(edb::tid_t tid, int status) {
 
@@ -506,13 +506,23 @@ std::shared_ptr<IDebugEvent> DebuggerCore::handleEvent(edb::tid_t tid, int statu
 		// if this was the last thread, return nullptr
 		// so we report it to the user.
 		// if this wasn't, then we should silently
-		// procceed.
+		// proceed.
 		if (!threads_.empty()) {
 			return nullptr;
 		}
 	}
 
 	if (is_exit_trace_event(status)) {
+		// TODO(eteran): I think we're only really interested in the last thread exiting, but we should probably
+		//              handle this more gracefully, and perhaps even report the exit of each thread to
+		//              the caller. For now, we just ignore the event and continue the thread, which will result in a normal waitpid exit event.
+		qDebug() << "Thread" << tid << "is exiting...";
+		ptraceContinue(tid, resume_code(status));
+		if (threads_.size() == 1) {
+			// if this was the last thread maybe report to the caller that the process is exiting?
+			// For now, we just return nullptr and let the normal waitpid exit event be reported.
+		}
+		return nullptr;
 	}
 
 	// was it a thread create event?
@@ -542,7 +552,7 @@ std::shared_ptr<IDebugEvent> DebuggerCore::handleEvent(edb::tid_t tid, int statu
 	 *
 	 * We need to be very careful to avoid those future events causing the
 	 * active thread to be set, because we want it to remain set to the thread
-	 * which recieved the initial signal. This is all so that later when the
+	 * which received the initial signal. This is all so that later when the
 	 * user clicks resume, that the correct active thread gets (or doesn't)
 	 * get signaled, and the rest get resumed properly.
 	 *
@@ -593,8 +603,9 @@ std::shared_ptr<IDebugEvent> DebuggerCore::handleEvent(edb::tid_t tid, int statu
 }
 
 /**
- * @brief DebuggerCore::stopThreads
- * @return
+ * @brief Sends SIGSTOP to all running threads that have not yet been waited on.
+ *
+ * @return A Status object indicating success or failure of the operation. If any thread fails to stop, the error message will contain details.
  */
 Status DebuggerCore::stopThreads() {
 
@@ -610,7 +621,7 @@ Status DebuggerCore::stopThreads() {
 
 					if (syscall(SYS_tgkill, process_->pid(), thread->tid(), SIGSTOP) == -1) {
 						const char *const error = strerror(errno);
-						errorMessage += tr("Failed to stop thread %1: %2\n").arg(tid).arg(error);
+						errorMessage += tr("Failed to stop thread %1: %2\n").arg(tid).arg(QString::fromLatin1(error));
 					}
 
 					int thread_status;
@@ -638,15 +649,14 @@ Status DebuggerCore::stopThreads() {
 	}
 
 	qWarning() << qPrintable(errorMessage);
-	return Status("\n" + errorMessage);
+	return Status(QStringLiteral("\n") + errorMessage);
 }
 
 /**
- * waits for a debug event, witha timeout specified in milliseconds
+ * @brief Waits up to the given timeout for a debug event from any traced thread, returning the event or nullptr on timeout.
  *
- * @brief DebuggerCore::waitDebugEvent
- * @param msecs
- * @return nullptr if an error or timeout occurs
+ * @param msecs The maximum time to wait for a debug event, in milliseconds.
+ * @return The IDebugEvent if an event occurs, or nullptr if an error or timeout occurs.
  */
 std::shared_ptr<IDebugEvent> DebuggerCore::waitDebugEvent(std::chrono::milliseconds msecs) {
 
@@ -665,8 +675,9 @@ std::shared_ptr<IDebugEvent> DebuggerCore::waitDebugEvent(std::chrono::milliseco
 }
 
 /**
- * @brief DebuggerCore::attachThread
- * @param tid
+ * @brief Attaches to the given thread via PTRACE_ATTACH and registers it in the thread map.
+ *
+ * @param tid The thread ID of the thread to attach to.
  * @return 0 if successful, errno if failed
  */
 int DebuggerCore::attachThread(edb::tid_t tid) {
@@ -691,20 +702,23 @@ int DebuggerCore::attachThread(edb::tid_t tid) {
 			}
 
 			return 0;
-		} else if (ret == -1) {
-			return errno;
-		} else {
-			return -1; // unknown error
 		}
-	} else {
-		return errno;
+
+		if (ret == -1) {
+			return errno;
+		}
+
+		return -1; // unknown error
 	}
+
+	return errno;
 }
 
 /**
- * @brief DebuggerCore::attach
- * @param pid
- * @return
+ * @brief Attaches to an already-running process, tracing all of its threads.
+ *
+ * @param pid The process ID of the process to attach to.
+ * @return A Status object indicating success or failure of the attach operation.
  */
 Status DebuggerCore::attach(edb::pid_t pid) {
 
@@ -718,14 +732,14 @@ Status DebuggerCore::attach(edb::pid_t pid) {
 	int lastErr = attachThread(pid); // Fail early if we are going to
 	if (lastErr) {
 		process_ = nullptr;
-		return Status(std::strerror(lastErr));
+		return Status(QString::fromLatin1(std::strerror(lastErr)));
 	}
 
 	lastErr = -2;
 	bool attached;
 	do {
 		attached = false;
-		QDir proc_directory(QString("/proc/%1/task/").arg(pid));
+		QDir proc_directory(QStringLiteral("/proc/%1/task/").arg(pid));
 		for (const QString &s : proc_directory.entryList(QDir::NoDotAndDotDot | QDir::Dirs)) {
 			// this can get tricky if the threads decide to spawn new threads
 			// when we are attaching. I wish that linux had an atomic way to do this
@@ -749,12 +763,13 @@ Status DebuggerCore::attach(edb::pid_t pid) {
 	}
 
 	process_ = nullptr;
-	return Status(std::strerror(lastErr));
+	return Status(QString::fromLatin1(std::strerror(lastErr)));
 }
 
 /**
- * @brief DebuggerCore::detach
- * @return
+ * @brief Detaches from the traced process, resuming all its threads.
+ *
+ * @return A Status object indicating success or failure of the detach operation. If any thread fails to detach, the error message will contain details.
  */
 Status DebuggerCore::detach() {
 
@@ -767,7 +782,7 @@ Status DebuggerCore::detach() {
 		for (auto &thread : process_->threads()) {
 			if (ptrace(PTRACE_DETACH, thread->tid(), 0, 0) == -1) {
 				const char *const error = strerror(errno);
-				errorMessage += tr("Unable to detach from thread %1: PTRACE_DETACH failed: %2\n").arg(thread->tid()).arg(error);
+				errorMessage += tr("Unable to detach from thread %1: PTRACE_DETACH failed: %2\n").arg(thread->tid()).arg(QString::fromLatin1(error));
 			}
 		}
 
@@ -784,7 +799,7 @@ Status DebuggerCore::detach() {
 }
 
 /**
- * @brief DebuggerCore::kill
+ * @brief Sends SIGKILL to the traced process and waits for it to terminate.
  */
 void DebuggerCore::kill() {
 	if (attached()) {
@@ -793,8 +808,9 @@ void DebuggerCore::kill() {
 		::kill(process_->pid(), SIGKILL);
 
 		pid_t ret;
-		while ((ret = Posix::waitpid(-1, nullptr, __WALL)) != process_->pid() && ret != -1)
+		while ((ret = Posix::waitpid(-1, nullptr, __WALL)) != process_->pid() && ret != -1) {
 			;
+		}
 
 		process_ = nullptr;
 		reset();
@@ -802,7 +818,7 @@ void DebuggerCore::kill() {
 }
 
 /**
- * @brief DebuggerCore::detectCpuMode
+ * @brief Detects whether the debugged process is running in 32-bit or 64-bit mode and updates pointerSize_.
  */
 void DebuggerCore::detectCpuMode() {
 
@@ -820,15 +836,17 @@ void DebuggerCore::detectCpuMode() {
 	if (!errno) {
 		if (cs == userCodeSegment32_) {
 			if (pointerSize_ == sizeof(uint64_t)) {
-				qDebug() << "Debuggee is now 32 bit";
+				qDebug("Debuggee is now 32 bit");
 				cpuMode_ = CpuMode::x86_32;
 				CapstoneEDB::init(CapstoneEDB::Architecture::ARCH_X86);
 			}
 			pointerSize_ = sizeof(uint32_t);
 			return;
-		} else if (cs == userCodeSegment64_) {
+		}
+
+		if (cs == userCodeSegment64_) {
 			if (pointerSize_ == sizeof(uint32_t)) {
-				qDebug() << "Debuggee is now 64 bit";
+				qDebug("Debuggee is now 64 bit");
 				cpuMode_ = CpuMode::x86_64;
 				CapstoneEDB::init(CapstoneEDB::Architecture::ARCH_AMD64);
 			}
@@ -860,12 +878,14 @@ void DebuggerCore::detectCpuMode() {
 }
 
 /**
- * @brief DebuggerCore::open
- * @param path
- * @param cwd
- * @param args
- * @param tty
- * @return
+ * @brief Forks, optionally disables ASLR and lazy binding, and launches the specified process under ptrace.
+ *
+ * @param path The path to the executable to launch.
+ * @param cwd The working directory for the launched process.
+ * @param args The command-line arguments for the launched process.
+ * @param input The file to use as standard input for the launched process.
+ * @param output The file to use as standard output and standard error for the launched process.
+ * @return A Status object indicating success or failure of the launch operation.
  */
 Status DebuggerCore::open(const QString &path, const QString &cwd, const QList<QByteArray> &args, const QString &input, const QString &output) {
 
@@ -917,10 +937,10 @@ Status DebuggerCore::open(const QString &path, const QString &cwd, const QList<Q
 		const Status status = Unix::execute_process(path, cwd, args);
 
 #if defined __GNUG__ && __GNUC__ >= 5 || !defined __GNUG__ || defined __clang__ && __clang_major__ * 100 + __clang_minor__ >= 306
-		static_assert(std::is_trivially_copyable<QChar>::value, "Can't copy string of QChar to shared memory");
+		static_assert(std::is_trivially_copyable_v<QChar>, "Can't copy string of QChar to shared memory");
 #endif
 		QString error = status.error();
-		std::memcpy(sharedMem, error.constData(), std::min(sizeof(QChar) * error.size(), SharedMemSize - sizeof(QChar) /*prevent overwriting of last null*/));
+		std::memcpy(sharedMem, error.constData(), std::min<uint64_t>(sizeof(QChar) * error.size(), SharedMemSize - sizeof(QChar) /*prevent overwriting of last null*/));
 
 		// we should never get here!
 		abort();
@@ -940,7 +960,7 @@ Status DebuggerCore::open(const QString &path, const QString &cwd, const QList<Q
 			::munmap(sharedMem, SharedMemSize);
 
 			if (wpidRet == -1) {
-				return Status(tr("waitpid() failed: %1").arg(std::strerror(errno)) + (childError.isEmpty() ? "" : tr(".\nError returned by child:\n%1.").arg(childError)));
+				return Status(tr("waitpid() failed: %1").arg(QString::fromLatin1(std::strerror(errno))) + (childError.isEmpty() ? QString() : tr(".\nError returned by child:\n%1.").arg(childError)));
 			}
 
 			if (WIFEXITED(status)) {
@@ -961,7 +981,7 @@ Status DebuggerCore::open(const QString &path, const QString &cwd, const QList<Q
 				endDebugSession();
 				return Status(tr("First event after waitpid() should be a STOP of type SIGTRAP, but wasn't, instead status=0x%1")
 								  .arg(status, 0, 16) +
-							  (childError.isEmpty() ? "" : tr(".\nError returned by child:\n%1.").arg(childError)));
+							  (childError.isEmpty() ? QString() : tr(".\nError returned by child:\n%1.").arg(childError)));
 			}
 
 			waitedThreads_.insert(pid);
@@ -993,7 +1013,8 @@ Status DebuggerCore::open(const QString &path, const QString &cwd, const QList<Q
 }
 
 /**
- * @brief DebuggerCore::lastMeansOfCapture
+ * @brief Returns how the most recently debugged process was captured (attached or launched).
+ *
  * @return how the last process was captured to debug
  */
 DebuggerCore::MeansOfCapture DebuggerCore::lastMeansOfCapture() const {
@@ -1001,7 +1022,7 @@ DebuggerCore::MeansOfCapture DebuggerCore::lastMeansOfCapture() const {
 }
 
 /**
- * @brief DebuggerCore::reset
+ * @brief Clears all thread tracking state after a debug session ends.
  */
 void DebuggerCore::reset() {
 	threads_.clear();
@@ -1010,7 +1031,8 @@ void DebuggerCore::reset() {
 }
 
 /**
- * @brief DebuggerCore::createState
+ * @brief Creates and returns a new architecture-specific register state object.
+ *
  * @return
  */
 std::unique_ptr<IState> DebuggerCore::createState() const {
@@ -1018,13 +1040,14 @@ std::unique_ptr<IState> DebuggerCore::createState() const {
 }
 
 /**
- * @brief DebuggerCore::enumerateProcesses
+ * @brief Returns a map of all running processes on the system by scanning /proc.
+ *
  * @return
  */
 QMap<edb::pid_t, std::shared_ptr<IProcess>> DebuggerCore::enumerateProcesses() const {
 	QMap<edb::pid_t, std::shared_ptr<IProcess>> ret;
 
-	QDir proc_directory("/proc/");
+	QDir proc_directory(QStringLiteral("/proc/"));
 	QFileInfoList entries = proc_directory.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
 
 	for (const QFileInfo &info : entries) {
@@ -1044,9 +1067,10 @@ QMap<edb::pid_t, std::shared_ptr<IProcess>> DebuggerCore::enumerateProcesses() c
 }
 
 /**
- * @brief DebuggerCore::parentPid
- * @param pid
- * @return
+ * @brief Returns the parent process ID for the given PID by reading /proc/[pid]/stat.
+ *
+ * @param pid The process ID for which to retrieve the parent PID.
+ * @return The parent process ID, or 0 if it cannot be determined.
  */
 edb::pid_t DebuggerCore::parentPid(edb::pid_t pid) const {
 
@@ -1060,7 +1084,8 @@ edb::pid_t DebuggerCore::parentPid(edb::pid_t pid) const {
 }
 
 /**
- * @brief DebuggerCore::cpuType
+ * @brief Returns the hash identifier for the current build architecture.
+ *
  * @return edb's native CPU type
  */
 uint64_t DebuggerCore::cpuType() const {
@@ -1078,122 +1103,133 @@ uint64_t DebuggerCore::cpuType() const {
 }
 
 /**
- * @brief DebuggerCore::stackPointer
- * @return
+ * @brief Returns the architecture-appropriate stack pointer register name.
+ *
+ * @return The name of the stack pointer register for the current architecture.
  */
 QString DebuggerCore::stackPointer() const {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	if (edb::v1::debuggeeIs32Bit()) {
-		return "esp";
-	} else {
-		return "rsp";
+		return QStringLiteral("esp");
 	}
+
+	return QStringLiteral("rsp");
+
 #elif defined(EDB_ARM32) || defined(EDB_ARM64)
-	return "sp";
+	return QStringLiteral("sp");
 #else
 #error "Unsupported Architecture"
 #endif
 }
 
 /**
- * @brief DebuggerCore::framePointer
- * @return
+ * @brief Returns the architecture-appropriate frame pointer register name.
+ *
+ * @return The name of the frame pointer register for the current architecture.
  */
 QString DebuggerCore::framePointer() const {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	if (edb::v1::debuggeeIs32Bit()) {
-		return "ebp";
-	} else {
-		return "rbp";
+		return QStringLiteral("ebp");
 	}
+
+	return QStringLiteral("rbp");
 #elif defined(EDB_ARM32) || defined(EDB_ARM64)
-	return "fp";
+	return QStringLiteral("fp");
 #else
 #error "Unsupported Architecture"
 #endif
 }
 
 /**
- * @brief DebuggerCore::instructionPointer
- * @return
+ * @brief Returns the architecture-appropriate instruction pointer register name.
+ *
+ * @return The name of the instruction pointer register for the current architecture.
  */
 QString DebuggerCore::instructionPointer() const {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	if (edb::v1::debuggeeIs32Bit()) {
-		return "eip";
-	} else {
-		return "rip";
+		return QStringLiteral("eip");
 	}
+
+	return QStringLiteral("rip");
 #elif defined(EDB_ARM32) || defined(EDB_ARM64)
-	return "pc";
+	return QStringLiteral("pc");
 #else
 #error "Unsupported Architecture"
 #endif
 }
 
 /**
- * @brief DebuggerCore::flagRegister
- * @return the name of the flag register
+ * @brief Returns the architecture-appropriate flags/status register name.
+ *
+ * @return The name of the flag register for the current architecture.
  */
 QString DebuggerCore::flagRegister() const {
 #if defined(EDB_X86) || defined(EDB_X86_64)
 	if (edb::v1::debuggeeIs32Bit()) {
-		return "eflags";
-	} else {
-		return "rflags";
+		return QStringLiteral("eflags");
 	}
+
+	return QStringLiteral("rflags");
 #elif defined(EDB_ARM32) || defined(EDB_ARM64)
-	return "cpsr";
+	return QStringLiteral("cpsr");
 #else
 #error "Unsupported Architecture"
 #endif
 }
 
 /**
- * @brief DebuggerCore::process
- * @return
+ * @brief Returns a raw pointer to the currently attached process, or nullptr if not attached.
+ *
+ * @return A pointer to the IProcess representing the currently debugged process, or nullptr if no process is being debugged.
  */
 IProcess *DebuggerCore::process() const {
 	return process_.get();
 }
 
 /**
- * @brief DebuggerCore::setIgnoredExceptions
- * @param exceptions
+ * @brief Stores the list of exception (signal) numbers that should be silently passed to the debuggee.
+ *
+ * @param exceptions A list of signal numbers to ignore.
  */
 void DebuggerCore::setIgnoredExceptions(const QList<qlonglong> &exceptions) {
 	ignoredExceptions_ = exceptions;
 }
 
 /**
- * @brief DebuggerCore::exceptions
- * @return
+ * @brief Returns the map of Unix signal numbers and their names.
+ *
+ * @return A map of Unix signal numbers to their corresponding names.
  */
 QMap<qlonglong, QString> DebuggerCore::exceptions() const {
 	return Unix::exceptions();
 }
 
 /**
- * @brief DebuggerCore::exceptionName
- * @param value
- * @return
+ * @brief Returns the name string for the Unix signal with the given numeric value.
+ *
+ * @param value The numeric value of the Unix signal for which to retrieve the name.
+ * @return The name of the Unix signal corresponding to the given numeric value.
  */
 QString DebuggerCore::exceptionName(qlonglong value) {
 	return Unix::exception_name(value);
 }
 
 /**
- * @brief DebuggerCore::exceptionValue
- * @param name
- * @return
+ * @brief Returns the numeric value for the Unix signal with the given name.
+ *
+ * @param name The name of the Unix signal for which to retrieve the numeric value.
+ * @return The numeric value of the Unix signal corresponding to the given name.
  */
 qlonglong DebuggerCore::exceptionValue(const QString &name) {
 	return Unix::exception_value(name);
 }
 
 /**
- * @brief DebuggerCore::nopFillByte
- * @return
+ * @brief Returns the byte value used to fill NOP-padded regions for the current architecture.
+ *
+ * @return The byte value used to fill NOP-padded regions for the current architecture.
  */
 uint8_t DebuggerCore::nopFillByte() const {
 #if defined(EDB_X86) || defined(EDB_X86_64)

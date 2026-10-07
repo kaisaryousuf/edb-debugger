@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Breakpoint.h"
 #include "Configuration.h"
@@ -40,7 +28,8 @@ const std::vector<uint8_t> BreakpointInstructionUD0   = {0x0f, 0xff};
 }
 
 /**
- * @brief Breakpoint::Breakpoint
+ * @brief Constructs a breakpoint at the given address, writing the trap instruction immediately.
+ *
  * @param address
  */
 Breakpoint::Breakpoint(edb::address_t address)
@@ -49,10 +38,13 @@ Breakpoint::Breakpoint(edb::address_t address)
 	if (!this->enable()) {
 		throw BreakpointCreationError();
 	}
+
+	module_ = edb::v2::module_for_address(address);
 }
 
 /**
- * @brief Breakpoint::supportedTypes
+ * @brief Returns the list of all software breakpoint instruction types supported on x86/x86-64.
+ *
  * @return
  */
 auto Breakpoint::supportedTypes() -> std::vector<BreakpointType> {
@@ -74,19 +66,8 @@ auto Breakpoint::supportedTypes() -> std::vector<BreakpointType> {
 }
 
 /**
- * @brief Breakpoint::setType
- * @param type
- */
-void Breakpoint::setType(TypeId type) {
-	disable();
-	type_ = type;
-	if (!enable()) {
-		throw BreakpointCreationError();
-	}
-}
-
-/**
- * @brief Breakpoint::setType
+ * @brief Disables the current breakpoint, changes its instruction type, and re-enables it.
+ *
  * @param type
  */
 void Breakpoint::setType(IBreakpoint::TypeId type) {
@@ -96,25 +77,30 @@ void Breakpoint::setType(IBreakpoint::TypeId type) {
 		throw BreakpointCreationError();
 	}
 
-	setType(type);
+	type_ = type;
+
+	if (!enable()) {
+		throw BreakpointCreationError();
+	}
 }
 
 /**
- * @brief Breakpoint::~Breakpoint
+ * @brief Destroys the breakpoint and restores the original instruction bytes.
  */
 Breakpoint::~Breakpoint() {
-	this->disable();
+	disable();
 }
 
 /**
- * @brief Breakpoint::enable
+ * @brief Writes the breakpoint instruction bytes to the target process, saving the original bytes.
+ *
  * @return
  */
 bool Breakpoint::enable() {
 	if (!enabled()) {
 		if (IProcess *process = edb::v1::debugger_core->process()) {
 			std::vector<uint8_t> prev(2);
-			if (process->readBytes(address(), &prev[0], prev.size())) {
+			if (process->readBytes(address(), prev.data(), prev.size())) {
 				originalBytes_                      = prev;
 				const std::vector<uint8_t> *bpBytes = nullptr;
 
@@ -172,13 +158,14 @@ bool Breakpoint::enable() {
 }
 
 /**
- * @brief Breakpoint::disable
+ * @brief Restores the original instruction bytes in the target process to remove the breakpoint.
+ *
  * @return
  */
 bool Breakpoint::disable() {
 	if (enabled()) {
 		if (IProcess *process = edb::v1::debugger_core->process()) {
-			if (process->writeBytes(address(), &originalBytes_[0], originalBytes_.size())) {
+			if (process->writeBytes(address(), originalBytes_.data(), originalBytes_.size())) {
 				enabled_ = false;
 				return true;
 			}
@@ -188,14 +175,15 @@ bool Breakpoint::disable() {
 }
 
 /**
- * @brief Breakpoint::hit
+ * @brief Increments the breakpoint hit count.
  */
 void Breakpoint::hit() {
 	++hitCount_;
 }
 
 /**
- * @brief Breakpoint::setOneTime
+ * @brief Sets whether the breakpoint should automatically remove itself after being hit once.
+ *
  * @param value
  */
 void Breakpoint::setOneTime(bool value) {
@@ -203,7 +191,8 @@ void Breakpoint::setOneTime(bool value) {
 }
 
 /**
- * @brief Breakpoint::setInternal
+ * @brief Sets whether the breakpoint is internal (not shown to the user in the UI).
+ *
  * @param value
  */
 void Breakpoint::setInternal(bool value) {
@@ -211,7 +200,8 @@ void Breakpoint::setInternal(bool value) {
 }
 
 /**
- * @brief Breakpoint::possibleRewindSizes
+ * @brief Returns the possible instruction sizes (in bytes) to rewind the PC when a breakpoint is triggered.
+ *
  * @return
  */
 std::vector<size_t> Breakpoint::possibleRewindSizes() {

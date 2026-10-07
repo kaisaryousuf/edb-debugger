@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogBreakpoints.h"
 #include "Expression.h"
@@ -23,23 +11,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "MemoryRegions.h"
 #include "edb.h"
 
-#include <QHeaderView>
-#include <QInputDialog>
-#include <QMessageBox>
-
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
+#include <QHeaderView>
+#include <QInputDialog>
 #include <QMessageBox>
 #include <QStringList>
 #include <QTextStream>
 
-namespace BreakpointManagerPlugin {
-
 /**
- * @brief DialogBreakpoints::DialogBreakpoints
- * @param parent
- * @param f
+ * @brief Constructor for the DialogBreakpoints class.
+ *
+ * @param parent The parent widget for the dialog.
+ * @param f The window flags for the dialog.
  */
 DialogBreakpoints::DialogBreakpoints(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
@@ -49,7 +34,9 @@ DialogBreakpoints::DialogBreakpoints(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogBreakpoints::showEvent
+ * @brief Handles the show event for the dialog.
+ *
+ * @param event The show event.
  */
 void DialogBreakpoints::showEvent(QShowEvent *) {
 	connect(edb::v1::disassembly_widget(), SIGNAL(signalUpdated()), this, SLOT(updateList()));
@@ -57,14 +44,16 @@ void DialogBreakpoints::showEvent(QShowEvent *) {
 }
 
 /**
- * @brief DialogBreakpoints::hideEvent
+ * @brief Handles the hide event for the dialog.
+ *
+ * @param event The hide event.
  */
 void DialogBreakpoints::hideEvent(QHideEvent *) {
 	disconnect(edb::v1::disassembly_widget(), SIGNAL(signalUpdated()), this, SLOT(updateList()));
 }
 
 /**
- * @brief DialogBreakpoints::updateList
+ * @brief Updates the list of breakpoints in the dialog.
  */
 void DialogBreakpoints::updateList() {
 
@@ -75,7 +64,7 @@ void DialogBreakpoints::updateList() {
 
 	for (const std::shared_ptr<IBreakpoint> &bp : breakpoint_state) {
 
-		//Skip if it's an internal bp; we don't want to insert a row for it.
+		// Skip if it's an internal bp; we don't want to insert a row for it.
 		if (bp->internal()) {
 			continue;
 		}
@@ -103,7 +92,7 @@ void DialogBreakpoints::updateList() {
 }
 
 /**
- * @brief DialogBreakpoints::on_btnAdd_clicked
+ * @brief Handles the event when the "Add" button is clicked. Prompts the user for an address and attempts to create a breakpoint at that address.
  */
 void DialogBreakpoints::on_btnAdd_clicked() {
 
@@ -119,13 +108,13 @@ void DialogBreakpoints::on_btnAdd_clicked() {
 			updateList();
 
 		} else {
-			QMessageBox::critical(this, tr("Error In Address Expression!"), address.error().what());
+			QMessageBox::critical(this, tr("Error In Address Expression!"), QString::fromLatin1(address.error().what()));
 		}
 	}
 }
 
 /**
- * @brief DialogBreakpoints::on_btnCondition_clicked
+ * @brief Handles the event when the "Condition" button is clicked. Prompts the user to set a condition for the selected breakpoint.
  */
 void DialogBreakpoints::on_btnCondition_clicked() {
 	QList<QTableWidgetItem *> sel = ui.tableWidget->selectedItems();
@@ -143,7 +132,7 @@ void DialogBreakpoints::on_btnCondition_clicked() {
 }
 
 /**
- * @brief DialogBreakpoints::on_btnRemove_clicked
+ * @brief Handles the event when the "Remove" button is clicked. Removes the selected breakpoint.
  */
 void DialogBreakpoints::on_btnRemove_clicked() {
 	QList<QTableWidgetItem *> sel = ui.tableWidget->selectedItems();
@@ -156,9 +145,10 @@ void DialogBreakpoints::on_btnRemove_clicked() {
 }
 
 /**
- * @brief DialogBreakpoints::on_tableWidget_cellDoubleClicked
- * @param row
- * @param col
+ * @brief Handles the event when a cell in the table widget is double-clicked. Depending on the column, it either jumps to the address or allows setting a condition for the breakpoint.
+ *
+ * @param row The row of the cell that was double-clicked.
+ * @param col The column of the cell that was double-clicked.
  */
 void DialogBreakpoints::on_tableWidget_cellDoubleClicked(int row, int col) {
 	switch (col) {
@@ -184,16 +174,13 @@ void DialogBreakpoints::on_tableWidget_cellDoubleClicked(int row, int col) {
 }
 
 /**
- * @brief DialogBreakpoints::on_btnImport_clicked
- *
- * Opens a file selection window to choose a file with newline-separated,
- * hex address breakpoints.
+ * @brief Opens a file selection window to choose a file with newline-separated, hex address breakpoints.
  */
 void DialogBreakpoints::on_btnImport_clicked() {
 
 	// Let the user choose the file; get the file name.
 	QString home_directory = QDir::homePath();
-	QString file_name      = QFileDialog::getOpenFileName(this, tr("Breakpoint Import File"), home_directory, nullptr);
+	QString file_name      = QFileDialog::getOpenFileName(this, tr("Breakpoint Import File"), home_directory);
 
 	if (file_name.isEmpty()) {
 		return;
@@ -210,13 +197,13 @@ void DialogBreakpoints::on_btnImport_clicked() {
 	QStringList errors;
 
 	// Iterate through each line; attempt to make a breakpoint for each line.
-	// Addreses should be prefixed with 0x, i.e. a hex number.
+	// Addresses should be prefixed with 0x, i.e. a hex number.
 	// Count each breakpoint successfully made.
 	int count = 0;
 	Q_FOREVER {
 
 		// Get the address
-		QString line = file.readLine().trimmed();
+		auto line = QString::fromLocal8Bit(file.readLine().trimmed());
 
 		if (line.isEmpty()) {
 			break;
@@ -256,8 +243,8 @@ void DialogBreakpoints::on_btnImport_clicked() {
 	}
 
 	// Report any errors to the user
-	if (errors.size() > 0) {
-		QMessageBox::warning(this, tr("Invalid Breakpoints"), tr("The following breakpoints were not made:\n%1").arg(errors.join("")));
+	if (!errors.empty()) {
+		QMessageBox::warning(this, tr("Invalid Breakpoints"), tr("The following breakpoints were not made:\n%1").arg(errors.join(QLatin1String("\n"))));
 	}
 
 	// Report breakpoints successfully made
@@ -267,33 +254,30 @@ void DialogBreakpoints::on_btnImport_clicked() {
 }
 
 /**
- * @brief DialogBreakpoints::on_btnExport_clicked
- *
- * Opens a file selection window to choose a file to save newline-separated,
- * hex address breakpoints.
+ * @brief Opens a file selection window to choose a file to save newline-separated, hex address breakpoints.
  */
 void DialogBreakpoints::on_btnExport_clicked() {
 
-	//Get the current list of breakpoints
+	// Get the current list of breakpoints
 	const IDebugger::BreakpointList breakpoint_state = edb::v1::debugger_core->backupBreakpoints();
 
-	//Create a list for addresses to be exported at the end
+	// Create a list for addresses to be exported at the end
 	QList<edb::address_t> export_list;
 
-	//Go through our breakpoints and add for export if not one-time and not internal.
+	// Go through our breakpoints and add for export if not one-time and not internal.
 	for (const std::shared_ptr<IBreakpoint> &bp : breakpoint_state) {
 		if (!bp->oneTime() && !bp->internal()) {
 			export_list.append(bp->address());
 		}
 	}
 
-	//If there are no breakpoints, fail
+	// If there are no breakpoints, fail
 	if (export_list.isEmpty()) {
 		QMessageBox::critical(this, tr("No Breakpoints"), tr("There are no breakpoints to export."));
 		return;
 	}
 
-	//Now ask the user for a file, open it, and write each address to it.
+	// Now ask the user for a file, open it, and write each address to it.
 	QString filename = QFileDialog::getSaveFileName(this, tr("Breakpoint Export File"), QDir::homePath());
 
 	if (filename.isEmpty()) {
@@ -307,11 +291,9 @@ void DialogBreakpoints::on_btnExport_clicked() {
 	}
 
 	for (edb::address_t address : export_list) {
-		QString string_address = "0x" + QString::number(address, 16) + "\n";
+		auto string_address = QStringLiteral("0x") + QString::number(address, 16) + QStringLiteral("\n");
 		file.write(string_address.toLatin1());
 	}
 
 	QMessageBox::information(this, tr("Breakpoint Export"), tr("Exported %1 breakpoints").arg(export_list.size()));
-}
-
 }

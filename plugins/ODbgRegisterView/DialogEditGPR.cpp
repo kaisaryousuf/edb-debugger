@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogEditGPR.h"
 #include "EntryGridKeyUpDownEventFilter.h"
@@ -43,7 +32,7 @@ DialogEditGPR::DialogEditGPR(QWidget *parent, Qt::WindowFlags f)
 		auto &label = columnLabel(static_cast<Column>(FIRST_ENTRY_COL + c));
 		label       = new QLabel(this);
 		label->setAlignment(Qt::AlignCenter);
-		allContentsGrid->addWidget(label, GPR_LABELS_ROW, FIRST_ENTRY_COL + c);
+		allContentsGrid->addWidget(label, GPR_LABELS_ROW, static_cast<int>(FIRST_ENTRY_COL + c));
 	}
 
 	{
@@ -52,7 +41,7 @@ DialogEditGPR::DialogEditGPR(QWidget *parent, Qt::WindowFlags f)
 		for (std::size_t f = 0; f < formatNames.size(); ++f) {
 			auto &label = rowLabel(static_cast<Row>(FIRST_ENTRY_ROW + f));
 			label       = new QLabel(formatNames[f], this);
-			allContentsGrid->addWidget(label, FIRST_ENTRY_ROW + f, FORMAT_LABELS_COL);
+			allContentsGrid->addWidget(label, static_cast<int>(FIRST_ENTRY_ROW + f), FORMAT_LABELS_COL);
 		}
 	}
 
@@ -60,8 +49,8 @@ DialogEditGPR::DialogEditGPR(QWidget *parent, Qt::WindowFlags f)
 	{
 		static const auto offsetsInInteger = util::make_array<std::size_t>(0u, 0u, 0u, 1u, 0u);
 		static const auto integerSizes     = util::make_array<std::size_t>(8u, 4u, 2u, 1u, 1u);
-		static_assert(std::tuple_size<decltype(integerSizes)>::value == DialogEditGPR::ENTRY_COLS, "integerSizes length doesn't equal ENTRY_COLS");
-		static_assert(std::tuple_size<decltype(offsetsInInteger)>::value == DialogEditGPR::ENTRY_COLS, "offsetsInInteger length doesn't equal ENTRY_COLS");
+		static_assert(std::tuple_size_v<decltype(integerSizes)> == DialogEditGPR::ENTRY_COLS, "integerSizes length doesn't equal ENTRY_COLS");
+		static_assert(std::tuple_size_v<decltype(offsetsInInteger)> == DialogEditGPR::ENTRY_COLS, "offsetsInInteger length doesn't equal ENTRY_COLS");
 		static const auto formats = util::make_array(GprEdit::Format::Hex, GprEdit::Format::Signed, GprEdit::Format::Unsigned);
 		for (std::size_t f = 0; f < formats.size(); ++f) {
 			for (std::size_t c = 0; c < ENTRY_COLS; ++c) {
@@ -69,7 +58,7 @@ DialogEditGPR::DialogEditGPR(QWidget *parent, Qt::WindowFlags f)
 				entry       = new GprEdit(offsetsInInteger[c], integerSizes[c], formats[f], this);
 				connect(entry, &GprEdit::textEdited, this, &DialogEditGPR::onTextEdited);
 				entry->installEventFilter(this);
-				allContentsGrid->addWidget(entry, FIRST_ENTRY_ROW + f, FIRST_ENTRY_COL + c);
+				allContentsGrid->addWidget(entry, static_cast<int>(FIRST_ENTRY_ROW + f), static_cast<int>(FIRST_ENTRY_COL + c));
 			}
 		}
 	}
@@ -110,12 +99,15 @@ DialogEditGPR::DialogEditGPR(QWidget *parent, Qt::WindowFlags f)
 
 GprEdit *&DialogEditGPR::entry(DialogEditGPR::Row row, DialogEditGPR::Column col) {
 
-	if (row < ENTRY_ROWS)
+	if (row < ENTRY_ROWS) {
 		return entries_.at((row - FIRST_ENTRY_ROW) * ENTRY_COLS + (col - FIRST_ENTRY_COL));
-	if (col == GPR8H_COL)
+	}
+	if (col == GPR8H_COL) {
 		return *(entries_.end() - 2);
-	if (col == GPR8L_COL)
+	}
+	if (col == GPR8L_COL) {
 		return entries_.back();
+	}
 
 	Q_ASSERT("Invalid row&col specified" && 0);
 	return entries_.front(); // silence the compiler
@@ -167,8 +159,9 @@ void DialogEditGPR::resetLayout() {
 		label->show();
 	}
 
-	static const auto colLabelStrings = util::make_array("R?X", "E?X", "?X", "?H", "?L");
-	static_assert(std::tuple_size<decltype(colLabelStrings)>::value == ENTRY_COLS, "Number of labels not equal to number of entry columns");
+	static const auto colLabelStrings = util::make_array<QString>(
+		QStringLiteral("R?X"), QStringLiteral("E?X"), QStringLiteral("?X"), QStringLiteral("?H"), QStringLiteral("?L"));
+	static_assert(std::tuple_size_v<decltype(colLabelStrings)> == ENTRY_COLS, "Number of labels not equal to number of entry columns");
 
 	for (std::size_t c = 0; c < ENTRY_COLS; ++c) {
 		columnLabel(static_cast<Column>(GPR64_COL + c))->setText(colLabelStrings[c]);
@@ -198,18 +191,22 @@ void DialogEditGPR::setupEntriesAndLabels() {
 
 	const QString regName = reg_.name().toUpper();
 
-	if (bitSize_ == 64)
+	if (bitSize_ == 64) {
 		columnLabel(GPR64_COL)->setText(regName);
-	else if (bitSize_ == 32)
+	} else if (bitSize_ == 32) {
 		columnLabel(GPR32_COL)->setText(regName);
-	else if (bitSize_ == 16)
+	} else if (bitSize_ == 16) {
 		columnLabel(GPR16_COL)->setText(regName);
-	else
+	} else {
 		columnLabel(GPR8L_COL)->setText(regName);
+	}
 
-	static const auto x86GPRsWithHighBytesAddressable    = util::make_array<QString>("EAX", "ECX", "EDX", "EBX", "RAX", "RCX", "RDX", "RBX");
-	static const auto x86GPRsWithHighBytesNotAddressable = util::make_array<QString>("ESP", "EBP", "ESI", "EDI", "RSP", "RBP", "RSI", "RDI");
-	static const auto upperGPRs64                        = util::make_array<QString>("R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15");
+	static const auto x86GPRsWithHighBytesAddressable = util::make_array<QString>(
+		QStringLiteral("EAX"), QStringLiteral("ECX"), QStringLiteral("EDX"), QStringLiteral("EBX"), QStringLiteral("RAX"), QStringLiteral("RCX"), QStringLiteral("RDX"), QStringLiteral("RBX"));
+	static const auto x86GPRsWithHighBytesNotAddressable = util::make_array<QString>(
+		QStringLiteral("ESP"), QStringLiteral("EBP"), QStringLiteral("ESI"), QStringLiteral("EDI"), QStringLiteral("RSP"), QStringLiteral("RBP"), QStringLiteral("RSI"), QStringLiteral("RDI"));
+	static const auto upperGPRs64 = util::make_array<QString>(
+		QStringLiteral("R8"), QStringLiteral("R9"), QStringLiteral("R10"), QStringLiteral("R11"), QStringLiteral("R12"), QStringLiteral("R13"), QStringLiteral("R14"), QStringLiteral("R15"));
 
 	bool x86GPR     = false;
 	bool upperGPR64 = false;
@@ -230,21 +227,21 @@ void DialogEditGPR::setupEntriesAndLabels() {
 
 	if (x86GPR) {
 		if (bitSize_ == 64) {
-			columnLabel(GPR32_COL)->setText("E" + regName.mid(1));
+			columnLabel(GPR32_COL)->setText(QStringLiteral("E") + regName.mid(1));
 		}
 
 		columnLabel(GPR16_COL)->setText(regName.mid(1));
-		columnLabel(GPR8H_COL)->setText(regName.mid(1, 1) + "H");
+		columnLabel(GPR8H_COL)->setText(regName.mid(1, 1) + QStringLiteral("H"));
 
 		if (bitSize_ == 64 && !contains(x86GPRsWithHighBytesAddressable, regName)) {
-			columnLabel(GPR8L_COL)->setText(regName.mid(1) + "L");
+			columnLabel(GPR8L_COL)->setText(regName.mid(1) + QStringLiteral("L"));
 		} else {
-			columnLabel(GPR8L_COL)->setText(regName.mid(1, 1) + "L");
+			columnLabel(GPR8L_COL)->setText(regName.mid(1, 1) + QStringLiteral("L"));
 		}
 	} else if (upperGPR64) {
-		columnLabel(GPR32_COL)->setText(regName + "D");
-		columnLabel(GPR16_COL)->setText(regName + "W");
-		columnLabel(GPR8L_COL)->setText(regName + "B");
+		columnLabel(GPR32_COL)->setText(regName + QStringLiteral("D"));
+		columnLabel(GPR16_COL)->setText(regName + QStringLiteral("W"));
+		columnLabel(GPR8L_COL)->setText(regName + QStringLiteral("B"));
 		hideColumn(GPR8H_COL);
 	} else {
 		// These have hex only format

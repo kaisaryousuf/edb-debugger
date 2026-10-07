@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ELFXX.h"
 #include "IDebugger.h"
@@ -35,37 +23,46 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace BinaryInfoPlugin {
 
 class ELFBinaryException : public std::exception {
-	const char *what() const noexcept override = 0;
+	[[nodiscard]] const char *what() const noexcept override = 0;
 };
 
 class InvalidArguments : public ELFBinaryException {
 public:
-	const char *what() const noexcept override {
+	[[nodiscard]] const char *what() const noexcept override {
 		return "Invalid Arguments";
 	}
 };
 
 class ReadFailure : public ELFBinaryException {
 public:
-	const char *what() const noexcept override {
+	[[nodiscard]] const char *what() const noexcept override {
 		return "Read Failure";
 	}
 };
 
 class InvalidELF : public ELFBinaryException {
 public:
-	const char *what() const noexcept override {
+	[[nodiscard]] const char *what() const noexcept override {
 		return "Invalid ELF";
 	}
 };
 
 class InvalidArchitecture : public ELFBinaryException {
 public:
-	const char *what() const noexcept override {
+	[[nodiscard]] const char *what() const noexcept override {
 		return "Invalid Architecture";
 	}
 };
 
+/**
+ * @brief Constructs an ELFXX binary from the given region. The region must contain the entire ELF header and program headers (if present).
+ *
+ * @param region The region containing the ELF header and program headers.
+ * @throws InvalidArguments if the region is null.
+ * @throws ReadFailure if there was an error reading from the process.
+ * @throws InvalidELF if the region does not contain a valid ELF header.
+ * @throws InvalidArchitecture if the ELF header is for a different architecture than expected.
+ */
 template <class ElfHeader>
 ELFXX<ElfHeader>::ELFXX(const std::shared_ptr<IRegion> &region)
 	: region_(region) {
@@ -109,7 +106,7 @@ ELFXX<ElfHeader>::ELFXX(const std::shared_ptr<IRegion> &region)
 		for (uint16_t entry = 0; entry < header_.e_phnum; ++entry) {
 
 			if (!process->readBytes(phdr_base + (phdr_size * entry), &phdr, sizeof(phdr_type))) {
-				qDebug() << "Failed to read program header";
+				qDebug("Failed to read program header");
 				break;
 			}
 
@@ -121,10 +118,12 @@ ELFXX<ElfHeader>::ELFXX(const std::shared_ptr<IRegion> &region)
 		}
 	} else if (header_.e_type == ET_DYN) {
 
-		const QString process_executable = edb::v1::debugger_core->process()->name();
-		for (const std::shared_ptr<IRegion> &r : edb::v1::memory_regions().regions()) {
-			if (r->executable() && r->name() == region->name()) {
-				lowest = std::min(lowest, r->start());
+		if (IProcess *process = edb::v1::debugger_core->process()) {
+			const QString process_executable = process->name();
+			for (const std::shared_ptr<IRegion> &r : edb::v1::memory_regions().regions()) {
+				if (r->accessible() && r->name() == region->name()) {
+					lowest = std::min(lowest, r->start());
+				}
 			}
 		}
 	}
@@ -137,11 +136,12 @@ ELFXX<ElfHeader>::ELFXX(const std::shared_ptr<IRegion> &region)
 	}
 }
 
-template <class ElfHeader>
 /**
- * @brief ELFXX<ElfHeader>::headerSize
- * @return the number of bytes in this executable's header
+ * @brief Returns the size of the ELF header, including the program headers if they immediately follow the ELF header.
+ *
+ * @return The size of the ELF header and program headers if they are contiguous. Otherwise, just the size of the ELF header.
  */
+template <class ElfHeader>
 size_t ELFXX<ElfHeader>::headerSize() const {
 	size_t size = header_.e_ehsize;
 	// Do the program headers immediately follow the ELF header?
@@ -152,8 +152,9 @@ size_t ELFXX<ElfHeader>::headerSize() const {
 }
 
 /**
- * @brief ELFXX<ElfHeader>::headers
- * @return a list of all headers in this binary
+ * @brief Returns a list of all headers in this binary.
+ *
+ * @return a list of all headers in this binary.
  */
 template <class ElfHeader>
 std::vector<IBinary::Header> ELFXX<ElfHeader>::headers() const {
@@ -161,9 +162,10 @@ std::vector<IBinary::Header> ELFXX<ElfHeader>::headers() const {
 }
 
 /**
- * @brief ELFXX<ElfHeader>::validateHeader
+ * @brief Ensures that the header that we read was valid.
  *
- * ensures that the header that we read was valid
+ * @throws InvalidELF if the header is not a valid ELF header.
+ * @throws InvalidArchitecture if the ELF header is for a different architecture than expected.
  */
 template <class ElfHeader>
 void ELFXX<ElfHeader>::validateHeader() {
@@ -176,8 +178,10 @@ void ELFXX<ElfHeader>::validateHeader() {
 }
 
 /**
- * @brief ELFXX<ElfHeader>::entryPoint
- * @return the entry point if any of the binary
+ * @brief Returns the entry point of the ELF binary, which is the virtual address of the first instruction to execute when the binary is loaded.
+ * This is calculated as the entry point specified in the ELF header plus the base address of the binary in memory.
+ *
+ * @return The entry point if any of the binary.
  */
 template <class ElfHeader>
 edb::address_t ELFXX<ElfHeader>::entryPoint() {
@@ -185,9 +189,10 @@ edb::address_t ELFXX<ElfHeader>::entryPoint() {
 }
 
 /**
- * @brief ELFXX<ElfHeader>::header
+ * @brief Returns a copy of the ELF file header.
+ *
  * @return a copy of the file header or nullptr if the region wasn't a valid,
- * known binary type
+ * known binary type.
  */
 template <class ElfHeader>
 const void *ELFXX<ElfHeader>::header() const {

@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef ROP_TOOL_DIALOG_RESULTS_H_20191119_
 #define ROP_TOOL_DIALOG_RESULTS_H_20191119_
@@ -32,7 +37,7 @@ public:
 	}
 
 protected:
-	bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override {
+	[[nodiscard]] bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override {
 		QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
 		if (index.isValid()) {
 			if (auto result = reinterpret_cast<const ResultsModel::Result *>(index.internalPointer())) {
@@ -62,7 +67,7 @@ private Q_SLOTS:
 	void on_tableView_doubleClicked(const QModelIndex &index);
 
 public:
-	int resultCount() const;
+	[[nodiscard]] int resultCount() const;
 
 private:
 	Ui::DialogResults ui;

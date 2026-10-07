@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogResults.h"
 #include "ResultsModel.h"
@@ -7,9 +12,10 @@
 namespace ROPToolPlugin {
 
 /**
- * @brief DialogResults::DialogResults
- * @param parent
- * @param f
+ * @brief Constructs a DialogResults object with the specified parent widget and window flags.
+ *
+ * @param parent The parent widget for this dialog.
+ * @param f The window flags for this dialog.
  */
 DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
@@ -50,16 +56,19 @@ DialogResults::DialogResults(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogResults::addResult
- * @param result
+ * @brief Adds a result to the results model.
+ *
+ * @param result The result to be added to the model.
  */
 void DialogResults::addResult(const ResultsModel::Result &result) {
 	model_->addResult(result);
 }
 
 /**
- * @brief DialogResults::on_tableView_doubleClicked
- * @param index
+ * @brief Handles the double-click event for the table view.
+ * When a result is double-clicked, it jumps to the corresponding address in the debugger.
+ *
+ * @param index The index of the clicked item.
  */
 void DialogResults::on_tableView_doubleClicked(const QModelIndex &index) {
 	if (index.isValid()) {
@@ -74,8 +83,9 @@ void DialogResults::on_tableView_doubleClicked(const QModelIndex &index) {
 }
 
 /**
- * @brief DialogResults::resultCount
- * @return
+ * @brief Returns the number of results in the model.
+ *
+ * @return The number of results in the model.
  */
 int DialogResults::resultCount() const {
 	return model_->rowCount();

@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef PLATFORM_REGION_H_20120330_
 #define PLATFORM_REGION_H_20120330_
@@ -32,18 +20,18 @@ class PlatformRegion final : public IRegion {
 	friend class BackupInfo;
 
 public:
-	PlatformRegion(edb::address_t start, edb::address_t end, edb::address_t base, const QString &name, permissions_t permissions);
+	PlatformRegion(edb::address_t start, edb::address_t end, edb::address_t base, QString name, permissions_t permissions);
 	~PlatformRegion() override = default;
 
 public:
-	IRegion *clone() const override;
+	[[nodiscard]] IRegion *clone() const override;
 
 public:
-	bool accessible() const override;
-	bool readable() const override;
-	bool writable() const override;
-	bool executable() const override;
-	size_t size() const override;
+	[[nodiscard]] bool accessible() const override;
+	[[nodiscard]] bool readable() const override;
+	[[nodiscard]] bool writable() const override;
+	[[nodiscard]] bool executable() const override;
+	[[nodiscard]] size_t size() const override;
 
 public:
 	void setPermissions(bool read, bool write, bool execute) override;
@@ -51,11 +39,11 @@ public:
 	void setEnd(edb::address_t address) override;
 
 public:
-	edb::address_t start() const override;
-	edb::address_t end() const override;
-	edb::address_t base() const override;
-	QString name() const override;
-	permissions_t permissions() const override;
+	[[nodiscard]] edb::address_t start() const override;
+	[[nodiscard]] edb::address_t end() const override;
+	[[nodiscard]] edb::address_t base() const override;
+	[[nodiscard]] QString name() const override;
+	[[nodiscard]] permissions_t permissions() const override;
 
 private:
 	void setPermissions(bool read, bool write, bool execute, edb::address_t temp_address);

@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogEditSimdRegister.h"
 #include "EntryGridKeyUpDownEventFilter.h"
@@ -30,8 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QLabel>
 #include <QLineEdit>
 #include <QRadioButton>
-#include <QRegExp>
-#include <QRegExpValidator>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include <cstring>
 #include <limits>
 #include <type_traits>
@@ -45,9 +34,10 @@ void DialogEditSimdRegister::setupEntries(const QString &label, std::array<Numbe
 
 	contentsGrid->addWidget(new QLabel(label, this), row, ENTRIES_FIRST_COL - 1);
 	for (std::size_t entryIndex = 0; entryIndex < NumEntries; ++entryIndex) {
-		auto &entry             = entries[entryIndex];
-		const int bytesPerEntry = NumBytes / NumEntries;
-		entry                   = new NumberEdit(ENTRIES_FIRST_COL + bytesPerEntry * (NumEntries - 1 - entryIndex), bytesPerEntry, this);
+		auto &entry              = entries[entryIndex];
+		const auto bytesPerEntry = static_cast<int>(NumBytes / NumEntries);
+		const int entryColumn    = ENTRIES_FIRST_COL + bytesPerEntry * static_cast<int>(NumEntries - 1 - entryIndex);
+		entry                    = new NumberEdit(entryColumn, bytesPerEntry, this);
 		entry->setNaturalWidthInChars(naturalWidthInChars);
 		connect(entry, &NumberEdit::textEdited, this, slot);
 		entry->installEventFilter(this);
@@ -56,10 +46,10 @@ void DialogEditSimdRegister::setupEntries(const QString &label, std::array<Numbe
 
 DialogEditSimdRegister::DialogEditSimdRegister(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f),
-	  byteHexValidator_(new QRegExpValidator(QRegExp("[0-9a-fA-F]{0,2}"), this)),
-	  wordHexValidator_(new QRegExpValidator(QRegExp("[0-9a-fA-F]{0,4}"), this)),
-	  dwordHexValidator_(new QRegExpValidator(QRegExp("[0-9a-fA-F]{0,8}"), this)),
-	  qwordHexValidator_(new QRegExpValidator(QRegExp("[0-9a-fA-F]{0,16}"), this)),
+	  byteHexValidator_(new QRegularExpressionValidator(QRegularExpression(QStringLiteral("[0-9a-fA-F]{0,2}")), this)),
+	  wordHexValidator_(new QRegularExpressionValidator(QRegularExpression(QStringLiteral("[0-9a-fA-F]{0,4}")), this)),
+	  dwordHexValidator_(new QRegularExpressionValidator(QRegularExpression(QStringLiteral("[0-9a-fA-F]{0,8}")), this)),
+	  qwordHexValidator_(new QRegularExpressionValidator(QRegularExpression(QStringLiteral("[0-9a-fA-F]{0,16}")), this)),
 	  byteSignedValidator_(new QLongValidator(INT8_MIN, INT8_MAX, this)),
 	  wordSignedValidator_(new QLongValidator(INT16_MIN, INT16_MAX, this)),
 	  dwordSignedValidator_(new QLongValidator(INT32_MIN, INT32_MAX, this)),
@@ -77,7 +67,7 @@ DialogEditSimdRegister::DialogEditSimdRegister(QWidget *parent, Qt::WindowFlags 
 	const auto allContentsGrid = new QGridLayout(this);
 
 	for (int byteIndex = 0; byteIndex < NumBytes; ++byteIndex) {
-		columnLabels_[byteIndex] = new QLabel(std::to_string(byteIndex).c_str(), this);
+		columnLabels_[byteIndex] = new QLabel(QString::number(byteIndex), this);
 		columnLabels_[byteIndex]->setAlignment(Qt::AlignCenter);
 		allContentsGrid->addWidget(columnLabels_[byteIndex], BYTE_INDICES_ROW, ENTRIES_FIRST_COL + NumBytes - 1 - byteIndex);
 	}
@@ -195,7 +185,7 @@ DialogEditSimdRegister::DialogEditSimdRegister(QWidget *parent, Qt::WindowFlags 
 	setTabOrder(radioUnsigned_, okCancel_);
 }
 
-template <typename T>
+template <class T>
 void DialogEditSimdRegister::updateFloatEntries(const std::array<NumberEdit *, NumBytes / sizeof(T)> &entries, NumberEdit *notUpdated) {
 
 	for (std::size_t i = 0; i < entries.size(); ++i) {
@@ -209,7 +199,7 @@ void DialogEditSimdRegister::updateFloatEntries(const std::array<NumberEdit *, N
 	}
 }
 
-template <typename T>
+template <class T>
 void DialogEditSimdRegister::updateIntegralEntries(const std::array<NumberEdit *, NumBytes / sizeof(T)> &entries, NumberEdit *notUpdated) {
 
 	for (std::size_t i = 0; i < entries.size(); ++i) {
@@ -271,8 +261,9 @@ void DialogEditSimdRegister::resetLayout() {
 		float64->show();
 	}
 
-	for (int row = ENTRIES_FIRST_ROW; row < ROW_AFTER_ENTRIES; ++row)
+	for (int row = ENTRIES_FIRST_ROW; row < ROW_AFTER_ENTRIES; ++row) {
 		layout->itemAtPosition(row, LABELS_COL)->widget()->show();
+	}
 
 	layout->removeItem(hexSignOKCancelLayout_);
 	hexSignOKCancelLayout_->setParent(nullptr);
@@ -332,28 +323,38 @@ bool DialogEditSimdRegister::eventFilter(QObject *obj, QEvent *event) {
 	return entry_grid_key_event_filter(this, obj, event);
 }
 
-void DialogEditSimdRegister::setValue(const Register &newReg) {
+void DialogEditSimdRegister::setValue(const Register &value) {
 	resetLayout();
-	assert(newReg.bitSize() <= 8 * sizeof(value_));
-	reg_ = newReg;
+	assert(value.bitSize() <= 8 * sizeof(value_));
+	reg_ = value;
 	util::mark_memory(&value_, value_.size());
-	if (QRegExp("mm[0-7]").exactMatch(reg_.name())) {
+
+	static const QRegularExpression MMXx(QStringLiteral("^mm([0-7])$"));
+	static const QRegularExpression XMMx(QStringLiteral("^xmm([0-9]+)$"));
+	static const QRegularExpression YMMx(QStringLiteral("^ymm([0-9]+)$"));
+
+	const QRegularExpressionMatch mmxMatch = MMXx.match(reg_.name());
+	const QRegularExpressionMatch xmmMatch = XMMx.match(reg_.name());
+	const QRegularExpressionMatch ymmMatch = YMMx.match(reg_.name());
+
+	if (mmxMatch.hasMatch()) {
 		const auto value = reg_.value<edb::value64>();
 		std::memcpy(&value_, &value, sizeof(value));
 		hideColumns(MMX_FIRST_COL);
 		// MMX registers are never used in float computations, so hide useless rows
 		hideRows(FLOATS32_ROW);
 		hideRows(FLOATS64_ROW);
-	} else if (QRegExp("xmm[0-9]+").exactMatch(reg_.name())) {
+	} else if (xmmMatch.hasMatch()) {
 		const auto value = reg_.value<edb::value128>();
 		std::memcpy(&value_, &value, sizeof(value));
 		hideColumns(XMM_FIRST_COL);
-	} else if (QRegExp("ymm[0-9]+").exactMatch(reg_.name())) {
+	} else if (ymmMatch.hasMatch()) {
 		const auto value = reg_.value<edb::value256>();
 		std::memcpy(&value_, &value, sizeof(value));
 		hideColumns(YMM_FIRST_COL);
-	} else
+	} else {
 		qCritical() << "DialogEditSimdRegister::setValue(" << reg_.name() << "): register type unsupported";
+	}
 	setWindowTitle(tr("Modify %1").arg(reg_.name().toUpper()));
 	updateAllEntriesExcept(nullptr);
 }
@@ -376,14 +377,18 @@ void DialogEditSimdRegister::set_current_element(RegisterViewModelBase::Model::E
 		}
 	}
 
-	NumberEdit *edit = bytes_[0];
-
+	NumberEdit *edit;
 	if (format == NumberDisplayMode::Float) {
-		edit = floats32_[0];
-		if (size == Model::ElementSize::DWORD)
+		switch (size) {
+		case Model::ElementSize::DWORD:
 			edit = floats32_[elementIndex];
-		else if (size == Model::ElementSize::QWORD)
+			break;
+		case Model::ElementSize::QWORD:
 			edit = floats64_[elementIndex];
+			break;
+		default:
+			edit = floats32_[0];
+		}
 	} else {
 		switch (size) {
 		case Model::ElementSize::BYTE:
@@ -420,20 +425,20 @@ std::uint64_t DialogEditSimdRegister::readInteger(const NumberEdit *const edit) 
 	}
 }
 
-template <typename Integer>
+template <class Integer>
 void DialogEditSimdRegister::formatInteger(NumberEdit *const edit, Integer integer) const {
 	switch (intMode_) {
 	case NumberDisplayMode::Hex:
-		edit->setText(QString("%1").arg(integer, 2 * sizeof(integer), 16, QChar('0')));
+		edit->setText(QStringLiteral("%1").arg(integer, 2 * sizeof(integer), 16, QLatin1Char('0')));
 		break;
 	case NumberDisplayMode::Signed:
-		using Int    = typename std::remove_reference<Integer>::type;
-		using Signed = typename std::make_signed<Int>::type;
+		using Int    = std::remove_reference_t<Integer>;
+		using Signed = std::make_signed_t<Int>;
 
-		edit->setText(QString("%1").arg(static_cast<Signed>(integer)));
+		edit->setText(QString::number(static_cast<Signed>(integer)));
 		break;
 	case NumberDisplayMode::Unsigned:
-		edit->setText(QString("%1").arg(integer));
+		edit->setText(QString::number(integer));
 		break;
 	default:
 		Q_ASSERT("Unexpected integer display mode" && 0);
@@ -441,16 +446,16 @@ void DialogEditSimdRegister::formatInteger(NumberEdit *const edit, Integer integ
 	}
 }
 
-template <typename Integer>
+template <class Integer>
 void DialogEditSimdRegister::onIntegerEdited(QObject *sender, const std::array<NumberEdit *, NumBytes / sizeof(Integer)> &elements) {
 	const auto changedElementEdit = qobject_cast<NumberEdit *>(sender);
 	std::size_t elementIndex      = std::find(elements.begin(), elements.end(), changedElementEdit) - elements.begin();
-	Integer value                 = readInteger(elements[elementIndex]);
+	auto value                    = static_cast<Integer>(readInteger(elements[elementIndex]));
 	std::memcpy(&value_[elementIndex * sizeof(value)], &value, sizeof(value));
 	updateAllEntriesExcept(elements[elementIndex]);
 }
 
-template <typename Float>
+template <class Float>
 void DialogEditSimdRegister::onFloatEdited(QObject *sender, const std::array<NumberEdit *, NumBytes / sizeof(Float)> &elements) {
 	const auto changedFloatEdit = qobject_cast<NumberEdit *>(sender);
 	std::size_t floatIndex      = std::find(elements.begin(), elements.end(), changedFloatEdit) - elements.begin();
@@ -489,14 +494,18 @@ void DialogEditSimdRegister::onFloat64Edited() {
 void DialogEditSimdRegister::onHexToggled(bool checked) {
 	if ((checked && intMode_ != NumberDisplayMode::Hex) || !bytes_.front()->validator()) {
 		intMode_ = NumberDisplayMode::Hex;
-		for (const auto &byte : bytes_)
+		for (const auto &byte : bytes_) {
 			byte->setValidator(byteHexValidator_);
-		for (const auto &word : words_)
+		}
+		for (const auto &word : words_) {
 			word->setValidator(wordHexValidator_);
-		for (const auto &dword : dwords_)
+		}
+		for (const auto &dword : dwords_) {
 			dword->setValidator(dwordHexValidator_);
-		for (const auto &qword : qwords_)
+		}
+		for (const auto &qword : qwords_) {
 			qword->setValidator(qwordHexValidator_);
+		}
 		updateAllEntriesExcept(nullptr);
 	}
 }
@@ -504,14 +513,18 @@ void DialogEditSimdRegister::onHexToggled(bool checked) {
 void DialogEditSimdRegister::onSignedToggled(bool checked) {
 	if ((checked && intMode_ != NumberDisplayMode::Signed) || !bytes_.front()->validator()) {
 		intMode_ = NumberDisplayMode::Signed;
-		for (const auto &byte : bytes_)
+		for (const auto &byte : bytes_) {
 			byte->setValidator(byteSignedValidator_);
-		for (const auto &word : words_)
+		}
+		for (const auto &word : words_) {
 			word->setValidator(wordSignedValidator_);
-		for (const auto &dword : dwords_)
+		}
+		for (const auto &dword : dwords_) {
 			dword->setValidator(dwordSignedValidator_);
-		for (const auto &qword : qwords_)
+		}
+		for (const auto &qword : qwords_) {
 			qword->setValidator(qwordSignedValidator_);
+		}
 		updateAllEntriesExcept(nullptr);
 	}
 }
@@ -519,14 +532,18 @@ void DialogEditSimdRegister::onSignedToggled(bool checked) {
 void DialogEditSimdRegister::onUnsignedToggled(bool checked) {
 	if ((checked && intMode_ != NumberDisplayMode::Unsigned) || !bytes_.front()->validator()) {
 		intMode_ = NumberDisplayMode::Unsigned;
-		for (const auto &byte : bytes_)
+		for (const auto &byte : bytes_) {
 			byte->setValidator(byteUnsignedValidator_);
-		for (const auto &word : words_)
+		}
+		for (const auto &word : words_) {
 			word->setValidator(wordUnsignedValidator_);
-		for (const auto &dword : dwords_)
+		}
+		for (const auto &dword : dwords_) {
 			dword->setValidator(dwordUnsignedValidator_);
-		for (const auto &qword : qwords_)
+		}
+		for (const auto &qword : qwords_) {
 			qword->setValidator(qwordUnsignedValidator_);
+		}
 		updateAllEntriesExcept(nullptr);
 	}
 }

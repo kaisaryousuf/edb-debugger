@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "BasicBlock.h"
 #include "edb.h"
@@ -23,107 +11,120 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QTextStream>
 
 /**
- * @brief BasicBlock::swap
- * @param other
+ * @brief Swaps the contents of this BasicBlock with another BasicBlock.
+ *
+ * @param other The other BasicBlock to swap with.
  */
-void BasicBlock::swap(BasicBlock &other) {
+void BasicBlock::swap(BasicBlock &other) noexcept {
 	using std::swap;
 	swap(instructions_, other.instructions_);
 	swap(references_, other.references_);
 }
 
 /**
- * @brief BasicBlock::push_back
- * @param inst
+ * @brief Adds an instruction to the end of the BasicBlock.
+ *
+ * @param inst The instruction to add.
  */
 void BasicBlock::push_back(const instruction_pointer &inst) {
 	instructions_.push_back(inst);
 }
 
 /**
- * @brief BasicBlock::begin
- * @return
+ * @brief Returns an iterator to the beginning of the BasicBlock.
+ *
+ * @return An iterator to the beginning of the BasicBlock.
  */
 BasicBlock::const_iterator BasicBlock::begin() const {
 	return instructions_.begin();
 }
 
 /**
- * @brief BasicBlock::end
- * @return
+ * @brief Returns an iterator to the end of the BasicBlock.
+ *
+ * @return An iterator to the end of the BasicBlock.
  */
 BasicBlock::const_iterator BasicBlock::end() const {
 	return instructions_.end();
 }
 
 /**
- * @brief BasicBlock::begin
- * @return
+ * @brief Returns a reverse iterator to the beginning of the BasicBlock.
+ *
+ * @return A reverse iterator to the beginning of the BasicBlock.
  */
 BasicBlock::iterator BasicBlock::begin() {
 	return instructions_.begin();
 }
 
 /**
- * @brief BasicBlock::end
- * @return
+ * @brief Returns an iterator to the end of the BasicBlock.
+ *
+ * @return An iterator to the end of the BasicBlock.
  */
 BasicBlock::iterator BasicBlock::end() {
 	return instructions_.end();
 }
 
 /**
- * @brief BasicBlock::rbegin
- * @return
+ * @brief Returns a reverse iterator to the beginning of the BasicBlock.
+ *
+ * @return A reverse iterator to the beginning of the BasicBlock.
  */
 BasicBlock::const_reverse_iterator BasicBlock::rbegin() const {
 	return const_reverse_iterator(instructions_.end());
 }
 
 /**
- * @brief BasicBlock::rend
- * @return
+ * @brief Returns a reverse iterator to the end of the BasicBlock.
+ *
+ * @return A reverse iterator to the end of the BasicBlock.
  */
 BasicBlock::const_reverse_iterator BasicBlock::rend() const {
 	return const_reverse_iterator(instructions_.begin());
 }
 
 /**
- * @brief BasicBlock::rbegin
- * @return
+ * @brief Returns a reverse iterator to the beginning of the BasicBlock.
+ *
+ * @return A reverse iterator to the beginning of the BasicBlock.
  */
 BasicBlock::reverse_iterator BasicBlock::rbegin() {
 	return reverse_iterator(instructions_.end());
 }
 
 /**
- * @brief BasicBlock::rend
- * @return
+ * @brief Returns a reverse iterator to the end of the BasicBlock.
+ *
+ * @return A reverse iterator to the end of the BasicBlock.
  */
 BasicBlock::reverse_iterator BasicBlock::rend() {
 	return reverse_iterator(instructions_.begin());
 }
 
 /**
- * @brief BasicBlock::size
- * @return
+ * @brief Returns the number of instructions in the BasicBlock.
+ *
+ * @return The number of instructions in the BasicBlock.
  */
 BasicBlock::size_type BasicBlock::size() const {
 	return instructions_.size();
 }
 
 /**
- * @brief BasicBlock::empty
- * @return
+ * @brief Returns whether the BasicBlock is empty.
+ *
+ * @return True if the BasicBlock is empty, false otherwise.
  */
 bool BasicBlock::empty() const {
 	return instructions_.empty();
 }
 
 /**
- * @brief BasicBlock::operator []
- * @param pos
- * @return
+ * @brief Returns a reference to the instruction at the specified position in the BasicBlock.
+ *
+ * @param pos The position of the instruction to return.
+ * @return A reference to the instruction at the specified position in the BasicBlock.
  */
 BasicBlock::reference BasicBlock::operator[](size_type pos) {
 	Q_ASSERT(pos < instructions_.size());
@@ -131,9 +132,10 @@ BasicBlock::reference BasicBlock::operator[](size_type pos) {
 }
 
 /**
- * @brief BasicBlock::operator []
- * @param pos
- * @return
+ * @brief Returns a const reference to the instruction at the specified position in the BasicBlock.
+ *
+ * @param pos The position of the instruction to return.
+ * @return A const reference to the instruction at the specified position in the BasicBlock.
  */
 BasicBlock::const_reference BasicBlock::operator[](size_type pos) const {
 	Q_ASSERT(pos < instructions_.size());
@@ -141,8 +143,9 @@ BasicBlock::const_reference BasicBlock::operator[](size_type pos) const {
 }
 
 /**
- * @brief BasicBlock::front
- * @return
+ * @brief Returns a reference to the first instruction in the BasicBlock.
+ *
+ * @return A reference to the first instruction in the BasicBlock.
  */
 BasicBlock::reference BasicBlock::front() {
 	Q_ASSERT(!empty());
@@ -150,8 +153,9 @@ BasicBlock::reference BasicBlock::front() {
 }
 
 /**
- * @brief BasicBlock::front
- * @return
+ * @brief Returns a const reference to the first instruction in the BasicBlock.
+ *
+ * @return A const reference to the first instruction in the BasicBlock.
  */
 BasicBlock::const_reference BasicBlock::front() const {
 	Q_ASSERT(!empty());
@@ -159,8 +163,9 @@ BasicBlock::const_reference BasicBlock::front() const {
 }
 
 /**
- * @brief BasicBlock::back
- * @return
+ * @brief Returns a reference to the last instruction in the BasicBlock.
+ *
+ * @return A reference to the last instruction in the BasicBlock.
  */
 BasicBlock::reference BasicBlock::back() {
 	Q_ASSERT(!empty());
@@ -168,8 +173,9 @@ BasicBlock::reference BasicBlock::back() {
 }
 
 /**
- * @brief BasicBlock::back
- * @return
+ * @brief Returns a const reference to the last instruction in the BasicBlock.
+ *
+ * @return A const reference to the last instruction in the BasicBlock.
  */
 BasicBlock::const_reference BasicBlock::back() const {
 	Q_ASSERT(!empty());
@@ -177,8 +183,9 @@ BasicBlock::const_reference BasicBlock::back() const {
 }
 
 /**
- * @brief BasicBlock::byteSize
- * @return
+ * @brief Returns the sum of the byte sizes of all instructions in the BasicBlock.
+ *
+ * @return The number of bytes in the BasicBlock.
  */
 BasicBlock::size_type BasicBlock::byteSize() const {
 	size_type n = 0;
@@ -189,8 +196,9 @@ BasicBlock::size_type BasicBlock::byteSize() const {
 }
 
 /**
- * @brief BasicBlock::firstAddress
- * @return
+ * @brief Returns the address of the first instruction in the BasicBlock.
+ *
+ * @return The address of the first instruction in the BasicBlock.
  */
 edb::address_t BasicBlock::firstAddress() const {
 	Q_ASSERT(!empty());
@@ -198,8 +206,9 @@ edb::address_t BasicBlock::firstAddress() const {
 }
 
 /**
- * @brief BasicBlock::lastAddress
- * @return
+ * @brief Returns the address immediately following the last instruction in the BasicBlock.
+ *
+ * @return The address immediately following the last instruction in the BasicBlock.
  */
 edb::address_t BasicBlock::lastAddress() const {
 	Q_ASSERT(!empty());
@@ -207,8 +216,9 @@ edb::address_t BasicBlock::lastAddress() const {
 }
 
 /**
- * @brief BasicBlock::toString
- * @return
+ * @brief Returns a string representation of the BasicBlock. This is the disassembly of all instructions in the BasicBlock, one per line, with their addresses.
+ *
+ * @return A string representing the BasicBlock.
  */
 QString BasicBlock::toString() const {
 	QString text;
@@ -222,18 +232,55 @@ QString BasicBlock::toString() const {
 }
 
 /**
- * @brief BasicBlock::addReference
- * @param refsite
- * @param target
+ * @brief Adds a reference from one address to another. This is used to track control flow between BasicBlocks.
+ *
+ * @param refsite The address of the instruction that makes the reference.
+ * @param target The address that is being referenced.
  */
 void BasicBlock::addReference(edb::address_t refsite, edb::address_t target) {
-	references_.push_back(std::make_pair(refsite, target));
+	references_.emplace_back(refsite, target);
 }
 
 /**
- * @brief BasicBlock::references
- * @return
+ * @brief Returns the references from this BasicBlock.
+ *
+ * @return A vector of pairs representing the references.
  */
 std::vector<std::pair<edb::address_t, edb::address_t>> BasicBlock::references() const {
 	return references_;
+}
+
+/**
+ * @brief Splits the BasicBlock at the specified instruction.
+ *
+ * @param inst The instruction at which to split the BasicBlock.
+ * @return A pair of BasicBlocks representing the split.
+ */
+std::pair<BasicBlock, BasicBlock> BasicBlock::splitBlock(const instruction_pointer &inst) {
+	BasicBlock block1;
+	BasicBlock block2;
+
+	auto it = begin();
+	for (; it != end(); ++it) {
+
+		block1.push_back(*it);
+		if (*it == inst) {
+			++it;
+			break;
+		}
+	}
+
+	for (; it != end(); ++it) {
+		block2.push_back(*it);
+	}
+
+	for (const auto &[from, to] : references_) {
+		if (from >= block1.firstAddress() && from < block1.lastAddress()) {
+			block1.addReference(from, to);
+		} else {
+			block2.addReference(from, to);
+		}
+	}
+
+	return {block1, block2};
 }

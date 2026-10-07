@@ -1,22 +1,9 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-Copyright (C) 2017 Ruslan Kabatsayev
-                   b7.10110111@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ * Copyright (C) 2017 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PlatformThread.h"
 #include "ArchProcessor.h"
@@ -74,7 +61,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace DebuggerCorePlugin {
 
 /**
- * @brief PlatformThread::fillStateFromPrStatus
+ * @brief Fills the state from a PR_STATUS ptrace structure (currently a no-op stub for ARM).
+ *
  * @param state
  * @return
  */
@@ -84,7 +72,8 @@ bool PlatformThread::fillStateFromPrStatus(PlatformState *state) {
 }
 
 /**
- * @brief PlatformThread::fillStateFromSimpleRegs
+ * @brief Fills the state by reading the general-purpose registers via PTRACE_GETREGS.
+ *
  * @param state
  * @return
  */
@@ -102,7 +91,8 @@ bool PlatformThread::fillStateFromSimpleRegs(PlatformState *state) {
 }
 
 /**
- * @brief PlatformThread::fillStateFromVFPRegs
+ * @brief Fills the state with VFP floating-point registers via PTRACE_GETVFPREGS.
+ *
  * @param state
  * @return
  */
@@ -120,7 +110,8 @@ bool PlatformThread::fillStateFromVFPRegs(PlatformState *state) {
 }
 
 /**
- * @brief PlatformThread::getState
+ * @brief Reads the full CPU and VFP register state for this thread into the provided State object.
+ *
  * @param state
  */
 void PlatformThread::getState(State *state) {
@@ -136,7 +127,8 @@ void PlatformThread::getState(State *state) {
 }
 
 /**
- * @brief PlatformThread::setState
+ * @brief Writes the CPU and VFP register state back into the thread via ptrace.
+ *
  * @param state
  */
 void PlatformThread::setState(const State &state) {
@@ -160,7 +152,8 @@ void PlatformThread::setState(const State &state) {
 }
 
 /**
- * @brief PlatformThread::getDebugRegister
+ * @brief Returns the value of hardware debug register n (currently a stub).
+ *
  * @param n
  * @return
  */
@@ -169,7 +162,8 @@ unsigned long PlatformThread::getDebugRegister(std::size_t n) {
 }
 
 /**
- * @brief PlatformThread::setDebugRegister
+ * @brief Sets hardware debug register n to the given value (currently a stub).
+ *
  * @param n
  * @param value
  * @return
@@ -179,7 +173,8 @@ long PlatformThread::setDebugRegister(std::size_t n, long value) {
 }
 
 /**
- * @brief PlatformThread::instructionPointer
+ * @brief Returns the current instruction pointer of this thread (currently a stub).
+ *
  * @return
  */
 edb::address_t PlatformThread::instructionPointer() const {
@@ -187,7 +182,8 @@ edb::address_t PlatformThread::instructionPointer() const {
 }
 
 /**
- * @brief PlatformThread::doStep
+ * @brief Implements single-step for the given TID by injecting a breakpoint at the next instruction.
+ *
  * @param tid
  * @param status
  * @return
@@ -198,7 +194,9 @@ Status PlatformThread::doStep(const edb::tid_t tid, const long status) {
 
 	State state;
 	getState(&state);
-	if (state.empty()) return Status(tr("failed to get thread state."));
+	if (state.empty()) {
+		return Status(tr("failed to get thread state."));
+	}
 	const auto pc    = state.instructionPointer();
 	const auto flags = state.flags();
 	enum {
@@ -235,17 +233,24 @@ Status PlatformThread::doStep(const edb::tid_t tid, const long status) {
 				switch (op) {
 				case ARM_INS_LDR: {
 					const auto destOperand = insn.operand(0);
-					if (!is_register(destOperand) || destOperand->reg != ARM_REG_PC)
+					if (!is_register(destOperand) || destOperand->reg != ARM_REG_PC) {
 						return Status(tr("instruction %1 with non-PC destination isn't supported yet.").arg(insn.mnemonic().c_str()));
+					}
+
 					const auto srcOperand = insn.operand(1);
-					if (!is_expression(srcOperand))
+					if (!is_expression(srcOperand)) {
 						return Status(tr("unexpected type of second operand of LDR instruction."));
+					}
+
 					const auto effAddrR = edb::v1::arch_processor().getEffectiveAddress(insn, srcOperand, state);
-					if (!effAddrR) return Status(effAddrR.error());
+					if (!effAddrR) {
+						return Status(effAddrR.error());
+					}
 
 					const auto effAddr = effAddrR.value();
-					if (process_->readBytes(effAddr, &addrAfterInsn, AddressSize) != AddressSize)
+					if (process_->readBytes(effAddr, &addrAfterInsn, AddressSize) != AddressSize) {
 						return Status(tr("failed to read memory referred to by LDR operand (address %1).").arg(effAddr.toPointerString()));
+					}
 
 					// FIXME: for ARMv5 or below (without "T" in the name) bits [1:0] are simply ignored, without any mode change
 					if (addrAfterInsn & 1)
@@ -273,7 +278,9 @@ Status PlatformThread::doStep(const edb::tid_t tid, const long status) {
 							assert(operand->access == CS_AC_WRITE);
 #endif
 							const auto sp = state.gpRegister(PlatformState::GPR::SP);
-							if (!sp) return Status(tr("failed to get value of SP register"));
+							if (!sp) {
+								return Status(tr("failed to get value of SP register"));
+							}
 							if (process_->readBytes(sp.valueAsAddress() + AddressSize * i, &addrAfterInsn, AddressSize) != AddressSize)
 								return Status(tr("failed to read thread stack"));
 							break;
@@ -305,7 +312,9 @@ Status PlatformThread::doStep(const edb::tid_t tid, const long status) {
 							return Status(tr("unpredictable instruction"));
 						// This may happen only with BX or BLX: B and BL require an immediate operand
 						const auto result = edb::v1::arch_processor().getEffectiveAddress(insn, operand, state);
-						if (!result) return Status(result.error());
+						if (!result) {
+							return Status(result.error());
+						}
 						addrAfterInsn = result.value();
 						if (addrAfterInsn & 1)
 							targetMode = IDebugger::CpuMode::Thumb;
@@ -355,10 +364,8 @@ Status PlatformThread::doStep(const edb::tid_t tid, const long status) {
 }
 
 /**
- * steps this thread one instruction, passing the signal that stopped it
- * (unless the signal was SIGSTOP)
+ * @brief Single-steps this thread, re-delivering the signal that stopped it (unless it was SIGSTOP).
  *
- * @brief PlatformThread::step
  * @return
  */
 Status PlatformThread::step() {
@@ -366,10 +373,8 @@ Status PlatformThread::step() {
 }
 
 /**
- * steps this thread one instruction, passing the signal that stopped it
- * (unless the signal was SIGSTOP, or the passed status != DEBUG_EXCEPTION_NOT_HANDLED)
+ * @brief Single-steps this thread, re-delivering the signal only if status is DEBUG_EXCEPTION_NOT_HANDLED.
  *
- * @brief PlatformThread::step
  * @param status
  * @return
  */

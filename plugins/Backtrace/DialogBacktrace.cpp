@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015	Armen Boursalian
-					aboursalian@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Armen Boursalian <aboursalian@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogBacktrace.h"
 #include "CallStack.h"
@@ -35,17 +23,20 @@ constexpr int FirstRow     = 0;
 constexpr int ReturnColumn = 1;
 
 /**
- * @brief address_from_table
+ * @brief Extracts the edb::address_t stored in the UserRole data of the given table widget item.
+ *
  * @param item
  * @return the edb::address_t represented by the given *item and sets *ok to
  * true if successful or false, otherwise.
  */
 edb::address_t address_from_table(const QTableWidgetItem *item) {
+	static_assert(sizeof(qulonglong) >= sizeof(edb::address_t));
 	return static_cast<edb::address_t>(item->data(Qt::UserRole).value<qulonglong>());
 }
 
 /**
- * @brief is_ret
+ * @brief Returns true if the given column number corresponds to the return address column.
+ *
  * @param column
  * @return true if the column number is the one dedicated to return addresses.
  * otherwise, false.
@@ -55,7 +46,8 @@ bool is_ret(int column) {
 }
 
 /**
- * @brief is_ret
+ * @brief Returns true if the given table widget item resides in the return address column.
+ *
  * @param item
  * @return true if the selected item is in the column for return addresses.
  * otherwise, false.
@@ -71,7 +63,7 @@ bool is_ret(const QTableWidgetItem *item) {
 }
 
 /**
- * @brief DialogBacktrace::DialogBacktrace
+ * @brief Constructs the call stack backtrace dialog, setting up its table widget and "Return To" button.
  *
  * Initializes the Dialog with its QTableWidget.  This class over all is
  * designed to analyze the stack for return addresses to show the user the
@@ -93,12 +85,12 @@ DialogBacktrace::DialogBacktrace(QWidget *parent, Qt::WindowFlags f)
 	table_->verticalHeader()->hide();
 	table_->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
-	buttonReturnTo_ = new QPushButton(QIcon::fromTheme("edit-undo"), tr("Return To"));
+	buttonReturnTo_ = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-undo")), tr("Return To"));
 	connect(buttonReturnTo_, &QPushButton::clicked, this, [this]() {
 		// Desc: Ensures that the selected item is a return address.  If so, sets a
 		//       breakpoint at that address and continues execution.
 
-		//Make sure our current item is in the RETURN_COLUMN
+		// Make sure our current item is in the RETURN_COLUMN
 		QTableWidgetItem *item = table_->currentItem();
 		if (!is_ret(item)) {
 			return;
@@ -116,9 +108,7 @@ DialogBacktrace::DialogBacktrace(QWidget *parent, Qt::WindowFlags f)
 			}
 
 			// Using the non-debugger_core version ensures bp is set in a valid region
-			// TODO(eteran): I think it's safe to just use the return value of create_breakpoint here...
-			edb::v1::create_breakpoint(address);
-			if (std::shared_ptr<IBreakpoint> bp = edb::v1::debugger_core->findBreakpoint(address)) {
+			if (std::shared_ptr<IBreakpoint> bp = edb::v1::create_breakpoint(address)) {
 				bp->setInternal(true);
 				bp->setOneTime(true);
 				process->resume(edb::DEBUG_CONTINUE);
@@ -130,65 +120,58 @@ DialogBacktrace::DialogBacktrace(QWidget *parent, Qt::WindowFlags f)
 }
 
 /**
- * @brief DialogBacktrace::showEvent
- *
- * Ensures the column sizes are correct, connects the sig/slot for syncing with
- * the Debugger UI, then populates the Call Stack table.
- *
+ * @brief Connects the UI update signal and populates the call stack table when the dialog is shown.
  */
 void DialogBacktrace::showEvent(QShowEvent *) {
 
 	// Sync with the Debugger UI.
 	connect(edb::v1::debugger_ui, SIGNAL(uiUpdated()), this, SLOT(populateTable()));
 
-	// Populate the tabel with our call stack info.
+	// Populate the table with our call stack info.
 	populateTable();
 
 	table_->horizontalHeader()->resizeSections(QHeaderView::Stretch);
 }
 
 /**
- * @brief DialogBacktrace::populateTable
- *
- * Populates the Call Stack table with stack frame entries.
- *
+ * @brief Clears and repopulates the call stack table with current stack frame entries.
  */
 void DialogBacktrace::populateTable() {
 
-	//TODO: The first row should break protocol and display the current RIP/PC.
+	// TODO: The first row should break protocol and display the current RIP/PC.
 	//		It should be treated specially on "Run To Return" and do a "Step Out"
 
-	//Remove rows of the table (clearing does not remove rows)
-	//Yes, we depend on i going negative.
+	// Remove rows of the table (clearing does not remove rows)
+	// Yes, we depend on i going negative.
 	for (int i = table_->rowCount() - 1; i >= 0; i--) {
 		table_->removeRow(i);
 	}
 
-	//Get the call stack and populate the table with entries.
+	// Get the call stack and populate the table with entries.
 	CallStack call_stack;
 	const size_t size = call_stack.size();
 	for (size_t i = 0; i < size; i++) {
 
-		//Create the row to insert info
-		table_->insertRow(i);
+		// Create the row to insert info
+		table_->insertRow(static_cast<int>(i));
 
-		//Get the stack frame so that we can insert its info
+		// Get the stack frame so that we can insert its info
 		CallStack::StackFrame *frame = call_stack[i];
 
-		//Get the caller & ret addresses and put them in the table
+		// Get the caller & ret addresses and put them in the table
 		QList<edb::address_t> stack_entry;
 		edb::address_t caller = frame->caller;
 		edb::address_t ret    = frame->ret;
 		stack_entry.append(caller);
 		stack_entry.append(ret);
 
-		//Put them in the table: create string from address and set item flags.
+		// Put them in the table: create string from address and set item flags.
 		for (int j = 0; j < stack_entry.size() && j < table_->columnCount(); j++) {
 
-			edb::address_t address              = stack_entry.at(j);
-			std::shared_ptr<Symbol> near_symbol = edb::v1::symbol_manager().findNearSymbol(address);
+			edb::address_t address            = stack_entry.at(j);
+			std::optional<Symbol> near_symbol = edb::v1::symbol_manager().findNearSymbol(address);
 
-			//Turn the address into a string prefixed with "0x"
+			// Turn the address into a string prefixed with "0x"
 			auto item = new QTableWidgetItem;
 			item->setData(Qt::UserRole, static_cast<qlonglong>(address));
 
@@ -200,19 +183,18 @@ void DialogBacktrace::populateTable() {
 				item->setText(tr("0x%1").arg(QString::number(address, 16)));
 			}
 
-			//Remove all flags (namely Edit), then put the flags that we want.
+			// Remove all flags (namely Edit), then put the flags that we want.
 			Qt::ItemFlags flags = Qt::NoItemFlags;
 			flags |= Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 			item->setFlags(flags);
 
-			table_->setItem(i, j, item);
+			table_->setItem(static_cast<int>(i), j, item);
 		}
 	}
 
-	//1st ret is selected on every refresh so that we can just click "Return To"
-	//Turn Run To button off if no item.
-	QTableWidgetItem *item = table_->item(FirstRow, ReturnColumn);
-	if (item) {
+	// 1st ret is selected on every refresh so that we can just click "Return To"
+	// Turn Run To button off if no item.
+	if (QTableWidgetItem *item = table_->item(FirstRow, ReturnColumn)) {
 		table_->setCurrentItem(item);
 		buttonReturnTo_->setEnabled(true);
 	} else {
@@ -221,20 +203,14 @@ void DialogBacktrace::populateTable() {
 }
 
 /**
- * @brief DialogBacktrace::hideEvent
- *
- * Disconnects the signal/slot when the dialog goes away so that
- * populate_table() is not called unnecessarily.
- *
+ * @brief Disconnects the UI update signal when the dialog is hidden to avoid unnecessary table rebuilds.
  */
 void DialogBacktrace::hideEvent(QHideEvent *) {
 	disconnect(edb::v1::debugger_ui, SIGNAL(uiUpdated()), this, SLOT(populateTable()));
 }
 
 /**
- * @brief DialogBacktrace::on_tableWidgetCallStack_itemDoubleClicked
- *
- * Jumps to the double-clicked address in the CPU/Disassembly view.
+ * @brief Jumps the disassembly view to the address of the double-clicked call stack table entry.
  *
  * @param item
  */
@@ -243,21 +219,14 @@ void DialogBacktrace::on_tableWidgetCallStack_itemDoubleClicked(QTableWidgetItem
 }
 
 /**
- * @brief DialogBacktrace::on_tableWidgetCallStack_cellClicked
- *
- * Enables the "Run To Return" button if the selected cell is in the column for
- * return addresses.  Disables it, otherwise.
+ * @brief Enables or disables the "Return To" button based on whether the clicked cell is a return address column.
  *
  * @param row
  * @param column
  */
 void DialogBacktrace::on_tableWidgetCallStack_cellClicked(int row, int column) {
 	Q_UNUSED(row)
-	if (is_ret(column)) {
-		buttonReturnTo_->setEnabled(true);
-	} else {
-		buttonReturnTo_->setEnabled(false);
-	}
+	buttonReturnTo_->setEnabled(is_ret(column));
 }
 
 }

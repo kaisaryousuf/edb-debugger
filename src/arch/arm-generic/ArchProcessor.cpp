@@ -1,22 +1,9 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-Copyright (C) 2017 - 2017 Ruslan Kabatsayev
-                          b7.10110111@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ * Copyright (C) 2017 - 2017 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ArchProcessor.h"
 #include "Configuration.h"
@@ -180,9 +167,13 @@ Result<edb::address_t, QString> ArchProcessor::getEffectiveAddress(const edb::In
 	if (is_register(operand)) {
 		bool ok;
 		const auto regIndex = capstoneRegToGPRIndex(operand->reg, ok);
-		if (!ok) return make_unexpected(QObject::tr("bad operand register for instruction %1: %2.").arg(insn.mnemonic().c_str()).arg(operand->reg));
+		if (!ok) {
+			return make_unexpected(QObject::tr("bad operand register for instruction %1: %2.").arg(insn.mnemonic().c_str()).arg(operand->reg));
+		}
 		const auto reg = state.gpRegister(regIndex);
-		if (!reg) return make_unexpected(QObject::tr("failed to get register r%1.").arg(regIndex));
+		if (!reg) {
+			return make_unexpected(QObject::tr("failed to get register r%1.").arg(regIndex));
+		}
 		auto value = reg.valueAsAddress();
 		return adjustR15Value(insn, regIndex, value);
 	} else if (is_expression(operand)) {
@@ -226,7 +217,9 @@ edb::address_t ArchProcessor::getEffectiveAddress(const edb::Instruction &inst, 
 
 	ok                = false;
 	const auto result = getEffectiveAddress(inst, op, state);
-	if (!result) return 0;
+	if (!result) {
+		return 0;
+	}
 	return result.value();
 }
 
@@ -280,9 +273,9 @@ QString gprComment(Register const &reg) {
 	int stringLength;
 	QString comment;
 	if (edb::v1::get_ascii_string_at_address(reg.valueAsAddress(), regString, edb::v1::config().min_string_length, 256, stringLength))
-		comment = QString("ASCII \"%1\"").arg(regString);
+		comment = QStringLiteral("ASCII \"%1\"").arg(regString);
 	else if (edb::v1::get_utf16_string_at_address(reg.valueAsAddress(), regString, edb::v1::config().min_string_length, 256, stringLength))
-		comment = QString("UTF16 \"%1\"").arg(regString);
+		comment = QStringLiteral("UTF16 \"%1\"").arg(regString);
 	return comment;
 }
 
@@ -360,7 +353,7 @@ static const QLatin1String jumpConditionMnemonics[] = {
 };
 
 QString cpsrComment(edb::reg_t flags) {
-	QString comment = "(";
+	auto comment = QStringLiteral("(");
 	for (int cond = 0; cond < 0x10 - 2; ++cond) // we're not interested in AL or UNDEFINED conditions
 		if (is_jcc_taken(flags, static_cast<edb::Instruction::ConditionCode>(cond)))
 			comment += jumpConditionMnemonics[cond] + ',';
@@ -379,15 +372,15 @@ QString fpscrComment(edb::reg_t fpscr) {
 	const auto nzcv = fpscr >> 28;
 	switch (nzcv) {
 	case 2:
-		return "(GT)";
+		return QStringLiteral("(GT)");
 	case 3:
-		return "(Unordered)";
+		return QStringLiteral("(Unordered)");
 	case 6:
-		return "(EQ)";
+		return QStringLiteral("(EQ)");
 	case 8:
-		return "(LT)";
+		return QStringLiteral("(LT)");
 	default:
-		return "";
+		return QString();
 	}
 }
 

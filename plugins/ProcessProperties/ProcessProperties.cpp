@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ProcessProperties.h"
 #include "DialogProcessProperties.h"
@@ -25,8 +13,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace ProcessPropertiesPlugin {
 
 /**
- * @brief ProcessProperties::ProcessProperties
- * @param parent
+ * @brief Constructs a ProcessProperties object with the specified parent QObject.
+ *
+ * @param parent The parent QObject for this plugin.
  */
 ProcessProperties::ProcessProperties(QObject *parent)
 	: QObject(parent) {
@@ -35,7 +24,7 @@ ProcessProperties::ProcessProperties(QObject *parent)
 }
 
 /**
- * @brief ProcessProperties::~ProcessProperties
+ * @brief Destructs the ProcessProperties object and frees the process properties dialog.
  */
 ProcessProperties::~ProcessProperties() {
 #if 0
@@ -44,9 +33,10 @@ ProcessProperties::~ProcessProperties() {
 }
 
 /**
- * @brief ProcessProperties::menu
- * @param parent
- * @return
+ * @brief Returns the menu for the ProcessProperties plugin.
+ *
+ * @param parent The parent widget for the menu.
+ * @return The menu for the ProcessProperties plugin.
  */
 QMenu *ProcessProperties::menu(QWidget *parent) {
 
@@ -54,15 +44,20 @@ QMenu *ProcessProperties::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("Process Properties"), parent);
-		menu_->addAction(tr("&Process Properties"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+P")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&Process Properties"), QKeySequence(tr("Ctrl+P")), this, &ProcessProperties::showMenu);
+		menu_->addAction(tr("Process &Strings"), QKeySequence(tr("Ctrl+S")), dialog_, SLOT(on_btnStrings_clicked()));
+#else
+		menu_->addAction(tr("&Process Properties"), this, &ProcessProperties::showMenu, QKeySequence(tr("Ctrl+P")));
 		menu_->addAction(tr("Process &Strings"), dialog_, SLOT(on_btnStrings_clicked()), QKeySequence(tr("Ctrl+S")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief ProcessProperties::showMenu
+ * @brief Shows the Process Properties menu.
  */
 void ProcessProperties::showMenu() {
 	dialog_->show();

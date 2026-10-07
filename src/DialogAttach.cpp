@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DialogAttach.h"
 #include "IDebugger.h"
@@ -39,10 +27,12 @@ int getuid() {
 #include <unistd.h>
 #endif
 
-//------------------------------------------------------------------------------
-// Name: DialogAttach
-// Desc: constructor
-//------------------------------------------------------------------------------
+/**
+ * @brief Constructor for the DialogAttach class.
+ *
+ * @param parent The parent widget.
+ * @param f The window flags.
+ */
 DialogAttach::DialogAttach(QWidget *parent, Qt::WindowFlags f)
 	: QDialog(parent, f) {
 
@@ -63,10 +53,9 @@ DialogAttach::DialogAttach(QWidget *parent, Qt::WindowFlags f)
 	ui.processes_table->setModel(processPidFilter_);
 }
 
-//------------------------------------------------------------------------------
-// Name: on_filter_textChanged
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogAttach::on_filter_textChanged(const QString &filter) {
 
 	if (util::is_numeric(filter)) {
@@ -78,10 +67,9 @@ void DialogAttach::on_filter_textChanged(const QString &filter) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: updateList
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogAttach::updateList() {
 
 	if (isHidden()) {
@@ -107,8 +95,8 @@ void DialogAttach::updateList() {
 	}
 
 	if (selected_pid) {
-		const auto pid          = selected_pid.value();
-		const auto *const model = ui.processes_table->model();
+		const auto pid   = selected_pid.value();
+		const auto model = ui.processes_table->model();
 		for (int row = 0; row < model->rowCount(); ++row) {
 			if (static_cast<edb::pid_t>(model->index(row, 0).data().toUInt()) == pid) {
 				ui.processes_table->selectRow(row);
@@ -117,10 +105,9 @@ void DialogAttach::updateList() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: showEvent
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogAttach::showEvent(QShowEvent *event) {
 	Q_UNUSED(event)
 	updateList();
@@ -128,29 +115,26 @@ void DialogAttach::showEvent(QShowEvent *event) {
 	updateTimer_.start(1000);
 }
 
-//------------------------------------------------------------------------------
-// Name: on_filter_uid_clicked
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogAttach::on_filter_uid_clicked(bool checked) {
 	Q_UNUSED(checked)
 	updateList();
 }
 
-//------------------------------------------------------------------------------
-// Name: on_processes_table_doubleClicked
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 void DialogAttach::on_processes_table_doubleClicked(const QModelIndex &) {
 	if (selectedPid()) {
 		accept();
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: selected_pid
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief
+ */
 Result<edb::pid_t, QString> DialogAttach::selectedPid() const {
 
 	const QItemSelectionModel *const selModel = ui.processes_table->selectionModel();

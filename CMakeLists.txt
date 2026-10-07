@@ -1,5 +1,5 @@
-cmake_minimum_required (VERSION 3.1)
-project (edb LANGUAGES CXX VERSION 1.3.0)
+cmake_minimum_required (VERSION 3.15)
+project (edb LANGUAGES CXX VERSION 1.5.0)
 
 enable_testing()
 
@@ -19,6 +19,7 @@ include("EnableSTLDebug")
 include("ProjectDefaults")
 include("AddWarnings")
 include("DetectGitBranch")
+include("DetectQt")
 
 if(TARGET_COMPILER_GCC AND ${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 7.0)
 	message(FATAL_ERROR "Your g++ version is too old. At least 7.0 is required.")
@@ -56,13 +57,13 @@ else()
    endif()
 endif()
 
-find_package(Qt5Core)
-
 include_directories("include")
 
 if(TARGET_PLATFORM_LINUX)
 	include_directories("include/os/unix")
 	include_directories("include/os/unix/linux")
+elseif(TARGET_PLATFORM_FREEBSD)
+	include_directories("include/os/unix")
 elseif(TARGET_PLATFORM_WINDOWS)
 	include_directories("include/os/win32")
 endif()
@@ -97,6 +98,10 @@ if(UNIX)
 		endif()
 	endif()
 endif()
+
+# add_definitions(-DQT_NO_CAST_FROM_ASCII)
+# add_definitions(-DQT_NO_CAST_TO_ASCII)
+add_definitions(-DQT_NO_KEYWORDS)
 
 add_subdirectory(src)
 add_subdirectory(plugins)

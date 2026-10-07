@@ -1,19 +1,8 @@
 /*
-Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 Ruslan Kabatsayev <b7.10110111@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "ODbgRV_Util.h"
 #include "RegisterView.h"
@@ -21,11 +10,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace ODbgRegisterView {
 
 QString FieldWidget::text() const {
-	if (!index_.isValid() && !this->isEnabled())
+	if (!index_.isValid() && !this->isEnabled()) {
 		return QLabel::text();
+	}
 	const auto text = index_.data();
-	if (!text.isValid())
-		return QString(width() / letter_size(font()).width() - 1, QChar('?'));
+	if (!text.isValid()) {
+		return QString(width() / letter_size(font()).width() - 1, QLatin1Char('?'));
+	}
 	return text.toString();
 }
 
@@ -40,16 +31,17 @@ int FieldWidget::columnNumber() const {
 }
 
 void FieldWidget::init(int fieldWidth) {
-	setObjectName("FieldWidget");
+	setObjectName(QStringLiteral("FieldWidget"));
 	const auto charSize = letter_size(font());
 	setFixedHeight(charSize.height());
-	if (fieldWidth > 0)
+	if (fieldWidth > 0) {
 		setFixedWidth(fieldWidth * charSize.width());
+	}
 	setDisabled(true);
 }
 
 FieldWidget::FieldWidget(int fieldWidth, const QModelIndex &index, QWidget *parent, Qt::WindowFlags f)
-	: QLabel("Fw???", parent, f), index_(index), fieldWidth_(fieldWidth) {
+	: QLabel(QStringLiteral("Fw???"), parent, f), index_(index), fieldWidth_(fieldWidth) {
 
 	init(fieldWidth);
 }
@@ -57,13 +49,13 @@ FieldWidget::FieldWidget(int fieldWidth, const QModelIndex &index, QWidget *pare
 FieldWidget::FieldWidget(int fieldWidth, const QString &fixedText, QWidget *parent, Qt::WindowFlags f)
 	: QLabel(fixedText, parent, f), fieldWidth_(fieldWidth) {
 
-	init(fieldWidth); // NOTE: fieldWidth!=fixedText.length() in general
+	init(fieldWidth); // NOTE: fieldWidth!=fixedText.size() in general
 }
 
 FieldWidget::FieldWidget(const QString &fixedText, QWidget *parent, Qt::WindowFlags f)
-	: QLabel(fixedText, parent, f), fieldWidth_(fixedText.length()) {
+	: QLabel(fixedText, parent, f), fieldWidth_(static_cast<int>(fixedText.size())) {
 
-	init(fixedText.length());
+	init(static_cast<int>(fixedText.size()));
 }
 
 int FieldWidget::fieldWidth() const {

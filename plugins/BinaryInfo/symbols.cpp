@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "symbols.h"
 #include "demangle.h"
@@ -51,7 +39,7 @@ struct elf32_model : elf_model<32> {
 	static constexpr uint32_t elf_r_sym(uint32_t x) { return ELF32_R_SYM(x); }
 	static constexpr uint32_t elf_r_type(uint32_t x) { return ELF32_R_TYPE(x); }
 	static constexpr uint8_t elf_st_type(uint8_t x) { return ELF32_ST_TYPE(x); }
-	static constexpr uint8_t elf_st_bind(uint8_t x) { return ELF32_ST_BIND(x); }
+	static constexpr uint8_t elf_st_bind(uint8_t x) { return static_cast<uint8_t>(ELF32_ST_BIND(x)); }
 
 	struct symbol {
 		elf_addr address;
@@ -59,16 +47,16 @@ struct elf32_model : elf_model<32> {
 		QString name;
 		char type;
 
-		bool operator<(const symbol &rhs) const {
+		[[nodiscard]] bool operator<(const symbol &rhs) const {
 			return std::tie(address, name) < std::tie(rhs.address, rhs.name);
 		}
 
-		bool operator==(const symbol &rhs) const {
+		[[nodiscard]] bool operator==(const symbol &rhs) const {
 			return std::tie(address, name) == std::tie(rhs.address, rhs.name);
 		}
 
-		QString to_string() const {
-			return QString("%1 %2 %3 %4").arg(edb::value32(address).toHexString(), edb::value32(size).toHexString()).arg(type).arg(name);
+		[[nodiscard]] QString to_string() const {
+			return QStringLiteral("%1 %2 %3 %4").arg(edb::value32(address).toHexString(), edb::value32(size).toHexString()).arg(type).arg(name);
 		}
 	};
 };
@@ -80,7 +68,7 @@ struct elf64_model : elf_model<64> {
 	static constexpr uint64_t elf_r_sym(uint64_t x) { return ELF64_R_SYM(x); }
 	static constexpr uint64_t elf_r_type(uint64_t x) { return ELF64_R_TYPE(x); }
 	static constexpr uint8_t elf_st_type(uint8_t x) { return ELF64_ST_TYPE(x); }
-	static constexpr uint8_t elf_st_bind(uint8_t x) { return ELF64_ST_BIND(x); }
+	static constexpr uint8_t elf_st_bind(uint8_t x) { return static_cast<uint8_t>(ELF64_ST_BIND(x)); }
 
 	struct symbol {
 		elf_addr address;
@@ -88,30 +76,30 @@ struct elf64_model : elf_model<64> {
 		QString name;
 		char type;
 
-		bool operator<(const symbol &rhs) const {
+		[[nodiscard]] bool operator<(const symbol &rhs) const {
 			return std::tie(address, name) < std::tie(rhs.address, rhs.name);
 		}
 
-		bool operator==(const symbol &rhs) const {
+		[[nodiscard]] bool operator==(const symbol &rhs) const {
 			return std::tie(address, name) == std::tie(rhs.address, rhs.name);
 		}
 
-		QString to_string() const {
-			return QString("%1 %2 %3 %4").arg(edb::value64(address).toHexString(), edb::value32(size).toHexString()).arg(type).arg(name);
+		[[nodiscard]] QString to_string() const {
+			return QStringLiteral("%1 %2 %3 %4").arg(edb::value64(address).toHexString(), edb::value32(size).toHexString()).arg(type).arg(name);
 		}
 	};
 };
 
-bool is_elf32(const void *ptr) {
-	auto elf32_hdr = reinterpret_cast<const elf32_header *>(ptr);
+[[nodiscard]] bool is_elf32(const void *ptr) {
+	auto elf32_hdr = static_cast<const elf32_header *>(ptr);
 	if (std::memcmp(elf32_hdr->e_ident, ELFMAG, SELFMAG) == 0) {
 		return elf32_hdr->e_ident[EI_CLASS] == ELFCLASS32;
 	}
 	return false;
 }
 
-bool is_elf64(const void *ptr) {
-	auto elf64_hdr = reinterpret_cast<const elf64_header *>(ptr);
+[[nodiscard]] bool is_elf64(const void *ptr) {
+	auto elf64_hdr = static_cast<const elf64_header *>(ptr);
 	if (std::memcmp(elf64_hdr->e_ident, ELFMAG, SELFMAG) == 0) {
 		return elf64_hdr->e_ident[EI_CLASS] == ELFCLASS64;
 	}
@@ -172,9 +160,8 @@ the symbol is local; if uppercase, the symbol is global (external).
 "?" The symbol type is unknown, or object file format specific.
 */
 
-template <class M, class Size>
-void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &symbols) {
-	Q_UNUSED(size)
+template <class M, class SizeType>
+void collect_symbols(const void *p, SizeType size, std::vector<typename M::symbol> &symbols) {
 
 	using elf_addr   = typename M::elf_addr;
 	using elf_header = typename M::elf_header;
@@ -194,26 +181,37 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 	const elf_shdr *const sections_end = sections_begin + header->e_shnum;
 	auto section_strings               = reinterpret_cast<const char *>(base + sections_begin[header->e_shstrndx].sh_offset);
 
-	elf_addr plt_address = 0;
-	elf_addr got_address = 0;
+	elf_addr plt_address     = 0;
+	elf_addr plt_sec_address = 0;
+	elf_addr got_address     = 0;
 	std::set<elf_addr> plt_addresses;
 
 	// collect special section addresses
 	for (const elf_shdr *section = sections_begin; section != sections_end; ++section) {
+		if (section_strings + section->sh_name < reinterpret_cast<void *>(base) || section_strings + section->sh_name > reinterpret_cast<void *>(base + size)) {
+			continue;
+		}
+
 		if (strcmp(&section_strings[section->sh_name], ".plt") == 0) {
 			plt_address = section->sh_addr;
 		} else if (strcmp(&section_strings[section->sh_name], ".got") == 0) {
 			got_address = section->sh_addr;
+		} else if (strcmp(&section_strings[section->sh_name], ".plt.sec") == 0) {
+			plt_sec_address = section->sh_addr;
 		}
 	}
 
 	// print out relocated symbols for special sections
 	for (const elf_shdr *section = sections_begin; section != sections_end; ++section) {
+		if (section_strings + section->sh_name < reinterpret_cast<void *>(base) || section_strings + section->sh_name > reinterpret_cast<void *>(base + size)) {
+			continue;
+		}
+
 		elf_addr base_address = 0;
 		if (strcmp(&section_strings[section->sh_name], ".rela.plt") == 0) {
-			base_address = plt_address;
+			base_address = plt_sec_address ? plt_sec_address : plt_address;
 		} else if (strcmp(&section_strings[section->sh_name], ".rel.plt") == 0) {
-			base_address = plt_address;
+			base_address = plt_sec_address ? plt_sec_address : plt_address;
 		} else if (strcmp(&section_strings[section->sh_name], ".rela.got") == 0) {
 			base_address = got_address;
 		} else if (strcmp(&section_strings[section->sh_name], ".rel.got") == 0) {
@@ -222,6 +220,7 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 			continue;
 		}
 
+		auto section_entries_count = section->sh_entsize ? section->sh_size / section->sh_entsize : 0;
 		switch (section->sh_type) {
 		case SHT_RELA: {
 			elf_addr n      = 0;
@@ -231,14 +230,18 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 				break;
 			}
 
-			for (size_t i = 0; i < section->sh_size / section->sh_entsize; ++i) {
+			if (!plt_sec_address) {
+				++n;
+			}
+
+			for (size_t i = 0; i < section_entries_count; ++i) {
 
 				const size_t sym_index = M::elf_r_sym(relocation[i].r_info);
 				const elf_shdr *linked = &sections_begin[section->sh_link];
 				auto symbol_tab        = reinterpret_cast<elf_sym *>(base + linked->sh_offset);
 				auto string_tab        = reinterpret_cast<const char *>(base + sections_begin[linked->sh_link].sh_offset);
 
-				const elf_addr symbol_address = base_address + ++n * M::plt_entry_size;
+				const auto symbol_address = static_cast<elf_addr>(base_address + (n * M::plt_entry_size));
 
 				const char *sym_name = &section_strings[section->sh_name];
 				if (strlen(sym_name) > (sizeof(".rela.") - 1) && memcmp(sym_name, ".rela.", (sizeof(".rela.") - 1)) == 0) {
@@ -250,11 +253,12 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 				symbol sym;
 				sym.address = symbol_address;
 				sym.size    = (symbol_tab[sym_index].st_size ? symbol_tab[sym_index].st_size : 0x10);
-				sym.name    = &string_tab[symbol_tab[sym_index].st_name];
-				sym.name += "@";
-				sym.name += sym_name;
+				sym.name    = QString::fromLocal8Bit(&string_tab[symbol_tab[sym_index].st_name]);
+				sym.name += QLatin1Char('@');
+				sym.name += QString::fromLocal8Bit(sym_name);
 				sym.type = 'P';
 				symbols.push_back(sym);
+				++n;
 			}
 		} break;
 		case SHT_REL: {
@@ -265,14 +269,18 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 				break;
 			}
 
-			for (size_t i = 0; i < section->sh_size / section->sh_entsize; ++i) {
+			if (!plt_sec_address) {
+				++n;
+			}
+
+			for (size_t i = 0; i < section_entries_count; ++i) {
 
 				const size_t sym_index = M::elf_r_sym(relocation[i].r_info);
 				const elf_shdr *linked = &sections_begin[section->sh_link];
 				auto symbol_tab        = reinterpret_cast<elf_sym *>(base + linked->sh_offset);
 				auto string_tab        = reinterpret_cast<const char *>(base + sections_begin[linked->sh_link].sh_offset);
 
-				const elf_addr symbol_address = base_address + ++n * M::plt_entry_size;
+				const auto symbol_address = static_cast<elf_addr>(base_address + (n * M::plt_entry_size));
 
 				const char *sym_name = &section_strings[section->sh_name];
 				if (strlen(sym_name) > (sizeof(".rel.") - 1) && memcmp(sym_name, ".rel.", (sizeof(".rel.") - 1)) == 0) {
@@ -284,11 +292,12 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 				symbol sym;
 				sym.address = symbol_address;
 				sym.size    = (symbol_tab[sym_index].st_size ? symbol_tab[sym_index].st_size : 0x10);
-				sym.name    = &string_tab[symbol_tab[sym_index].st_name];
-				sym.name += "@";
-				sym.name += sym_name;
+				sym.name    = QString::fromLocal8Bit(&string_tab[symbol_tab[sym_index].st_name]);
+				sym.name += QLatin1Char('@');
+				sym.name += QString::fromLocal8Bit(sym_name);
 				sym.type = 'P';
 				symbols.push_back(sym);
+				++n;
 			}
 		} break;
 		}
@@ -300,10 +309,11 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 		switch (section->sh_type) {
 		case SHT_SYMTAB:
 		case SHT_DYNSYM: {
-			auto symbol_tab = reinterpret_cast<elf_sym *>(base + section->sh_offset);
-			auto string_tab = reinterpret_cast<const char *>(base + sections_begin[section->sh_link].sh_offset);
+			auto symbol_tab            = reinterpret_cast<elf_sym *>(base + section->sh_offset);
+			auto string_tab            = reinterpret_cast<const char *>(base + sections_begin[section->sh_link].sh_offset);
+			auto section_entries_count = section->sh_entsize ? section->sh_size / section->sh_entsize : 0;
 
-			for (size_t i = 0; i < section->sh_size / section->sh_entsize; ++i) {
+			for (size_t i = 0; i < section_entries_count; ++i) {
 
 				const elf_shdr *related_section = nullptr;
 
@@ -320,7 +330,7 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 						symbol sym;
 						sym.address = symbol_tab[i].st_value;
 						sym.size    = symbol_tab[i].st_size;
-						sym.name    = &string_tab[symbol_tab[i].st_name];
+						sym.name    = QString::fromLocal8Bit(&string_tab[symbol_tab[i].st_name]);
 						sym.type    = (M::elf_st_type(symbol_tab[i].st_info) == STT_FUNC ? 'T' : 'D');
 						symbols.push_back(sym);
 					}
@@ -336,10 +346,11 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 		switch (section->sh_type) {
 		case SHT_SYMTAB:
 		case SHT_DYNSYM: {
-			auto symbol_tab = reinterpret_cast<elf_sym *>(base + section->sh_offset);
-			auto string_tab = reinterpret_cast<const char *>(base + sections_begin[section->sh_link].sh_offset);
+			auto symbol_tab            = reinterpret_cast<elf_sym *>(base + section->sh_offset);
+			auto string_tab            = reinterpret_cast<const char *>(base + sections_begin[section->sh_link].sh_offset);
+			auto section_entries_count = section->sh_entsize ? section->sh_size / section->sh_entsize : 0;
 
-			for (size_t i = 0; i < section->sh_size / section->sh_entsize; ++i) {
+			for (size_t i = 0; i < section_entries_count; ++i) {
 
 				const elf_shdr *related_section = nullptr;
 
@@ -359,9 +370,9 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 						for (const elf_shdr *section = sections_begin; section != sections_end; ++section) {
 							if (sym.address >= section->sh_addr && sym.address + sym.size <= section->sh_addr + section->sh_size) {
 								const std::int64_t offset = sym.address - section->sh_addr;
-								const QString hexPrefix   = std::abs(offset) > 9 ? "0x" : "";
-								const QString offsetStr   = offset ? "+" + hexPrefix + QString::number(offset, 16) : "";
-								const QString sectionName(&section_strings[section->sh_name]);
+								const QString hexPrefix   = std::abs(offset) > 9 ? QStringLiteral("0x") : QString();
+								const QString offsetStr   = offset ? QStringLiteral("+") + hexPrefix + QString::number(offset, 16) : QString();
+								const auto sectionName    = QString::fromLocal8Bit(&section_strings[section->sh_name]);
 								if (!sectionName.isEmpty()) {
 									sym.name = QString(sectionName + offsetStr);
 									break;
@@ -370,7 +381,7 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 						}
 
 						if (sym.name.isEmpty()) {
-							sym.name = QString("$sym_%1").arg(edb::v1::format_pointer(symbol_tab[i].st_value));
+							sym.name = QStringLiteral("$sym_%1").arg(edb::v1::format_pointer(symbol_tab[i].st_value));
 						}
 
 						sym.type = (M::elf_st_type(symbol_tab[i].st_info) == STT_FUNC ? 'T' : 'D');
@@ -383,16 +394,17 @@ void collect_symbols(const void *p, Size size, std::vector<typename M::symbol> &
 	}
 }
 
-//--------------------------------------------------------------------------
-// Name: output_symbols
-// Desc: outputs the symbols to OS ensuring uniqueness and adding any
-//       needed demangling
-//--------------------------------------------------------------------------
+/**
+ * @brief Outputs the symbols to the specified stream ensuring uniqueness and adding any needed demangling.
+ *
+ * @param symbols The vector of symbols to output.
+ * @param os The output stream to write the symbols to.
+ */
 template <class Symbol>
 void output_symbols(std::vector<Symbol> &symbols, std::ostream &os) {
 	std::sort(symbols.begin(), symbols.end());
 	auto new_end                 = std::unique(symbols.begin(), symbols.end());
-	const auto demanglingEnabled = QSettings().value("BinaryInfo/demangling_enabled", true).toBool();
+	const auto demanglingEnabled = QSettings().value(QStringLiteral("BinaryInfo/demangling_enabled"), true).toBool();
 	for (auto it = symbols.begin(); it != new_end; ++it) {
 		if (demanglingEnabled) {
 			it->name = demangle(it->name);
@@ -401,12 +413,16 @@ void output_symbols(std::vector<Symbol> &symbols, std::ostream &os) {
 	}
 }
 
-//--------------------------------------------------------------------------
-// Name: generate_symbols_internal
-// Desc:
-//--------------------------------------------------------------------------
+/**
+ * @brief Generates symbols for the given file and outputs them to the specified stream.
+ *
+ * @param file The file to generate symbols for.
+ * @param debugFile The debug file to include in the symbol generation.
+ * @param os The output stream to write the symbols to.
+ * @return True if the operation was successful, false otherwise.
+ */
 bool generate_symbols_internal(QFile &file, std::shared_ptr<QFile> &debugFile, std::ostream &os) {
-	if (auto file_ptr = reinterpret_cast<void *>(file.map(0, file.size(), QFile::NoOptions))) {
+	if (auto file_ptr = static_cast<void *>(file.map(0, file.size(), QFile::NoOptions))) {
 		if (is_elf64(file_ptr)) {
 
 			using symbol = typename elf64_model::symbol;
@@ -416,11 +432,11 @@ bool generate_symbols_internal(QFile &file, std::shared_ptr<QFile> &debugFile, s
 
 			// if there was a debug file
 			if (debugFile) {
-				// and we sucessfully opened it
+				// and we successfully opened it
 				if (debugFile->open(QIODevice::ReadOnly)) {
 
 					// map it and include it with the symbols
-					if (auto debug_ptr = reinterpret_cast<void *>(debugFile->map(0, debugFile->size(), QFile::NoOptions))) {
+					if (auto debug_ptr = static_cast<void *>(debugFile->map(0, debugFile->size(), QFile::NoOptions))) {
 
 						// this should never fail... but just being sure
 						if (is_elf64(debug_ptr)) {
@@ -432,7 +448,9 @@ bool generate_symbols_internal(QFile &file, std::shared_ptr<QFile> &debugFile, s
 
 			output_symbols(symbols, os);
 			return true;
-		} else if (is_elf32(file_ptr)) {
+		}
+
+		if (is_elf32(file_ptr)) {
 
 			using symbol = typename elf32_model::symbol;
 			std::vector<symbol> symbols;
@@ -441,11 +459,11 @@ bool generate_symbols_internal(QFile &file, std::shared_ptr<QFile> &debugFile, s
 
 			// if there was a debug file
 			if (debugFile) {
-				// and we sucessfully opened it
+				// and we successfully opened it
 				if (debugFile->open(QIODevice::ReadOnly)) {
 
 					// map it and include it with the symbols
-					if (auto debug_ptr = reinterpret_cast<void *>(debugFile->map(0, debugFile->size(), QFile::NoOptions))) {
+					if (auto debug_ptr = static_cast<void *>(debugFile->map(0, debugFile->size(), QFile::NoOptions))) {
 
 						// this should never fail... but just being sure
 						if (is_elf32(debug_ptr)) {
@@ -457,9 +475,9 @@ bool generate_symbols_internal(QFile &file, std::shared_ptr<QFile> &debugFile, s
 
 			output_symbols(symbols, os);
 			return true;
-		} else {
-			qDebug() << "unknown file type";
 		}
+
+		qDebug("unknown file type");
 	}
 
 	return false;
@@ -468,10 +486,11 @@ bool generate_symbols_internal(QFile &file, std::shared_ptr<QFile> &debugFile, s
 }
 
 /**
- * @brief generate_symbols
- * @param filename
- * @param os
- * @return
+ * @brief Generates symbols for the given file and outputs them to the specified stream.
+ *
+ * @param filename The name of the file to generate symbols for.
+ * @param os The output stream to write the symbols to.
+ * @return True if the operation was successful, false otherwise.
  */
 bool generate_symbols(const QString &filename, std::ostream &os) {
 
@@ -481,13 +500,13 @@ bool generate_symbols(const QString &filename, std::ostream &os) {
 		const QByteArray md5 = edb::v1::get_file_md5(filename);
 		os << md5.toHex().data() << ' ' << qPrintable(QFileInfo(filename).absoluteFilePath()) << '\n';
 
-		const QString debugInfoPath = QSettings().value("BinaryInfo/debug_info_path", "/usr/lib/debug").toString();
+		const QString debugInfoPath = QSettings().value(QStringLiteral("BinaryInfo/debug_info_path"), QStringLiteral("/usr/lib/debug")).toString();
 
 		std::shared_ptr<QFile> debugFile;
 		if (!debugInfoPath.isEmpty()) {
-			debugFile = std::make_shared<QFile>(QString("%1/%2.debug").arg(debugInfoPath, filename));
+			debugFile = std::make_shared<QFile>(QStringLiteral("%1/%2.debug").arg(debugInfoPath, filename));
 			if (!debugFile->exists()) { // systems such as Ubuntu don't have .debug suffix, try without it
-				debugFile = std::make_shared<QFile>(QString("%1/%2").arg(debugInfoPath, filename));
+				debugFile = std::make_shared<QFile>(QStringLiteral("%1/%2").arg(debugInfoPath, filename));
 			}
 		}
 

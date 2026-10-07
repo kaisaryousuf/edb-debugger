@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "DumpState.h"
 #include "IDebugger.h"
@@ -35,13 +23,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 #include <string>
 
+// NOTE(eteran): This plugin is currently very x86 specific, but it could be extended to support other architectures in the future.
+// The main things that would need to be abstracted are the register names and the instruction formatting in dumpCode.
 namespace DumpStatePlugin {
 namespace {
 
 /**
- * @brief hex_string
- * @param value
- * @return
+ * @brief Return a hex string representation of the given value.
+ *
+ * @param value The value to convert to a hex string.
+ * @return The hex string representation of the value.
  */
 template <class T>
 std::string hex_string(const T &value) {
@@ -57,73 +48,78 @@ constexpr const char Green[]  = "\x1B[92m";
 constexpr const char Purple[] = "\x1B[95m";
 
 /**
- * @brief format_register
- * @param value
- * @return
+ * @brief Format a register value as a hex string, optionally colorizing it based on the plugin settings.
+ *
+ * @param value The register value to format.
+ * @return The formatted register value as a hex string, potentially colorized.
  */
 template <class T>
 std::string format_register(const T &value) {
 
 	QSettings settings;
-	const int colorize = settings.value("DumpState/colorize", true).toBool();
+	const int colorize = settings.value(QStringLiteral("DumpState/colorize"), true).toBool();
 
 	if (colorize) {
 		return Blue + hex_string(value) + Reset;
-	} else {
-		return hex_string(value);
 	}
+
+	return hex_string(value);
 }
 
 /**
- * @brief format_segment
- * @param value
- * @return
+ * @brief Format a segment value as a hex string, optionally colorizing it based on the plugin settings.
+ *
+ * @param value The segment value to format.
+ * @return The formatted segment value as a hex string, potentially colorized.
  */
 template <class T>
 std::string format_segment(const T &value) {
 
 	QSettings settings;
-	const int colorize = settings.value("DumpState/colorize", true).toBool();
+	const int colorize = settings.value(QStringLiteral("DumpState/colorize"), true).toBool();
 
 	if (colorize) {
 		return Green + hex_string(value) + Reset;
-	} else {
-		return hex_string(value);
 	}
+
+	return hex_string(value);
 }
 
 /**
- * @brief format_address
- * @param value
- * @return
+ * @brief Format an address as a hex string, optionally colorizing it based on the plugin settings.
+ *
+ * @param value The address to format.
+ * @return The formatted address as a hex string, potentially colorized.
  */
 template <class T>
 std::string format_address(const T &value) {
 
 	QSettings settings;
-	const int colorize = settings.value("DumpState/colorize", true).toBool();
+	const int colorize = settings.value(QStringLiteral("DumpState/colorize"), true).toBool();
 
 	if (colorize) {
 		return Purple + hex_string(value) + Reset;
-	} else {
-		return hex_string(value);
 	}
+
+	return hex_string(value);
 }
 
 }
 
 /**
- * @brief DumpState::DumpState
- * @param parent
+ * @brief Constructor for the DumpState plugin.
+ *
+ * @param parent The parent QObject for this plugin.
  */
 DumpState::DumpState(QObject *parent)
 	: QObject(parent) {
 }
 
 /**
- * @brief DumpState::menu
- * @param parent
- * @return
+ * @brief Return the context menu for this plugin, creating it if it doesn't already exist.
+ *
+ * @param parent The parent widget for the menu.
+ * @return A pointer to the context menu for this plugin.
  */
 QMenu *DumpState::menu(QWidget *parent) {
 
@@ -131,20 +127,25 @@ QMenu *DumpState::menu(QWidget *parent) {
 
 	if (!menu_) {
 		menu_ = new QMenu(tr("DumpState"), parent);
-		menu_->addAction(tr("&Dump Current State"), this, SLOT(showMenu()), QKeySequence(tr("Ctrl+D")));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+		menu_->addAction(tr("&Dump Current State"), QKeySequence(tr("Ctrl+D")), this, &DumpState::dumpCurrentState);
+#else
+		menu_->addAction(tr("&Dump Current State"), this, &DumpState::dumpCurrentState, QKeySequence(tr("Ctrl+D")));
+#endif
 	}
 
 	return menu_;
 }
 
 /**
- * @brief DumpState::dumpCode
- * @param state
+ * @brief Dumps the code at and after the instruction pointer from the given state.
+ *
+ * @param state The state from which to dump the code. The instruction pointer will be used as the starting address for dumping.
  */
 void DumpState::dumpCode(const State &state) {
 
 	QSettings settings;
-	const int instructions_to_print = settings.value("DumpState/instructions_after_ip", 6).toInt();
+	const int instructions_to_print = settings.value(QStringLiteral("DumpState/instructions_after_ip"), 6).toInt();
 
 	const edb::address_t ip = state.instructionPointer();
 	edb::address_t address  = ip;
@@ -166,33 +167,34 @@ void DumpState::dumpCode(const State &state) {
 }
 
 /**
- * @brief DumpState::dumpRegisters
- * @param state
+ * @brief Dumps the register values from the given state, using the plugin settings to determine whether to colorize the output.
+ *
+ * @param state The state from which to dump the register values.
  */
 void DumpState::dumpRegisters(const State &state) {
 
 	using std::cout;
 	if (edb::v1::debuggeeIs32Bit()) { // TODO: check if state itself is 32 bit, not current debuggee. Generally it's not the same.
-		cout << "     eax:" << format_register(state["eax"]);
-		cout << " ecx:" << format_register(state["ecx"]);
-		cout << "  edx:" << format_register(state["edx"]);
-		cout << "  ebx:" << format_register(state["ebx"]);
-		cout << "     eflags:" << format_register(state["eflags"]);
+		cout << "eax:" << format_register(state[QStringLiteral("eax")]);
+		cout << " ecx:" << format_register(state[QStringLiteral("ecx")]);
+		cout << " edx:" << format_register(state[QStringLiteral("edx")]);
+		cout << " ebx:" << format_register(state[QStringLiteral("ebx")]);
+		cout << " eflags:" << format_register(state[QStringLiteral("eflags")]);
 		cout << "\n";
-		cout << "     esp:" << format_register(state["esp"]);
-		cout << " ebp:" << format_register(state["ebp"]);
-		cout << "  esi:" << format_register(state["esi"]);
-		cout << "  edi:" << format_register(state["edi"]);
-		cout << "     eip:" << format_register(state["eip"]);
+		cout << "esp:" << format_register(state[QStringLiteral("esp")]);
+		cout << " ebp:" << format_register(state[QStringLiteral("ebp")]);
+		cout << " esi:" << format_register(state[QStringLiteral("esi")]);
+		cout << " edi:" << format_register(state[QStringLiteral("edi")]);
+		cout << "    eip:" << format_register(state[QStringLiteral("eip")]);
 		cout << "\n";
-		cout << "     es:" << format_segment(state["es"]);
-		cout << "  cs:" << format_segment(state["cs"]);
-		cout << "  ss:" << format_segment(state["ss"]);
-		cout << "  ds:" << format_segment(state["ds"]);
-		cout << "  fs:" << format_segment(state["fs"]);
-		cout << "  gs:" << format_segment(state["gs"]);
+		cout << " es:" << format_segment(state[QStringLiteral("es")]);
+		cout << " cs:" << format_segment(state[QStringLiteral("cs")]);
+		cout << " ss:" << format_segment(state[QStringLiteral("ss")]);
+		cout << " ds:" << format_segment(state[QStringLiteral("ds")]);
+		cout << " fs:" << format_segment(state[QStringLiteral("fs")]);
+		cout << " gs:" << format_segment(state[QStringLiteral("gs")]);
 		cout << "    ";
-		const Register eflagsR = state["eflags"];
+		const Register eflagsR = state[QStringLiteral("eflags")];
 		if (eflagsR) {
 			const auto eflags = eflagsR.value<edb::value32>();
 			cout << ((eflags & (1 << 11)) != 0 ? 'O' : 'o') << ' ';
@@ -207,25 +209,25 @@ void DumpState::dumpRegisters(const State &state) {
 		}
 		cout << "\n";
 	} else {
-		cout << "     rax:" << format_register(state["rax"]);
-		cout << " rcx:" << format_register(state["rcx"]);
-		cout << "  rdx:" << format_register(state["rdx"]);
-		cout << "  rbx:" << format_register(state["rbx"]);
-		cout << "     rflags:" << format_register(state["rflags"]);
+		cout << " rax:" << format_register(state[QStringLiteral("rax")]);
+		cout << " rcx:" << format_register(state[QStringLiteral("rcx")]);
+		cout << " rdx:" << format_register(state[QStringLiteral("rdx")]);
+		cout << " rbx:" << format_register(state[QStringLiteral("rbx")]);
+		cout << " rflags:" << format_register(state[QStringLiteral("rflags")]);
 		cout << "\n";
-		cout << "     rsp:" << format_register(state["rsp"]);
-		cout << " rbp:" << format_register(state["rbp"]);
-		cout << "  rsi:" << format_register(state["rsi"]);
-		cout << "  rdi:" << format_register(state["rdi"]);
-		cout << "        rip:" << format_register(state["rip"]);
+		cout << " rsp:" << format_register(state[QStringLiteral("rsp")]);
+		cout << " rbp:" << format_register(state[QStringLiteral("rbp")]);
+		cout << " rsi:" << format_register(state[QStringLiteral("rsi")]);
+		cout << " rdi:" << format_register(state[QStringLiteral("rdi")]);
+		cout << "    rip:" << format_register(state[QStringLiteral("rip")]);
 		cout << "\n";
-		cout << "      r8:" << format_register(state["r8"]);
-		cout << "  r9:" << format_register(state["r9"]);
-		cout << "  r10:" << format_register(state["r10"]);
-		cout << "  r11:" << format_register(state["r11"]);
-		cout << "           ";
+		cout << "  r8:" << format_register(state[QStringLiteral("r8")]);
+		cout << "  r9:" << format_register(state[QStringLiteral("r9")]);
+		cout << " r10:" << format_register(state[QStringLiteral("r10")]);
+		cout << " r11:" << format_register(state[QStringLiteral("r11")]);
+		cout << "       ";
 
-		const Register rflagsR = state["rflags"];
+		const Register rflagsR = state[QStringLiteral("rflags")];
 		if (rflagsR) {
 			const auto rflags = rflagsR.value<edb::value32>();
 			cout << ((rflags & (1 << 11)) != 0 ? 'O' : 'o') << ' ';
@@ -240,25 +242,26 @@ void DumpState::dumpRegisters(const State &state) {
 		}
 
 		cout << "\n";
-		cout << "     r12:" << format_register(state["r12"]);
-		cout << " r13:" << format_register(state["r13"]);
-		cout << "  r14:" << format_register(state["r14"]);
-		cout << "  r15:" << format_register(state["r15"]);
+		cout << " r12:" << format_register(state[QStringLiteral("r12")]);
+		cout << " r13:" << format_register(state[QStringLiteral("r13")]);
+		cout << " r14:" << format_register(state[QStringLiteral("r14")]);
+		cout << " r15:" << format_register(state[QStringLiteral("r15")]);
 		cout << "\n";
-		cout << "     es:" << format_segment(state["es"]);
-		cout << "  cs:" << format_segment(state["cs"]);
-		cout << "  ss:" << format_segment(state["ss"]);
-		cout << "  ds:" << format_segment(state["ds"]);
-		cout << "  fs:" << format_segment(state["fs"]);
-		cout << "  gs:" << format_segment(state["gs"]);
+		cout << "  es:" << format_segment(state[QStringLiteral("es")]);
+		cout << "  cs:" << format_segment(state[QStringLiteral("cs")]);
+		cout << "  ss:" << format_segment(state[QStringLiteral("ss")]);
+		cout << "  ds:" << format_segment(state[QStringLiteral("ds")]);
+		cout << "  fs:" << format_segment(state[QStringLiteral("fs")]);
+		cout << "  gs:" << format_segment(state[QStringLiteral("gs")]);
 		cout << "\n";
 	}
 }
 
 /**
- * @brief DumpState::dumpLines
- * @param address
- * @param lines
+ * @brief Dumps a block of data as lines of a hex dump, starting at the given address.
+ *
+ * @param address The starting address of the data to dump.
+ * @param lines The number of lines to dump, where each line is 16 bytes.
  */
 void DumpState::dumpLines(edb::address_t address, int lines) {
 
@@ -269,23 +272,28 @@ void DumpState::dumpLines(edb::address_t address, int lines) {
 
 				std::cout << hex_string(address) << " : ";
 
-				for (int j = 0x00; j < 0x04; ++j)
+				for (int j = 0x00; j < 0x04; ++j) {
 					std::cout << hex_string(buf[j]) << " ";
+				}
 				std::cout << " ";
 
-				for (int j = 0x04; j < 0x08; ++j)
+				for (int j = 0x04; j < 0x08; ++j) {
 					std::cout << hex_string(buf[j]) << " ";
+				}
 				std::cout << "- ";
-				for (int j = 0x08; j < 0x0c; ++j)
+				for (int j = 0x08; j < 0x0c; ++j) {
 					std::cout << hex_string(buf[j]) << " ";
+				}
 				std::cout << " ";
-				for (int j = 0x0c; j < 0x10; ++j)
+				for (int j = 0x0c; j < 0x10; ++j) {
 					std::cout << hex_string(buf[j]) << " ";
+				}
 
-				for (int j = 0; j < 16; ++j) {
-					// TODO(eteran): why won't this compile with MSVC?
-					const uint8_t ch = buf[j].toUint();
-					std::cout << ((std::isprint(ch) || (std::isspace(ch) && (ch != '\f' && ch != '\t' && ch != '\r' && ch != '\n' && ch != '\x0b') && ch < 0x80)) ? static_cast<char>(ch) : '.');
+				for (const edb::value8 &b : buf) {
+					const uint8_t ch = b.toUint();
+					std::cout << ((std::isprint(ch) || (std::isspace(ch) && (ch != '\f' && ch != '\t' && ch != '\r' && ch != '\n' && ch != '\x0b') && ch < 0x80))
+									  ? static_cast<char>(ch)
+									  : '.');
 				}
 
 				std::cout << "\n";
@@ -298,25 +306,28 @@ void DumpState::dumpLines(edb::address_t address, int lines) {
 }
 
 /**
- * @brief DumpState::dumpStack
- * @param state
+ * @brief Dumps the stack contents from the given state.
+ *
+ * @param state The state from which to dump the stack contents.
  */
 void DumpState::dumpStack(const State &state) {
 	dumpLines(state.stackPointer(), 4);
 }
 
 /**
- * @brief DumpState::dumpData
- * @param address
+ * @brief Dumps the data at the given address.
+ *
+ * @param address The address from which to dump the data.
  */
 void DumpState::dumpData(edb::address_t address) {
 	dumpLines(address, 2);
 }
 
 /**
- * @brief DumpState::showMenu
+ * @brief Handler for the "Dump Current State" action in the context menu.
+ * This function retrieves the current state of the debugged thread and dumps the registers, stack, data at the current data view address, and code at the instruction pointer to the console.
  */
-void DumpState::showMenu() {
+void DumpState::dumpCurrentState() {
 
 	if (IProcess *process = edb::v1::debugger_core->process()) {
 		if (std::shared_ptr<IThread> thread = process->currentThread()) {
@@ -325,13 +336,13 @@ void DumpState::showMenu() {
 
 			std::cout << "------------------------------------------------------------------------------\n";
 			dumpRegisters(state);
-			std::cout << "[" << format_segment(state["ss"]) << ":" << format_address(state.stackPointer()) << "]---------------------------------------------------------[stack]\n";
+			std::cout << "[" << format_segment(state[QStringLiteral("ss")]) << ":" << format_address(state.stackPointer()) << "]---------------------------------------------------------[stack]\n";
 			dumpStack(state);
 
 			const edb::address_t data_address = edb::v1::current_data_view_address();
-			std::cout << "[" << format_segment(state["ds"]) << ":" << format_address(data_address) << "]---------------------------------------------------------[ data]\n";
+			std::cout << "[" << format_segment(state[QStringLiteral("ds")]) << ":" << format_address(data_address) << "]---------------------------------------------------------[ data]\n";
 			dumpData(data_address);
-			std::cout << "[" << format_segment(state["cs"]) << ":" << format_address(state.instructionPointer()) << "]---------------------------------------------------------[ code]\n";
+			std::cout << "[" << format_segment(state[QStringLiteral("cs")]) << ":" << format_address(state.instructionPointer()) << "]---------------------------------------------------------[ code]\n";
 			dumpCode(state);
 			std::cout << "------------------------------------------------------------------------------\n";
 		}
@@ -339,8 +350,9 @@ void DumpState::showMenu() {
 }
 
 /**
- * @brief DumpState::optionsPage
- * @return
+ * @brief Return the options page for this plugin.
+ *
+ * @return A pointer to the options page widget for this plugin.
  */
 QWidget *DumpState::optionsPage() {
 	return new OptionsPage;

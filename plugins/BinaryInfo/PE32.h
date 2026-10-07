@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef PE32_H_20070718_
 #define PE32_H_20070718_
@@ -35,7 +23,7 @@ public:
 
 public:
 	explicit PEBinaryException(Reason reason);
-	const char *what() const noexcept override;
+	[[nodiscard]] const char *what() const noexcept override;
 
 private:
 	Reason reason_;
@@ -43,15 +31,15 @@ private:
 
 class PE32 : public IBinary {
 public:
-	explicit PE32(const std::shared_ptr<IRegion> &region);
+	explicit PE32(std::shared_ptr<IRegion> region);
 	~PE32() override = default;
 
 public:
-	bool native() const override;
-	edb::address_t entryPoint() override;
-	size_t headerSize() const override;
-	const void *header() const override;
-	std::vector<Header> headers() const override;
+	[[nodiscard]] bool native() const override;
+	[[nodiscard]] edb::address_t entryPoint() override;
+	[[nodiscard]] size_t headerSize() const override;
+	[[nodiscard]] const void *header() const override;
+	[[nodiscard]] std::vector<Header> headers() const override;
 
 private:
 	std::shared_ptr<IRegion> region_;

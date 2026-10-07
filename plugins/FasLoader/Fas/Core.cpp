@@ -1,3 +1,11 @@
+/*
+ * @file: Core.cpp
+ *
+ * This file part of RT ( Reconstructive Tools )
+ * Copyright (c) 2018 darkprof <dark_prof@mail.ru>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ **/
 
 #include "Core.hpp"
 #include "Exception.hpp"
@@ -9,7 +17,7 @@ constexpr uint32_t Signature = 0x1A736166;
 
 }
 
-// TODO(eteran): this class is generally a good candiate for more RAII
+// TODO(eteran): this class is generally a good candidate for more RAII
 // and usage of the QFile class instead of std::ifstream
 
 namespace Fas {
@@ -29,7 +37,7 @@ void Core::load(const std::string &fileName) {
 		qDebug() << fasSymbols_.size();
 		deleteAnonymousSymbols();
 		loadSymbols();
-	} catch (std::exception &e) {
+	} catch (const Exception &e) {
 		qWarning() << e.what();
 	}
 }
@@ -158,7 +166,7 @@ void Core::loadSymbols() {
 
 void Core::checkAbsoluteValue(const Fas::Symbol &fasSymbol) {
 	if (fasSymbol.typeOfValue != ValueTypes::ABSOLUTE_VALUE) {
-		throw Exception(" Support only absolute value");
+		throw Exception("Support only absolute value");
 	}
 }
 
@@ -191,8 +199,15 @@ std::string Core::cstr2string(const Symbol &fasSymbol) {
 	char *c = cstr;
 	while (true) {
 		ifs_.read(c, 1);
-		if (count >= (MaxLength - 1)) break;
-		if (*c == 0) break;
+
+		if (count >= (MaxLength - 1)) {
+			break;
+		}
+
+		if (*c == 0) {
+			break;
+		}
+
 		++c;
 		++count;
 	}

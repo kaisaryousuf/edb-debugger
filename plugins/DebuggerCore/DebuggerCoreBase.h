@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DEBUGGER_CORE_BASE_H_20090529_
 #define DEBUGGER_CORE_BASE_H_20090529_
@@ -36,10 +24,10 @@ public:
 		Launch
 	};
 
-	virtual MeansOfCapture lastMeansOfCapture() const = 0;
+	[[nodiscard]] virtual MeansOfCapture lastMeansOfCapture() const = 0;
 
 public:
-	BreakpointList backupBreakpoints() const override;
+	[[nodiscard]] BreakpointList backupBreakpoints() const override;
 	std::shared_ptr<IBreakpoint> addBreakpoint(edb::address_t address) override;
 	std::shared_ptr<IBreakpoint> findBreakpoint(edb::address_t address) override;
 	std::shared_ptr<IBreakpoint> findTriggeredBreakpoint(edb::address_t address) override;
@@ -47,10 +35,10 @@ public:
 	void removeBreakpoint(edb::address_t address) override;
 	void endDebugSession() override;
 
-	std::vector<IBreakpoint::BreakpointType> supportedBreakpointTypes() const override;
+	[[nodiscard]] std::vector<IBreakpoint::BreakpointType> supportedBreakpointTypes() const override;
 
 protected:
-	bool attached() const;
+	[[nodiscard]] bool attached() const;
 
 protected:
 	BreakpointList breakpoints_;

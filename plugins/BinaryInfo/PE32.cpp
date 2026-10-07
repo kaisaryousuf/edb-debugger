@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PE32.h"
 #include "IDebugger.h"
@@ -35,11 +23,12 @@ const char *PEBinaryException::what() const noexcept {
 }
 
 /**
- * @brief PE32::PE32
+ * @brief Constructs a PE32 object by reading and validating the DOS and PE headers from the given memory region.
+ *
  * @param region
  */
-PE32::PE32(const std::shared_ptr<IRegion> &region)
-	: region_(region) {
+PE32::PE32(std::shared_ptr<IRegion> region)
+	: region_(std::move(region)) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	constexpr WORD DosMagic = 0x5A4D;
 	constexpr LONG PeMagic  = 0x00004550;
@@ -75,7 +64,8 @@ PE32::PE32(const std::shared_ptr<IRegion> &region)
 }
 
 /**
- * @brief PE32::entryPoint
+ * @brief Returns the relative virtual address of the PE binary's entry point.
+ *
  * @return
  */
 edb::address_t PE32::entryPoint() {
@@ -84,7 +74,8 @@ edb::address_t PE32::entryPoint() {
 }
 
 /**
- * @brief PE32::native
+ * @brief Returns true, since PE32 binaries are always treated as native to the current architecture.
+ *
  * @return
  */
 bool PE32::native() const {
@@ -92,7 +83,8 @@ bool PE32::native() const {
 }
 
 /**
- * @brief PE32::headerSize
+ * @brief Returns the combined size in bytes of the DOS stub and PE header.
+ *
  * @return
  */
 size_t PE32::headerSize() const {
@@ -100,7 +92,8 @@ size_t PE32::headerSize() const {
 }
 
 /**
- * @brief PE32::headers
+ * @brief Returns a list containing the single header entry covering the DOS and PE header region.
+ *
  * @return a list of all headers in this binary
  */
 std::vector<IBinary::Header> PE32::headers() const {
@@ -110,7 +103,8 @@ std::vector<IBinary::Header> PE32::headers() const {
 }
 
 /**
- * @brief PE32::header
+ * @brief Returns nullptr; structured PE header access is not implemented via this method.
+ *
  * @return a copy of the file header or nullptr if the region wasn't a valid,
  * known binary type
  */

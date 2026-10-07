@@ -1,40 +1,21 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "PlatformState.h"
 #include "FloatX.h"
 #include "Util.h"
 #include "string_hash.h"
+
 #include <QDebug>
-#include <QRegExp>
+#include <QRegularExpression>
+
+#include <cstdio>
 #include <unordered_map>
 
 namespace DebuggerCorePlugin {
-
-constexpr const char *PlatformState::AVX::mxcsrName;
-constexpr const char *PlatformState::X86::IP64Name;
-constexpr const char *PlatformState::X86::IP32Name;
-constexpr const char *PlatformState::X86::IP16Name;
-constexpr const char *PlatformState::X86::origEAXName;
-constexpr const char *PlatformState::X86::origRAXName;
-constexpr const char *PlatformState::X86::flags64Name;
-constexpr const char *PlatformState::X86::flags32Name;
-constexpr const char *PlatformState::X86::flags16Name;
 
 const std::array<const char *, MAX_GPR_COUNT> PlatformState::X86::GPReg64Names = {
 	"rax",
@@ -197,7 +178,7 @@ int PlatformState::X87::tag(size_t n) const {
 edb::value16 PlatformState::X87::restoreTagWord(uint16_t twd) const {
 	uint16_t tagWord = 0;
 	for (size_t n = 0; n < MAX_FPU_REG_COUNT; ++n) {
-		tagWord |= makeTag(n, twd) << (2 * n);
+		tagWord |= static_cast<uint16_t>(makeTag(n, twd) << (2 * n));
 	}
 
 	return edb::value16(tagWord);
@@ -215,7 +196,7 @@ std::uint16_t PlatformState::X87::reducedTagWord() const {
 	result = (result | (result >> 2)) & 0x0f0f; // 0000123400005678
 	result = (result | (result >> 4)) & 0x00ff; // 0000000012345678
 
-	return result;
+	return static_cast<std::uint16_t>(result);
 }
 
 void PlatformState::fillFrom(const UserFPRegsStructX86 &regs) {
@@ -503,23 +484,23 @@ void PlatformState::fillStruct(UserRegsStructX86 &regs) const {
 	util::mark_memory(&regs, sizeof(regs));
 
 	if (x86.gpr32Filled) {
-		regs.eax      = x86.GPRegs[X86::EAX];
-		regs.ecx      = x86.GPRegs[X86::ECX];
-		regs.edx      = x86.GPRegs[X86::EDX];
-		regs.ebx      = x86.GPRegs[X86::EBX];
-		regs.esp      = x86.GPRegs[X86::ESP];
-		regs.ebp      = x86.GPRegs[X86::EBP];
-		regs.esi      = x86.GPRegs[X86::ESI];
-		regs.edi      = x86.GPRegs[X86::EDI];
+		regs.eax      = static_cast<std::uint32_t>(x86.GPRegs[X86::EAX]);
+		regs.ecx      = static_cast<std::uint32_t>(x86.GPRegs[X86::ECX]);
+		regs.edx      = static_cast<std::uint32_t>(x86.GPRegs[X86::EDX]);
+		regs.ebx      = static_cast<std::uint32_t>(x86.GPRegs[X86::EBX]);
+		regs.esp      = static_cast<std::uint32_t>(x86.GPRegs[X86::ESP]);
+		regs.ebp      = static_cast<std::uint32_t>(x86.GPRegs[X86::EBP]);
+		regs.esi      = static_cast<std::uint32_t>(x86.GPRegs[X86::ESI]);
+		regs.edi      = static_cast<std::uint32_t>(x86.GPRegs[X86::EDI]);
 		regs.xes      = x86.segRegs[X86::ES];
 		regs.xcs      = x86.segRegs[X86::CS];
 		regs.xss      = x86.segRegs[X86::SS];
 		regs.xds      = x86.segRegs[X86::DS];
 		regs.xfs      = x86.segRegs[X86::FS];
 		regs.xgs      = x86.segRegs[X86::GS];
-		regs.orig_eax = x86.orig_ax;
-		regs.eflags   = x86.flags;
-		regs.eip      = x86.IP;
+		regs.orig_eax = static_cast<std::uint32_t>(x86.orig_ax);
+		regs.eflags   = static_cast<std::uint32_t>(x86.flags);
+		regs.eip      = static_cast<std::uint32_t>(x86.IP);
 	}
 }
 
@@ -597,8 +578,8 @@ void PlatformState::fillStruct(UserFPRegsStructX86 &regs) const {
 		regs.swd = x87.statusWord;
 		regs.cwd = x87.controlWord;
 		regs.twd = x87.tagWord;
-		regs.fip = x87.instPtrOffset;
-		regs.foo = x87.dataPtrOffset;
+		regs.fip = static_cast<std::uint32_t>(x87.instPtrOffset);
+		regs.foo = static_cast<std::uint32_t>(x87.dataPtrOffset);
 		regs.fcs = x87.instPtrSelector;
 		regs.fos = x87.dataPtrSelector;
 		for (size_t n = 0; n < MAX_FPU_REG_COUNT; ++n) {
@@ -642,8 +623,8 @@ void PlatformState::fillStruct(UserFPXRegsStructX86 &regs) const {
 		regs.swd = x87.statusWord;
 		regs.twd = x87.reducedTagWord();
 		regs.cwd = x87.controlWord;
-		regs.fip = x87.instPtrOffset;
-		regs.foo = x87.dataPtrOffset;
+		regs.fip = static_cast<std::uint32_t>(x87.instPtrOffset);
+		regs.foo = static_cast<std::uint32_t>(x87.dataPtrOffset);
 		regs.fcs = x87.instPtrSelector;
 		regs.fos = x87.dataPtrSelector;
 		regs.fop = x87.opCode;
@@ -670,8 +651,8 @@ size_t PlatformState::fillStruct(X86XState &regs) const {
 		regs.swd   = x87.statusWord;
 		regs.cwd   = x87.controlWord;
 		regs.twd   = x87.reducedTagWord();
-		regs.fioff = x87.instPtrOffset;
-		regs.fooff = x87.dataPtrOffset;
+		regs.fioff = static_cast<std::uint32_t>(x87.instPtrOffset);
+		regs.fooff = static_cast<std::uint32_t>(x87.dataPtrOffset);
 		if (is64Bit()) {
 			std::memcpy(&regs.fiseg, reinterpret_cast<const char *>(&x87.instPtrOffset) + 4, 4);
 			std::memcpy(&regs.foseg, reinterpret_cast<const char *>(&x87.dataPtrOffset) + 4, 4);
@@ -788,44 +769,45 @@ bool PlatformState::AVX::empty() const {
 }
 
 /**
- * @brief PlatformState::PlatformState
+ * @brief Creates a new PlatformState object and initializes it to the default state
  */
 PlatformState::PlatformState() {
 	this->clear();
 }
 
 /**
- * makes a copy of the state object
+ * @brief Creates a copy of the current PlatformState object
  *
- * @brief PlatformState::clone
- * @return
+ * @return a unique pointer to the cloned PlatformState object
  */
 std::unique_ptr<IState> PlatformState::clone() const {
 	return std::make_unique<PlatformState>(*this);
 }
 
 /**
- * @brief PlatformState::flagsToString
- * @param flags
+ * @brief Formats the flags in a string form appropriate for this platform
+ *
+ * @param flags the flags to format
  * @return the flags in a string form appropriate for this platform
  */
 QString PlatformState::flagsToString(edb::reg_t flags) const {
 	char buf[32];
-	qsnprintf(buf, sizeof(buf), "%c %c %c %c %c %c %c %c %c",
-			  ((flags & 0x001) ? 'C' : 'c'),
-			  ((flags & 0x004) ? 'P' : 'p'),
-			  ((flags & 0x010) ? 'A' : 'a'),
-			  ((flags & 0x040) ? 'Z' : 'z'),
-			  ((flags & 0x080) ? 'S' : 's'),
-			  ((flags & 0x100) ? 'T' : 't'),
-			  ((flags & 0x200) ? 'I' : 'i'),
-			  ((flags & 0x400) ? 'D' : 'd'),
-			  ((flags & 0x800) ? 'O' : 'o'));
+	snprintf(buf, sizeof(buf), "%c %c %c %c %c %c %c %c %c",
+			 ((flags & 0x001) ? 'C' : 'c'),
+			 ((flags & 0x004) ? 'P' : 'p'),
+			 ((flags & 0x010) ? 'A' : 'a'),
+			 ((flags & 0x040) ? 'Z' : 'z'),
+			 ((flags & 0x080) ? 'S' : 's'),
+			 ((flags & 0x100) ? 'T' : 't'),
+			 ((flags & 0x200) ? 'I' : 'i'),
+			 ((flags & 0x400) ? 'D' : 'd'),
+			 ((flags & 0x800) ? 'O' : 'o'));
 	return QString::fromLatin1(buf);
 }
 
 /**
- * @brief PlatformState::flagsToString
+ * @brief Formats the flags in a string form appropriate for this platform
+ *
  * @return the flags in a string form appropriate for this platform
  */
 QString PlatformState::flagsToString() const {
@@ -833,32 +815,36 @@ QString PlatformState::flagsToString() const {
 }
 
 /**
- * @brief findRegisterValue
- * @param names
- * @param regs
- * @param regName
- * @param type
- * @param maxNames
- * @param shift
- * @return
+ * @brief Finds a register value by its name in the given names and regs arrays
+ *
+ * @param names the array of register names
+ * @param regs the array of register values
+ * @param regName the name of the register to find
+ * @param type the type of the register
+ * @param maxNames the maximum number of names in the array
+ * @param shift the bit shift to apply to the register value
+ * @return A Register object representing the found register, or an invalid Register if not found
  */
 template <size_t BitSize = 0, class Names, class Regs>
 Register findRegisterValue(const Names &names, const Regs &regs, const QString &regName, Register::Type type, size_t maxNames, int shift = 0) {
 
 	const auto end        = names.begin() + maxNames;
-	auto regNameFoundIter = std::find(names.begin(), end, regName);
+	auto regNameFoundIter = std::find_if(names.begin(), end, [&regName](const auto candidate) {
+		return regName == QString::fromLatin1(candidate);
+	});
 
 	if (regNameFoundIter != end) {
 		return make_Register<BitSize>(regName, regs[regNameFoundIter - names.begin()] >> shift, type);
-	} else {
-		return Register();
 	}
+
+	return Register();
 }
 
 /**
- * @brief PlatformState::value
- * @param reg
- * @return a Register object which represents the register with the name supplied
+ * @brief Gets the value of a register by its name
+ *
+ * @param reg The name of the register to retrieve
+ * @return A Register object which represents the register with the name supplied
  */
 Register PlatformState::value(const QString &reg) const {
 
@@ -870,30 +856,40 @@ Register PlatformState::value(const QString &reg) const {
 
 	// don't return valid Register with garbage value
 	if (x86.gpr32Filled) {
-		if (reg == x86.origRAXName && x86.gpr64Filled && is64Bit())
-			return make_Register<64>(x86.origRAXName, x86.orig_ax, Register::TYPE_GPR);
-		if (reg == x86.origEAXName)
-			return make_Register<32>(x86.origEAXName, x86.orig_ax, Register::TYPE_GPR);
-		if (x86.gpr64Filled && is64Bit() && !!(found = findRegisterValue(x86.GPReg64Names, x86.GPRegs, regName, Register::TYPE_GPR, gpr64_count())))
+		if (reg == QLatin1String(X86::origRAXName) && x86.gpr64Filled && is64Bit()) {
+			return make_Register<64>(QString::fromLatin1(X86::origRAXName), x86.orig_ax, Register::TYPE_GPR);
+		}
+		if (reg == QLatin1String(X86::origEAXName)) {
+			return make_Register<32>(QString::fromLatin1(X86::origEAXName), x86.orig_ax, Register::TYPE_GPR);
+		}
+		if (x86.gpr64Filled && is64Bit() && !!(found = findRegisterValue(X86::GPReg64Names, x86.GPRegs, regName, Register::TYPE_GPR, gpr64_count()))) {
 			return found;
-		if (!!(found = findRegisterValue<32>(x86.GPReg32Names, x86.GPRegs, regName, Register::TYPE_GPR, gpr_count())))
+		}
+		if (!!(found = findRegisterValue<32>(X86::GPReg32Names, x86.GPRegs, regName, Register::TYPE_GPR, gpr_count()))) {
 			return found;
-		if (!!(found = findRegisterValue<16>(x86.GPReg16Names, x86.GPRegs, regName, Register::TYPE_GPR, gpr_count())))
+		}
+		if (!!(found = findRegisterValue<16>(X86::GPReg16Names, x86.GPRegs, regName, Register::TYPE_GPR, gpr_count()))) {
 			return found;
-		if (!!(found = findRegisterValue<8>(x86.GPReg8LNames, x86.GPRegs, regName, Register::TYPE_GPR, gpr_low_addressable_count())))
+		}
+		if (!!(found = findRegisterValue<8>(X86::GPReg8LNames, x86.GPRegs, regName, Register::TYPE_GPR, gpr_low_addressable_count()))) {
 			return found;
-		if (!!(found = findRegisterValue<8>(x86.GPReg8HNames, x86.GPRegs, regName, Register::TYPE_GPR, gpr_high_addressable_count(), 8)))
+		}
+		if (!!(found = findRegisterValue<8>(X86::GPReg8HNames, x86.GPRegs, regName, Register::TYPE_GPR, gpr_high_addressable_count(), 8))) {
 			return found;
-		if (!!(found = findRegisterValue(x86.segRegNames, x86.segRegs, regName, Register::TYPE_SEG, seg_reg_count())))
+		}
+		if (!!(found = findRegisterValue(X86::segRegNames, x86.segRegs, regName, Register::TYPE_SEG, seg_reg_count()))) {
 			return found;
+		}
 
-		if (regName.mid(1) == "s_base") {
+		if (regName.mid(1) == QStringLiteral("s_base")) {
 			const QString segRegName    = regName.mid(0, 2);
-			const auto end              = x86.segRegNames.end();
-			const auto regNameFoundIter = std::find(x86.segRegNames.begin(), end, segRegName);
+			const auto end              = X86::segRegNames.end();
+			const auto regNameFoundIter = std::find_if(X86::segRegNames.begin(), end, [&segRegName](const auto candidate) {
+				return segRegName == QString::fromLatin1(candidate);
+			});
 
 			if (regNameFoundIter != end) {
-				const size_t index = regNameFoundIter - x86.segRegNames.begin();
+				const size_t index = regNameFoundIter - X86::segRegNames.begin();
 
 				if (!x86.segRegBasesFilled[index]) {
 					return Register();
@@ -903,30 +899,42 @@ Register PlatformState::value(const QString &reg) const {
 
 				if (is64Bit()) {
 					return make_Register(regName, value, Register::TYPE_SEG);
-				} else {
-					return make_Register<32>(regName, value, Register::TYPE_SEG);
 				}
+
+				return make_Register<32>(regName, value, Register::TYPE_SEG);
 			}
 		}
 
-		if (is64Bit() && regName == x86.flags64Name)
-			return make_Register(x86.flags64Name, x86.flags, Register::TYPE_COND);
-		if (regName == x86.flags32Name)
-			return make_Register<32>(x86.flags32Name, x86.flags, Register::TYPE_COND);
-		if (regName == x86.flags16Name)
-			return make_Register<16>(x86.flags16Name, x86.flags, Register::TYPE_COND);
-		if (is64Bit() && regName == x86.IP64Name)
-			return make_Register(x86.IP64Name, x86.IP, Register::TYPE_IP);
-		if (regName == x86.IP32Name)
-			return make_Register<32>(x86.IP32Name, x86.IP, Register::TYPE_IP);
-		if (regName == x86.IP16Name)
-			return make_Register<16>(x86.IP16Name, x86.IP, Register::TYPE_IP);
+		if (is64Bit() && regName == QLatin1String(X86::flags64Name)) {
+			return make_Register(QString::fromLatin1(X86::flags64Name), x86.flags, Register::TYPE_COND);
+		}
+
+		if (regName == QLatin1String(X86::flags32Name)) {
+			return make_Register<32>(QString::fromLatin1(X86::flags32Name), x86.flags, Register::TYPE_COND);
+		}
+
+		if (regName == QLatin1String(X86::flags16Name)) {
+			return make_Register<16>(QString::fromLatin1(X86::flags16Name), x86.flags, Register::TYPE_COND);
+		}
+
+		if (is64Bit() && regName == QLatin1String(X86::IP64Name)) {
+			return make_Register(QString::fromLatin1(X86::IP64Name), x86.IP, Register::TYPE_IP);
+		}
+
+		if (regName == QLatin1String(X86::IP32Name)) {
+			return make_Register<32>(QString::fromLatin1(X86::IP32Name), x86.IP, Register::TYPE_IP);
+		}
+
+		if (regName == QLatin1String(X86::IP16Name)) {
+			return make_Register<16>(QString::fromLatin1(X86::IP16Name), x86.IP, Register::TYPE_IP);
+		}
 	}
 
 	if (x86.gpr32Filled) {
-		QRegExp DRx("^dr([0-7])$");
-		if (DRx.indexIn(regName) != -1) {
-			QChar digit = DRx.cap(1).at(0);
+		static const QRegularExpression DRx(QStringLiteral("^dr([0-7])$"));
+		const QRegularExpressionMatch match = DRx.match(regName);
+		if (match.hasMatch()) {
+			QChar digit = match.captured(1).at(0);
 			assert(digit.isDigit());
 			char digitChar = digit.toLatin1();
 			size_t i       = digitChar - '0';
@@ -934,16 +942,17 @@ Register PlatformState::value(const QString &reg) const {
 
 			if (is64Bit() && x86.gpr64Filled) {
 				return make_Register(regName, x86.dbgRegs[i], Register::TYPE_COND);
-			} else {
-				return make_Register<32>(regName, x86.dbgRegs[i], Register::TYPE_COND);
 			}
+
+			return make_Register<32>(regName, x86.dbgRegs[i], Register::TYPE_COND);
 		}
 	}
 
 	if (x87.filled) {
-		QRegExp Rx("^r([0-7])$");
-		if (Rx.indexIn(regName) != -1) {
-			QChar digit = Rx.cap(1).at(0);
+		static const QRegularExpression Rx(QStringLiteral("^r([0-7])$"));
+		const QRegularExpressionMatch match = Rx.match(regName);
+		if (match.hasMatch()) {
+			QChar digit = match.captured(1).at(0);
 			assert(digit.isDigit());
 			char digitChar = digit.toLatin1();
 			size_t i       = digitChar - '0';
@@ -953,9 +962,10 @@ Register PlatformState::value(const QString &reg) const {
 	}
 
 	if (x87.filled) {
-		QRegExp STx("^st\\(?([0-7])\\)?$");
-		if (STx.indexIn(regName) != -1) {
-			QChar digit = STx.cap(1).at(0);
+		static const QRegularExpression STx(QStringLiteral("^st\\(?([0-7])\\)?$"));
+		const QRegularExpressionMatch match = STx.match(regName);
+		if (match.hasMatch()) {
+			QChar digit = match.captured(1).at(0);
 			assert(digit.isDigit());
 			char digitChar = digit.toLatin1();
 			size_t i       = digitChar - '0';
@@ -965,41 +975,42 @@ Register PlatformState::value(const QString &reg) const {
 	}
 
 	if (x87.filled) {
-		if (regName == "fip" || regName == "fdp") {
-			const edb::address_t addr = regName == "fip" ? x87.instPtrOffset : x87.dataPtrOffset;
+		if (regName == QStringLiteral("fip") || regName == QStringLiteral("fdp")) {
+			const edb::address_t addr = regName == QStringLiteral("fip") ? x87.instPtrOffset : x87.dataPtrOffset;
 			if (is64Bit()) {
 				return make_Register<64>(regName, addr, Register::TYPE_FPU);
-			} else {
-				return make_Register<32>(regName, addr, Register::TYPE_FPU);
 			}
+
+			return make_Register<32>(regName, addr, Register::TYPE_FPU);
 		}
 
-		if (regName == "fis" || regName == "fds") {
-			const edb::value16 val = regName == "fis" ? x87.instPtrSelector : x87.dataPtrSelector;
+		if (regName == QStringLiteral("fis") || regName == QStringLiteral("fds")) {
+			const edb::value16 val = regName == QStringLiteral("fis") ? x87.instPtrSelector : x87.dataPtrSelector;
 			return make_Register<16>(regName, val, Register::TYPE_FPU);
 		}
 
-		if (regName == "fopcode" || regName == "fop") {
+		if (regName == QStringLiteral("fopcode") || regName == QStringLiteral("fop")) {
 			return make_Register<16>(regName, x87.opCode, Register::TYPE_FPU);
 		}
 
-		if (regName == "ftr" || regName == "ftw") {
+		if (regName == QStringLiteral("ftr") || regName == QStringLiteral("ftw")) {
 			return make_Register<16>(regName, x87.tagWord, Register::TYPE_FPU);
 		}
 
-		if (regName == "fsr" || regName == "fsw") {
+		if (regName == QStringLiteral("fsr") || regName == QStringLiteral("fsw")) {
 			return make_Register<16>(regName, x87.statusWord, Register::TYPE_FPU);
 		}
 
-		if (regName == "fcr" || regName == "fcw") {
+		if (regName == QStringLiteral("fcr") || regName == QStringLiteral("fcw")) {
 			return make_Register<16>(regName, x87.controlWord, Register::TYPE_FPU);
 		}
 	}
 
 	if (x87.filled) {
-		QRegExp MMx("^mm([0-7])$");
-		if (MMx.indexIn(regName) != -1) {
-			QChar digit = MMx.cap(1).at(0);
+		static const QRegularExpression MMx(QStringLiteral("^mm([0-7])$"));
+		const QRegularExpressionMatch match = MMx.match(regName);
+		if (match.hasMatch()) {
+			QChar digit = match.captured(1).at(0);
 			assert(digit.isDigit());
 			char digitChar = digit.toLatin1();
 			size_t i       = digitChar - '0';
@@ -1009,10 +1020,11 @@ Register PlatformState::value(const QString &reg) const {
 	}
 
 	if (avx.xmmFilledIA32) {
-		QRegExp XMMx("^xmm([0-9]|1[0-5])$");
-		if (XMMx.indexIn(regName) != -1) {
+		static const QRegularExpression XMMx(QStringLiteral("^xmm([0-9]|1[0-5])$"));
+		const QRegularExpressionMatch match = XMMx.match(regName);
+		if (match.hasMatch()) {
 			bool ok  = false;
-			size_t i = XMMx.cap(1).toUShort(&ok);
+			size_t i = match.captured(1).toUShort(&ok);
 			assert(ok);
 			if (i >= IA32_XMM_REG_COUNT && !avx.xmmFilledAMD64) {
 				return Register();
@@ -1025,10 +1037,11 @@ Register PlatformState::value(const QString &reg) const {
 	}
 
 	if (avx.ymmFilled) {
-		QRegExp YMMx("^ymm([0-9]|1[0-5])$");
-		if (YMMx.indexIn(regName) != -1) {
+		static const QRegularExpression YMMx(QStringLiteral("^ymm([0-9]|1[0-5])$"));
+		const QRegularExpressionMatch match = YMMx.match(regName);
+		if (match.hasMatch()) {
 			bool ok  = false;
-			size_t i = YMMx.cap(1).toUShort(&ok);
+			size_t i = match.captured(1).toUShort(&ok);
 			assert(ok);
 			if (ymmIndexValid(i)) { // May be invalid but legitimate for a disassembler: e.g. YMM13 but 32 bit mode
 				return make_Register(regName, avx.ymm(i), Register::TYPE_SIMD);
@@ -1036,30 +1049,34 @@ Register PlatformState::value(const QString &reg) const {
 		}
 	}
 
-	if (avx.xmmFilledIA32 && regName == avx.mxcsrName) {
-		return make_Register(avx.mxcsrName, avx.mxcsr, Register::TYPE_COND);
+	if (avx.xmmFilledIA32 && regName == QLatin1String(AVX::mxcsrName)) {
+		return make_Register(QString::fromLatin1(AVX::mxcsrName), avx.mxcsr, Register::TYPE_COND);
 	}
 
 	return Register();
 }
 
 /**
- * @brief PlatformState::instructionPointerRegister
- * @return
+ * @brief Gets the instruction pointer register for this platform
+ *
+ * @return A Register object representing the instruction pointer register for this platform
  */
 Register PlatformState::instructionPointerRegister() const {
 
 	if (x86.gpr64Filled && is64Bit()) {
-		return make_Register(x86.IP64Name, x86.IP, Register::TYPE_GPR);
-	} else if (x86.gpr32Filled) {
-		return make_Register<32>(x86.IP32Name, x86.IP, Register::TYPE_GPR);
+		return make_Register(QString::fromLatin1(X86::IP64Name), x86.IP, Register::TYPE_GPR);
+	}
+
+	if (x86.gpr32Filled) {
+		return make_Register<32>(QString::fromLatin1(X86::IP32Name), x86.IP, Register::TYPE_GPR);
 	}
 
 	return Register();
 }
 
 /**
- * @brief PlatformState::framePointer
+ * @brief Gets the frame pointer register for this platform
+ *
  * @return what is conceptually the frame pointer for this platform
  */
 edb::address_t PlatformState::framePointer() const {
@@ -1067,25 +1084,28 @@ edb::address_t PlatformState::framePointer() const {
 }
 
 /**
- * @brief PlatformState::instructionPointer
- * @return the instruction pointer for this platform
+ * @brief Gets the instruction pointer value for this platform
+ *
+ * @return The instruction pointer for this platform
  */
 edb::address_t PlatformState::instructionPointer() const {
 	return instructionPointerRegister().valueAsAddress();
 }
 
 /**
- * @brief PlatformState::stackPointer
- * @return stack pointer for this platform
+ * @brief Gets the stack pointer value for this platform
+ *
+ * @return The stack pointer for this platform
  */
 edb::address_t PlatformState::stackPointer() const {
 	return gpRegister(X86::RSP).valueAsAddress();
 }
 
 /**
- * @brief PlatformState::debugRegister
- * @param n
- * @return
+ * @brief Gets the debug register value for this platform
+ *
+ * @param n The index of the debug register to retrieve
+ * @return The value of the specified debug register
  */
 edb::reg_t PlatformState::debugRegister(size_t n) const {
 	assert(dbgIndexValid(n));
@@ -1093,45 +1113,50 @@ edb::reg_t PlatformState::debugRegister(size_t n) const {
 }
 
 /**
- * @brief PlatformState::flagsRegister
- * @return
+ * @brief Gets the flags register for this platform
+ *
+ * @return A Register object representing the flags register for this platform
  */
 Register PlatformState::flagsRegister() const {
 	if (x86.gpr64Filled && is64Bit()) {
-		return make_Register(x86.flags64Name, x86.flags, Register::TYPE_GPR);
-	} else if (x86.gpr32Filled) {
-		return make_Register<32>(x86.flags32Name, x86.flags, Register::TYPE_GPR);
+		return make_Register(QString::fromLatin1(X86::flags64Name), x86.flags, Register::TYPE_GPR);
+	}
+
+	if (x86.gpr32Filled) {
+		return make_Register<32>(QString::fromLatin1(X86::flags32Name), x86.flags, Register::TYPE_GPR);
 	}
 
 	return Register();
 }
 
 /**
- * @brief PlatformState::flags
- * @return
+ * @brief Gets the flags value for this platform
+ *
+ * @return The flags value for this platform
  */
 edb::reg_t PlatformState::flags() const {
 	return flagsRegister().valueAsInteger();
 }
 
 /**
- * @brief PlatformState::fpuStackPointer
- * @return
+ * @brief Gets the FPU stack pointer for this platform
+ *
+ * @return The FPU stack pointer for this platform
  */
 int PlatformState::fpuStackPointer() const {
-	return x87.stackPointer();
+	return static_cast<int>(x87.stackPointer());
 }
 
 /**
- * @brief PlatformState::fpuRegister
- * @param n
- * @return
+ * @brief Gets the value of the specified FPU register for this platform
+ *
+ * @param n The index of the FPU register to retrieve
+ * @return The value of the specified FPU register
  */
 edb::value80 PlatformState::fpuRegister(size_t n) const {
 	assert(fpuIndexValid(n));
 
 	if (!x87.filled) {
-
 		edb::value80 v;
 		constexpr std::uint64_t Mant = 0x0badbad1bad1bad1;
 		constexpr std::uint16_t Exp  = 0x0bad;
@@ -1145,65 +1170,71 @@ edb::value80 PlatformState::fpuRegister(size_t n) const {
 }
 
 /**
- * @brief PlatformState::fpuRegisterIsEmpty
- * @param n
- * @return true if Rn register is empty when treated in terms of FPU stack
+ * @brief Determines if the specified FPU register is empty when treated in terms of the FPU stack
+ *
+ * @param n The index of the FPU register to check
+ * @return True if Rn register is empty when treated in terms of FPU stack
  */
 bool PlatformState::fpuRegisterIsEmpty(size_t n) const {
 	return x87.tag(n) == X87::TAG_EMPTY;
 }
 
 /**
- * @brief PlatformState::fpuRegisterTagString
- * @param n
- * @return
+ * @brief Gets a string representation of the tag for the specified FPU register
+ *
+ * @param n The index of the FPU register to retrieve the tag for
+ * @return A string representation of the tag for the specified FPU register
  */
 QString PlatformState::fpuRegisterTagString(size_t n) const {
 	int tag = x87.tag(n);
 	static const std::unordered_map<int, QString> names{
-		{X87::TAG_VALID, "Valid"},
-		{X87::TAG_ZERO, "Zero"},
-		{X87::TAG_SPECIAL, "Special"},
-		{X87::TAG_EMPTY, "Empty"},
+		{X87::TAG_VALID, QStringLiteral("Valid")},
+		{X87::TAG_ZERO, QStringLiteral("Zero")},
+		{X87::TAG_SPECIAL, QStringLiteral("Special")},
+		{X87::TAG_EMPTY, QStringLiteral("Empty")},
 	};
 
 	return names.at(tag);
 }
 
 /**
- * @brief PlatformState::fpuControlWord
- * @return
+ * @brief Gets the FPU control word for this platform
+ *
+ * @return The FPU control word for this platform
  */
 edb::value16 PlatformState::fpuControlWord() const {
 	return x87.controlWord;
 }
 
 /**
- * @brief PlatformState::fpuStatusWord
- * @return
+ * @brief Gets the FPU status word for this platform
+ *
+ * @return The FPU status word for this platform
  */
 edb::value16 PlatformState::fpuStatusWord() const {
 	return x87.statusWord;
 }
 
 /**
- * @brief PlatformState::fpuTagWord
- * @return
+ * @brief Gets the FPU tag word for this platform
+ *
+ * @return The FPU tag word for this platform
  */
 edb::value16 PlatformState::fpuTagWord() const {
 	return x87.tagWord;
 }
 
 /**
- * @brief PlatformState::adjustStack
- * @param bytes
+ * @brief Adjusts the stack pointer by the specified number of bytes
+ *
+ * @param bytes The number of bytes to adjust the stack pointer by
  */
 void PlatformState::adjustStack(int bytes) {
 	x86.GPRegs[X86::RSP] += bytes;
 }
 
 /**
- * @brief PlatformState::clear
+ * @brief Clears the platform state
  */
 void PlatformState::clear() {
 	x86.clear();
@@ -1212,17 +1243,19 @@ void PlatformState::clear() {
 }
 
 /**
- * @brief PlatformState::empty
- * @return
+ * @brief Checks if the platform state is empty
+ *
+ * @return True if the platform state is empty, false otherwise
  */
 bool PlatformState::empty() const {
 	return x86.empty() && x87.empty() && avx.empty();
 }
 
 /**
- * @brief PlatformState::setDebugRegister
- * @param n
- * @param value
+ * @brief Sets the value of the specified debug register
+ *
+ * @param n The index of the debug register to set
+ * @param value The value to set the debug register to
  */
 void PlatformState::setDebugRegister(size_t n, edb::reg_t value) {
 	assert(dbgIndexValid(n));
@@ -1230,15 +1263,17 @@ void PlatformState::setDebugRegister(size_t n, edb::reg_t value) {
 }
 
 /**
- * @brief PlatformState::setFlags
- * @param flags
+ * @brief Sets the value of the flags register
+ *
+ * @param flags The value to set the flags register to
  */
 void PlatformState::setFlags(edb::reg_t flags) {
 	x86.flags = flags;
 }
 /**
- * @brief PlatformState::setInstructionPointer
- * @param value
+ * @brief Sets the value of the instruction pointer register
+ *
+ * @param value The value to set the instruction pointer register to
  */
 void PlatformState::setInstructionPointer(edb::address_t value) {
 	x86.IP      = value;
@@ -1246,17 +1281,20 @@ void PlatformState::setInstructionPointer(edb::address_t value) {
 }
 
 /**
- * @brief PlatformState::gpRegister
- * @param n
- * @return
+ * @brief Gets the value of the specified general-purpose register
+ *
+ * @param n The index of the general-purpose register to retrieve
+ * @return The value of the specified general-purpose register
  */
 Register PlatformState::gpRegister(size_t n) const {
 
 	if (gprIndexValid(n)) {
 		if (x86.gpr64Filled && is64Bit()) {
-			return make_Register(x86.GPReg64Names[n], x86.GPRegs[n], Register::TYPE_GPR);
-		} else if (x86.gpr32Filled && n < IA32_GPR_COUNT) {
-			return make_Register<32>(x86.GPReg32Names[n], x86.GPRegs[n], Register::TYPE_GPR);
+			return make_Register(QString::fromLatin1(X86::GPReg64Names[n]), x86.GPRegs[n], Register::TYPE_GPR);
+		}
+
+		if (x86.gpr32Filled && n < IA32_GPR_COUNT) {
+			return make_Register<32>(QString::fromLatin1(X86::GPReg32Names[n]), x86.GPRegs[n], Register::TYPE_GPR);
 		}
 	}
 
@@ -1264,14 +1302,17 @@ Register PlatformState::gpRegister(size_t n) const {
 }
 
 /**
- * @brief PlatformState::setRegister
- * @param reg
+ * @brief Sets the value of the specified register
+ *
+ * @param reg The Register object representing the register to set
  */
 void PlatformState::setRegister(const Register &reg) {
 	const QString regName = reg.name().toLower();
 
 	const auto gpr_end            = GPRegNames().begin() + gpr_count();
-	const auto GPRegNameFoundIter = std::find(GPRegNames().begin(), gpr_end, regName);
+	const auto GPRegNameFoundIter = std::find_if(GPRegNames().begin(), gpr_end, [&regName](const auto candidate) {
+		return regName == QString::fromLatin1(candidate);
+	});
 
 	if (GPRegNameFoundIter != gpr_end) {
 		size_t index      = GPRegNameFoundIter - GPRegNames().begin();
@@ -1279,35 +1320,36 @@ void PlatformState::setRegister(const Register &reg) {
 		return;
 	}
 
-	auto segRegNameFoundIter = std::find(x86.segRegNames.begin(), x86.segRegNames.end(), regName);
+	auto segRegNameFoundIter = std::find_if(X86::segRegNames.begin(), X86::segRegNames.end(), [&regName](const auto candidate) {
+		return regName == QString::fromLatin1(candidate);
+	});
 
-	if (segRegNameFoundIter != x86.segRegNames.end()) {
-		size_t index       = segRegNameFoundIter - x86.segRegNames.begin();
+	if (segRegNameFoundIter != X86::segRegNames.end()) {
+		size_t index       = segRegNameFoundIter - X86::segRegNames.begin();
 		x86.segRegs[index] = reg.value<edb::seg_reg_t>();
 		return;
 	}
 
-	if (regName == IPName()) {
+	if (regName == QString::fromLatin1(IPName())) {
 		x86.IP = reg.value<edb::value64>();
 		return;
 	}
 
-	if (regName == flagsName()) {
+	if (regName == QString::fromLatin1(flagsName())) {
 		x86.flags = reg.value<edb::value64>();
 		return;
 	}
 
-	if (regName == avx.mxcsrName) {
+	if (regName == QLatin1String(AVX::mxcsrName)) {
 		avx.mxcsr = reg.value<edb::value32>();
 		return;
 	}
 
 	{
-		// TODO(eteran): these memcpy's which have the size set to the SOURCE and
-		// not the dest look suspicious/potentially dangerous
-		QRegExp MMx("^mm([0-7])$");
-		if (MMx.indexIn(regName) != -1) {
-			QChar digit = MMx.cap(1).at(0);
+		static const QRegularExpression MMx(QStringLiteral("^mm([0-7])$"));
+		const QRegularExpressionMatch match = MMx.match(regName);
+		if (match.hasMatch()) {
+			QChar digit = match.captured(1).at(0);
 			assert(digit.isDigit());
 			char digitChar = digit.toLatin1();
 			size_t i       = digitChar - '0';
@@ -1323,9 +1365,9 @@ void PlatformState::setRegister(const Register &reg) {
 	}
 
 	{
-		QRegExp Rx("^r([0-7])$");
-		if (Rx.indexIn(regName) != -1) {
-			QChar digit = Rx.cap(1).at(0);
+		static const QRegularExpression Rx(QStringLiteral("^r([0-7])$"));
+		if (Rx.match(regName).hasMatch()) {
+			QChar digit = Rx.match(regName).captured(1).at(0);
 			assert(digit.isDigit());
 			char digitChar = digit.toLatin1();
 			size_t i       = digitChar - '0';
@@ -1337,9 +1379,9 @@ void PlatformState::setRegister(const Register &reg) {
 	}
 
 	{
-		QRegExp Rx("^st\\(?([0-7])\\)?$");
-		if (Rx.indexIn(regName) != -1) {
-			QChar digit = Rx.cap(1).at(0);
+		static const QRegularExpression Rx(QStringLiteral("^st\\(?([0-7])\\)?$"));
+		if (Rx.match(regName).hasMatch()) {
+			QChar digit = Rx.match(regName).captured(1).at(0);
 			assert(digit.isDigit());
 			char digitChar = digit.toLatin1();
 			size_t i       = digitChar - '0';
@@ -1351,11 +1393,12 @@ void PlatformState::setRegister(const Register &reg) {
 	}
 
 	{
-		QRegExp XMMx("^xmm([12]?[0-9]|3[01])$");
-		if (XMMx.indexIn(regName) != -1) {
+		static const QRegularExpression XMMx(QStringLiteral("^xmm([12]?[0-9]|3[01])$"));
+		const QRegularExpressionMatch match = XMMx.match(regName);
+		if (match.hasMatch()) {
 			const auto value = reg.value<edb::value128>();
 			bool indexReadOK = false;
-			size_t i         = XMMx.cap(1).toInt(&indexReadOK);
+			size_t i         = match.captured(1).toInt(&indexReadOK);
 			assert(indexReadOK && xmmIndexValid(i));
 
 			avx.zmmStorage[i].load(value);
@@ -1364,11 +1407,12 @@ void PlatformState::setRegister(const Register &reg) {
 	}
 
 	{
-		QRegExp YMMx("^ymm([12]?[0-9]|3[01])$");
-		if (YMMx.indexIn(regName) != -1) {
+		static const QRegularExpression YMMx(QStringLiteral("^ymm([12]?[0-9]|3[01])$"));
+		const QRegularExpressionMatch match = YMMx.match(regName);
+		if (match.hasMatch()) {
 			const auto value = reg.value<edb::value256>();
 			bool indexReadOK = false;
-			size_t i         = YMMx.cap(1).toInt(&indexReadOK);
+			size_t i         = match.captured(1).toInt(&indexReadOK);
 			assert(indexReadOK && ymmIndexValid(i));
 
 			avx.zmmStorage[i].load(value);
@@ -1376,40 +1420,40 @@ void PlatformState::setRegister(const Register &reg) {
 		}
 	}
 
-	if (regName == "ftr" || regName == "ftw") {
+	if (regName == QStringLiteral("ftr") || regName == QStringLiteral("ftw")) {
 		x87.tagWord = reg.value<edb::value16>();
 		return;
 	}
 
-	if (regName == "fsr" || regName == "fsw") {
+	if (regName == QStringLiteral("fsr") || regName == QStringLiteral("fsw")) {
 		x87.statusWord = reg.value<edb::value16>();
 		return;
 	}
 
-	if (regName == "fcr" || regName == "fcw") {
+	if (regName == QStringLiteral("fcr") || regName == QStringLiteral("fcw")) {
 		x87.controlWord = reg.value<edb::value16>();
 		return;
 	}
 
-	if (regName == "fis" || regName == "fds") {
-		(regName == "fis" ? x87.instPtrSelector : x87.dataPtrSelector) = reg.value<edb::value16>();
+	if (regName == QStringLiteral("fis") || regName == QStringLiteral("fds")) {
+		(regName == QStringLiteral("fis") ? x87.instPtrSelector : x87.dataPtrSelector) = reg.value<edb::value16>();
 		return;
 	}
 
-	if (regName == "fip" || regName == "fdp") {
-		(regName == "fip" ? x87.instPtrOffset : x87.dataPtrOffset) = reg.valueAsAddress();
+	if (regName == QStringLiteral("fip") || regName == QStringLiteral("fdp")) {
+		(regName == QStringLiteral("fip") ? x87.instPtrOffset : x87.dataPtrOffset) = reg.valueAsAddress();
 		return;
 	}
 
-	if (regName == "fopcode" || regName == "fop") {
+	if (regName == QStringLiteral("fopcode") || regName == QStringLiteral("fop")) {
 		x87.opCode = reg.value<edb::value16>();
 		return;
 	}
 
 	{
-		QRegExp DRx("^dr([0-7])$");
-		if (DRx.indexIn(regName) != -1) {
-			QChar digit = DRx.cap(1).at(0);
+		static const QRegularExpression DRx(QStringLiteral("^dr([0-7])$"));
+		if (DRx.match(regName).hasMatch()) {
+			QChar digit = DRx.match(regName).captured(1).at(0);
 			assert(digit.isDigit());
 			char digitChar = digit.toLatin1();
 			size_t i       = digitChar - '0';
@@ -1423,9 +1467,10 @@ void PlatformState::setRegister(const Register &reg) {
 }
 
 /**
- * @brief PlatformState::setRegister
- * @param name
- * @param value
+ * @brief Sets the value of a register by its name
+ *
+ * @param name The name of the register to set
+ * @param value The value to set the register to
  */
 void PlatformState::setRegister(const QString &name, edb::reg_t value) {
 
@@ -1434,10 +1479,12 @@ void PlatformState::setRegister(const QString &name, edb::reg_t value) {
 }
 
 /**
- * @brief PlatformState::archRegister
- * @param type
- * @param n
- * @return
+ * @brief Gets a register by its type and index
+ *
+ * @param type The type of the register (e.g., "mmx", "xmm", "ymm")
+ * @param n The index of the register
+ * @return A Register object representing the specified register, or an invalid Register if not found
+ * @note The type parameter is expected to be a string hash of the register type name (e.g., `edb::string_hash("mmx")`)
  */
 Register PlatformState::archRegister(uint64_t type, size_t n) const {
 	switch (type) {
@@ -1454,9 +1501,10 @@ Register PlatformState::archRegister(uint64_t type, size_t n) const {
 }
 
 /**
- * @brief PlatformState::mmx_register
- * @param n
- * @return
+ * @brief Gets the value of the specified MMX register for this platform
+ *
+ * @param n The index of the MMX register to retrieve
+ * @return The value of the specified MMX register
  */
 Register PlatformState::mmx_register(size_t n) const {
 	if (!mmxIndexValid(n)) {
@@ -1464,13 +1512,14 @@ Register PlatformState::mmx_register(size_t n) const {
 	}
 
 	edb::value64 value(x87.R[n].mantissa());
-	return make_Register(QString("mm%1").arg(n), value, Register::TYPE_SIMD);
+	return make_Register(QStringLiteral("mm%1").arg(n), value, Register::TYPE_SIMD);
 }
 
 /**
- * @brief PlatformState::xmm_register
- * @param n
- * @return
+ * @brief Gets the value of the specified XMM register for this platform
+ *
+ * @param n The index of the XMM register to retrieve
+ * @return The value of the specified XMM register
  */
 Register PlatformState::xmm_register(size_t n) const {
 	if (!xmmIndexValid(n) || !avx.xmmFilledIA32) {
@@ -1482,13 +1531,14 @@ Register PlatformState::xmm_register(size_t n) const {
 	}
 
 	edb::value128 value(avx.xmm(n));
-	return make_Register(QString("xmm%1").arg(n), value, Register::TYPE_SIMD);
+	return make_Register(QStringLiteral("xmm%1").arg(n), value, Register::TYPE_SIMD);
 }
 
 /**
- * @brief PlatformState::ymm_register
- * @param n
- * @return
+ * @brief Gets the value of the specified YMM register for this platform
+ *
+ * @param n The index of the YMM register to retrieve
+ * @return The value of the specified YMM register
  */
 Register PlatformState::ymm_register(size_t n) const {
 	if (!ymmIndexValid(n) || !avx.ymmFilled) {
@@ -1496,7 +1546,7 @@ Register PlatformState::ymm_register(size_t n) const {
 	}
 
 	edb::value256 value(avx.ymm(n));
-	return make_Register(QString("ymm%1").arg(n), value, Register::TYPE_SIMD);
+	return make_Register(QStringLiteral("ymm%1").arg(n), value, Register::TYPE_SIMD);
 }
 
 }

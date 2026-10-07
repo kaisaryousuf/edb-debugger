@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2015 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2015 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
@@ -42,9 +30,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QFileInfo>
 #include <QTextStream>
 
-#include <fstream>
-
+#include <cstdio>
 #include <elf.h>
+#include <fstream>
 #include <linux/limits.h>
 #include <pwd.h>
 #include <sys/mman.h>
@@ -65,7 +53,8 @@ void hash_combine(std::size_t &seed, const T &v) {
 }
 
 /**
- * @brief set_ok
+ * @brief Returns true if the ptrace long value is a valid (non-error) result.
+ *
  * @param value
  */
 bool set_ok(long value) {
@@ -73,7 +62,8 @@ bool set_ok(long value) {
 }
 
 /**
- * @brief split_max
+ * @brief Splits a whitespace-delimited string into at most maxparts parts.
+ *
  * @param str
  * @param maxparts
  * @return
@@ -83,11 +73,11 @@ QStringList split_max(const QString &str, int maxparts) {
 	int idx      = 0;
 	QStringList items;
 	for (const QChar &c : str) {
-		if (c == ' ') {
+		if (c == QLatin1Char(' ')) {
 			if (prev_idx < idx) {
-				if (items.size() < maxparts - 1)
+				if (items.size() < maxparts - 1) {
 					items << str.mid(prev_idx, idx - prev_idx);
-				else {
+				} else {
 					items << str.right(str.size() - prev_idx);
 					break;
 				}
@@ -105,9 +95,8 @@ QStringList split_max(const QString &str, int maxparts) {
 }
 
 /**
- * parses the data from a line of a memory map file
+ * @brief Parses a single line from /proc/[pid]/maps and returns the corresponding memory region.
  *
- * @brief process_map_line
  * @param line
  * @return
  */
@@ -122,7 +111,7 @@ std::shared_ptr<IRegion> process_map_line(const QString &line) {
 	const QStringList items = split_max(line, 6);
 	if (items.size() >= 3) {
 		bool ok;
-		const QStringList bounds = items[0].split("-");
+		const QStringList bounds = items[0].split(QLatin1Char('-'));
 		if (bounds.size() == 2) {
 			start = edb::address_t::fromHexString(bounds[0], &ok);
 			if (ok) {
@@ -132,9 +121,15 @@ std::shared_ptr<IRegion> process_map_line(const QString &line) {
 					if (ok) {
 						const QString perms = items[1];
 						permissions         = 0;
-						if (perms[0] == 'r') permissions |= PROT_READ;
-						if (perms[1] == 'w') permissions |= PROT_WRITE;
-						if (perms[2] == 'x') permissions |= PROT_EXEC;
+						if (perms[0] == QLatin1Char('r')) {
+							permissions |= PROT_READ;
+						}
+						if (perms[1] == QLatin1Char('w')) {
+							permissions |= PROT_WRITE;
+						}
+						if (perms[2] == QLatin1Char('x')) {
+							permissions |= PROT_EXEC;
+						}
 
 						if (items.size() >= 6) {
 							name = items[5];
@@ -150,15 +145,17 @@ std::shared_ptr<IRegion> process_map_line(const QString &line) {
 }
 
 /**
- * @brief get_loaded_modules
+ * @brief Walks the dynamic linker's link_map chain to enumerate all loaded shared libraries.
+ *
  * @param process
  * @return
  */
 template <class Addr>
-QList<Module> get_loaded_modules(const IProcess *process) {
+std::set<Module> get_loaded_modules(const IProcess *process) {
 
-	QList<Module> ret;
+	std::set<Module> ret;
 
+	// read the dynamic linker's r_debug structure from the debuggee process if we can.
 	edb::linux_struct::r_debug<Addr> dynamic_info;
 	if (process) {
 		if (const edb::address_t debug_pointer = process->debugPointer()) {
@@ -178,9 +175,10 @@ QList<Module> get_loaded_modules(const IProcess *process) {
 
 							if (map.l_addr) {
 								Module module;
-								module.name        = path;
+								// NOTE(eteran): we use the path[0] check here because ld.so gives the "primary" module the name "" (empty string)
+								module.name        = path[0] ? QString::fromLocal8Bit(path) : process->executable();
 								module.baseAddress = map.l_addr;
-								ret.push_back(module);
+								ret.insert(std::move(module));
 							}
 
 							link_address = edb::address_t::fromZeroExtended(map.l_next);
@@ -193,21 +191,21 @@ QList<Module> get_loaded_modules(const IProcess *process) {
 		}
 	}
 
-	// fallback
-	if (ret.isEmpty()) {
+	// fallback, unfortunately due to symlink shenanigans, this won't quite match the link_map results, but it's better than nothing
+	if (ret.empty()) {
 		const QList<std::shared_ptr<IRegion>> r = edb::v1::memory_regions().regions();
-		QSet<QString> found_modules;
+		std::set<QString> found_modules;
 
 		for (const std::shared_ptr<IRegion> &region : r) {
 
 			// we assume that modules will be listed by absolute path
-			if (region->name().startsWith("/")) {
+			if (region->name().startsWith(QLatin1Char('/'))) {
 				if (!util::contains(found_modules, region->name())) {
 					Module module;
 					module.name        = region->name();
 					module.baseAddress = region->start();
 					found_modules.insert(region->name());
-					ret.push_back(module);
+					ret.insert(std::move(module));
 				}
 			}
 		}
@@ -217,30 +215,57 @@ QList<Module> get_loaded_modules(const IProcess *process) {
 }
 
 /**
- * seeks memory file to given address, taking possible negativity of the
- * address into account
+ * @brief Get the program headers of the process
  *
- * @brief seek_addr
- * @param file
- * @param address
+ * @param process
+ * @param phdr_memaddr
+ * @param num_phdr
+ * @return true
+ * @return false
  */
-void seek_addr(QFile &file, edb::address_t address) {
-	if (address <= UINT64_MAX / 2) {
-		file.seek(address);
-	} else {
-		const int fd = file.handle();
-		// Seek in two parts to avoid specifying negative offset: off64_t is a signed type
-		const off64_t halfAddressTruncated = address >> 1;
-		lseek64(fd, halfAddressTruncated, SEEK_SET);
-		const off64_t secondHalfAddress = address - halfAddressTruncated;
-		lseek64(fd, secondHalfAddress, SEEK_CUR);
+bool get_program_headers(const IProcess *process, edb::address_t *phdr_memaddr, int *num_phdr) {
+
+	*phdr_memaddr = edb::address_t{};
+	*num_phdr     = 0;
+
+	QFile auxv(QStringLiteral("/proc/%1/auxv").arg(process->pid()));
+	if (auxv.open(QIODevice::ReadOnly)) {
+
+		if (edb::v1::debuggeeIs64Bit()) {
+			elf64_auxv_t entry;
+			while (auxv.read(reinterpret_cast<char *>(&entry), sizeof(entry))) {
+				switch (entry.a_type) {
+				case AT_PHDR:
+					*phdr_memaddr = entry.a_un.a_val;
+					break;
+				case AT_PHNUM:
+					*num_phdr = static_cast<int>(entry.a_un.a_val);
+					break;
+				}
+			}
+		} else if (edb::v1::debuggeeIs32Bit()) {
+			elf32_auxv_t entry;
+			while (auxv.read(reinterpret_cast<char *>(&entry), sizeof(entry))) {
+				switch (entry.a_type) {
+				case AT_PHDR:
+					*phdr_memaddr = entry.a_un.a_val;
+					break;
+				case AT_PHNUM:
+					*num_phdr = entry.a_un.a_val;
+					break;
+				}
+			}
+		}
 	}
+
+	return (*phdr_memaddr != 0 && *num_phdr != 0);
 }
 
 }
 
 /**
- * @brief PlatformProcess::PlatformProcess
+ * @brief Constructs a PlatformProcess for the given PID under the given debugger core.
+ *
  * @param core
  * @param pid
  */
@@ -248,26 +273,22 @@ PlatformProcess::PlatformProcess(DebuggerCore *core, edb::pid_t pid)
 	: core_(core), pid_(pid) {
 
 	if (!core_->procMemReadBroken_) {
-		auto memory_file = std::make_shared<QFile>(QString("/proc/%1/mem").arg(pid_));
-
-		QIODevice::OpenMode flags = QIODevice::ReadOnly | QIODevice::Unbuffered;
+		char path[PATH_MAX];
+		snprintf(path, sizeof(path), "/proc/%d/mem", pid_);
 		if (!core_->procMemWriteBroken_) {
-			flags |= QIODevice::WriteOnly;
-		}
-
-		if (memory_file->open(flags)) {
+			auto memory_file  = std::make_shared<PlatformFile>(path);
+			readOnlyMemFile_  = memory_file;
+			readWriteMemFile_ = memory_file;
+		} else {
+			auto memory_file = std::make_shared<PlatformFile>(path, O_RDONLY);
 			readOnlyMemFile_ = memory_file;
-			if (!core_->procMemWriteBroken_) {
-				readWriteMemFile_ = memory_file;
-			}
 		}
 	}
 }
 
 /**
- * reads <len> bytes into <buf> starting at <address>
+ * @brief Reads up to len bytes from the process at the given address, transparently patching through breakpoint bytes.
  *
- * @brief PlatformProcess::readBytes
  * @param address
  * @param buf
  * @param len
@@ -297,26 +318,24 @@ std::size_t PlatformProcess::readBytes(edb::address_t address, void *buf, std::s
 			}
 
 			if (readOnlyMemFile_) {
-				seek_addr(*readOnlyMemFile_, address);
-				read = readOnlyMemFile_->read(ptr, 1);
+				read = readOnlyMemFile_->readAt(ptr, 1, address);
 				if (read == 1) {
 					return 1;
 				}
 				return 0;
-			} else {
-				bool ok;
-				uint8_t x = ptraceReadByte(address, &ok);
-				if (ok) {
-					*ptr = x;
-					return 1;
-				}
-				return 0;
 			}
+
+			bool ok;
+			uint8_t x = ptraceReadByte(address, &ok);
+			if (ok) {
+				*ptr = x;
+				return 1;
+			}
+			return 0;
 		}
 
 		if (readOnlyMemFile_) {
-			seek_addr(*readOnlyMemFile_, address);
-			read = readOnlyMemFile_->read(ptr, len);
+			read = readOnlyMemFile_->readAt(ptr, len, address);
 			if (read == 0 || read == quint64(-1)) {
 				return 0;
 			}
@@ -331,14 +350,14 @@ std::size_t PlatformProcess::readBytes(edb::address_t address, void *buf, std::s
 				}
 
 				// store it
-				reinterpret_cast<char *>(buf)[index] = x;
+				static_cast<char *>(buf)[index] = x;
 
 				++read;
 			}
 		}
 
 		// replace any breakpoints
-		Q_FOREACH (const std::shared_ptr<IBreakpoint> &bp, core_->breakpoints_) {
+		for (const std::shared_ptr<IBreakpoint> &bp : core_->breakpoints_) {
 			auto bpBytes                = bp->originalBytes();
 			const edb::address_t bpAddr = bp->address();
 			// show the original bytes in the buffer..
@@ -354,10 +373,8 @@ std::size_t PlatformProcess::readBytes(edb::address_t address, void *buf, std::s
 }
 
 /**
- * same as writeBytes, except that it also records the original data that was
- * found at the address being written to.
+ * @brief Writes len bytes into the process at the given address and records the patch.
  *
- * @brief PlatformProcess::patchBytes
  * @param address
  * @param buf
  * @param len
@@ -377,8 +394,8 @@ std::size_t PlatformProcess::patchBytes(edb::address_t address, const void *buf,
 
 	Patch patch;
 	patch.address = address;
-	patch.origBytes.resize(len);
-	patch.newBytes = QByteArray(static_cast<const char *>(buf), len);
+	patch.origBytes.resize(static_cast<int>(len));
+	patch.newBytes = QByteArray(static_cast<const char *>(buf), static_cast<int>(len));
 
 	size_t read_ret = readBytes(address, patch.origBytes.data(), len);
 	if (read_ret != len) {
@@ -391,9 +408,8 @@ std::size_t PlatformProcess::patchBytes(edb::address_t address, const void *buf,
 }
 
 /**
- * writes <len> bytes from <buf> starting at <address>
+ * @brief Writes len bytes from buf into the process memory at the given address without recording a patch.
  *
- * @brief PlatformProcess::writeBytes
  * @param address
  * @param buf
  * @param len
@@ -407,8 +423,7 @@ std::size_t PlatformProcess::writeBytes(edb::address_t address, const void *buf,
 
 	if (len != 0) {
 		if (readWriteMemFile_) {
-			seek_addr(*readWriteMemFile_, address);
-			written = readWriteMemFile_->write(reinterpret_cast<const char *>(buf), len);
+			written = readWriteMemFile_->writeAt(reinterpret_cast<const char *>(buf), len, address);
 			if (written == 0 || written == quint64(-1)) {
 				return 0;
 			}
@@ -417,7 +432,9 @@ std::size_t PlatformProcess::writeBytes(edb::address_t address, const void *buf,
 			for (std::size_t byteIndex = 0; byteIndex < len; ++byteIndex) {
 				bool ok = false;
 				ptraceWriteByte(address + byteIndex, *(reinterpret_cast<const char *>(buf) + byteIndex), &ok);
-				if (!ok) return written;
+				if (!ok) {
+					return written;
+				}
 				++written;
 			}
 		}
@@ -427,12 +444,11 @@ std::size_t PlatformProcess::writeBytes(edb::address_t address, const void *buf,
 }
 
 /**
- * reads <count> pages from the process starting at <address>
+ * @brief Reads count whole memory pages starting at the page-aligned address.
  *
- * @brief PlatformProcess::readPages
- * @param address - must be page aligned.
- * @param buf - sizeof(buf) must be >= count * core_->page_size()
- * @param count - number of pages
+ * @param address must be page aligned.
+ * @param buf sizeof(buf) must be >= count * core_->page_size()
+ * @param count number of pages
  * @return
  */
 std::size_t PlatformProcess::readPages(edb::address_t address, void *buf, std::size_t count) const {
@@ -442,27 +458,25 @@ std::size_t PlatformProcess::readPages(edb::address_t address, void *buf, std::s
 }
 
 /**
- * @brief PlatformProcess::startTime
+ * @brief Returns the wall-clock start time of the process by reading /proc/[pid]/stat.
+ *
  * @return
  */
 QDateTime PlatformProcess::startTime() const {
-	QFileInfo info(QString("/proc/%1/stat").arg(pid_));
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
+	QFileInfo info(QStringLiteral("/proc/%1/stat").arg(pid_));
 	return info.birthTime();
-#else
-	return info.created();
-#endif
 }
 
 /**
- * @brief PlatformProcess::arguments
+ * @brief Returns the command-line arguments of the process by reading /proc/[pid]/cmdline.
+ *
  * @return
  */
 QList<QByteArray> PlatformProcess::arguments() const {
 	QList<QByteArray> ret;
 
 	if (pid_ != 0) {
-		const QString command_line_file(QString("/proc/%1/cmdline").arg(pid_));
+		const QString command_line_file(QStringLiteral("/proc/%1/cmdline").arg(pid_));
 		QFile file(command_line_file);
 
 		if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -492,23 +506,26 @@ QList<QByteArray> PlatformProcess::arguments() const {
 }
 
 /**
- * @brief PlatformProcess::currentWorkingDirectory
+ * @brief Returns the current working directory of the process by reading /proc/[pid]/cwd.
+ *
  * @return
  */
 QString PlatformProcess::currentWorkingDirectory() const {
-	return edb::v1::symlink_target(QString("/proc/%1/cwd").arg(pid_));
+	return edb::v1::symlink_target(QStringLiteral("/proc/%1/cwd").arg(pid_));
 }
 
 /**
- * @brief PlatformProcess::executable
+ * @brief Returns the executable path of the process by reading /proc/[pid]/exe.
+ *
  * @return
  */
 QString PlatformProcess::executable() const {
-	return edb::v1::symlink_target(QString("/proc/%1/exe").arg(pid_));
+	return edb::v1::symlink_target(QStringLiteral("/proc/%1/exe").arg(pid_));
 }
 
 /**
- * @brief PlatformProcess::pid
+ * @brief Returns the PID of this process.
+ *
  * @return
  */
 edb::pid_t PlatformProcess::pid() const {
@@ -516,7 +533,8 @@ edb::pid_t PlatformProcess::pid() const {
 }
 
 /**
- * @brief PlatformProcess::parent
+ * @brief Returns a shared pointer to the parent process.
+ *
  * @return
  */
 std::shared_ptr<IProcess> PlatformProcess::parent() const {
@@ -531,7 +549,8 @@ std::shared_ptr<IProcess> PlatformProcess::parent() const {
 }
 
 /**
- * @brief PlatformProcess::codeAddress
+ * @brief Returns the address of the code segment for this process.
+ *
  * @return
  */
 edb::address_t PlatformProcess::codeAddress() const {
@@ -544,7 +563,8 @@ edb::address_t PlatformProcess::codeAddress() const {
 }
 
 /**
- * @brief PlatformProcess::dataAddress
+ * @brief Returns the address of the data segment for this process.
+ *
  * @return
  */
 edb::address_t PlatformProcess::dataAddress() const {
@@ -556,14 +576,24 @@ edb::address_t PlatformProcess::dataAddress() const {
 	return 0;
 }
 
+[[nodiscard]] edb::address_t PlatformProcess::heapStart() const {
+	struct user_stat user_stat;
+	int n = get_user_stat(pid_, &user_stat);
+	if (n >= 47) {
+		return user_stat.start_brk;
+	}
+	return 0;
+}
+
 /**
- * @brief PlatformProcess::regions
+ * @brief Returns the list of all mapped memory regions by reading /proc/[pid]/maps.
+ *
  * @return
  */
 QList<std::shared_ptr<IRegion>> PlatformProcess::regions() const {
 
 	static QList<std::shared_ptr<IRegion>> regions;
-	const QString map_file(QString("/proc/%1/maps").arg(pid_));
+	const QString map_file(QStringLiteral("/proc/%1/maps").arg(pid_));
 
 	// hash the region file to see if it changed or not
 	{
@@ -604,7 +634,8 @@ QList<std::shared_ptr<IRegion>> PlatformProcess::regions() const {
 }
 
 /**
- * @brief PlatformProcess::ptraceReadByte
+ * @brief Reads a single byte from the process using ptrace PTRACE_PEEKDATA.
+ *
  * @param address
  * @param ok
  * @return
@@ -644,9 +675,8 @@ uint8_t PlatformProcess::ptraceReadByte(edb::address_t address, bool *ok) const 
 }
 
 /**
- * writes a single byte at a given address via ptrace API.
+ * @brief Writes a single byte into the process at the given address via PTRACE_POKEDATA.
  *
- * @brief PlatformProcess::ptraceWriteByte
  * @param address
  * @param value
  * @param ok
@@ -684,7 +714,8 @@ void PlatformProcess::ptraceWriteByte(edb::address_t address, uint8_t value, boo
 }
 
 /**
- * @brief PlatformProcess::ptracePeek
+ * @brief Reads one word-sized value from the process via PTRACE_PEEKDATA.
+ *
  * @param address
  * @param ok
  * @return
@@ -713,7 +744,8 @@ long PlatformProcess::ptracePeek(edb::address_t address, bool *ok) const {
 }
 
 /**
- * @brief PlatformProcess::ptracePoke
+ * @brief Writes one word-sized value into the process via PTRACE_POKEDATA.
+ *
  * @param address
  * @param value
  * @return
@@ -734,7 +766,8 @@ bool PlatformProcess::ptracePoke(edb::address_t address, long value) {
 }
 
 /**
- * @brief PlatformProcess::threads
+ * @brief Returns the list of threads currently associated with this process.
+ *
  * @return
  */
 QList<std::shared_ptr<IThread>> PlatformProcess::threads() const {
@@ -748,7 +781,8 @@ QList<std::shared_ptr<IThread>> PlatformProcess::threads() const {
 }
 
 /**
- * @brief PlatformProcess::currentThread
+ * @brief Returns the current (active) thread for this process.
+ *
  * @return
  */
 std::shared_ptr<IThread> PlatformProcess::currentThread() const {
@@ -763,7 +797,8 @@ std::shared_ptr<IThread> PlatformProcess::currentThread() const {
 }
 
 /**
- * @brief PlatformProcess::setCurrentThread
+ * @brief Sets the active thread to the given thread.
+ *
  * @param thread
  */
 void PlatformProcess::setCurrentThread(IThread &thread) {
@@ -772,59 +807,64 @@ void PlatformProcess::setCurrentThread(IThread &thread) {
 }
 
 /**
- * @brief PlatformProcess::uid
+ * @brief Returns the numeric UID of the process owner.
+ *
  * @return
  */
 edb::uid_t PlatformProcess::uid() const {
 
-	const QFileInfo info(QString("/proc/%1").arg(pid_));
+	const QFileInfo info(QStringLiteral("/proc/%1").arg(pid_));
 	return info.ownerId();
 }
 
 /**
- * @brief PlatformProcess::user
+ * @brief Returns the username of the process owner.
+ *
  * @return
  */
 QString PlatformProcess::user() const {
 	if (const struct passwd *const pwd = ::getpwuid(uid())) {
-		return pwd->pw_name;
+		return QString::fromLocal8Bit(pwd->pw_name);
 	}
 
 	return QString();
 }
 
 /**
- * @brief PlatformProcess::name
+ * @brief Returns the process name (the filename part of its executable path).
+ *
  * @return
  */
 QString PlatformProcess::name() const {
 	struct user_stat user_stat;
 	const int n = get_user_stat(pid_, &user_stat);
 	if (n >= 2) {
-		return user_stat.comm;
+		return QString::fromLocal8Bit(user_stat.comm);
 	}
 
 	return QString();
 }
 
 /**
- * @brief PlatformProcess::loadedModules
+ * @brief Returns the list of all loaded shared library modules by walking the dynamic linker link map.
+ *
  * @return
  */
-QList<Module> PlatformProcess::loadedModules() const {
+std::set<Module> PlatformProcess::loadedModules() const {
 	if (edb::v1::debuggeeIs64Bit()) {
 		return get_loaded_modules<Elf64_Addr>(this);
-	} else if (edb::v1::debuggeeIs32Bit()) {
-		return get_loaded_modules<Elf32_Addr>(this);
-	} else {
-		return QList<Module>();
 	}
+
+	if (edb::v1::debuggeeIs32Bit()) {
+		return get_loaded_modules<Elf32_Addr>(this);
+	}
+
+	return std::set<Module>();
 }
 
 /**
- * stops *all* threads of a process
+ * @brief Sends SIGSTOP to ALL threads to pause the process.
  *
- * @brief PlatformProcess::pause
  * @return
  */
 Status PlatformProcess::pause() {
@@ -836,16 +876,15 @@ Status PlatformProcess::pause() {
 	if (::kill(pid_, SIGSTOP) == -1) {
 		const char *const strError = strerror(errno);
 		qWarning() << "Unable to pause process" << pid_ << ": kill(SIGSTOP) failed:" << strError;
-		return Status(strError);
+		return Status(QString::fromLatin1(strError));
 	}
 
 	return Status::Ok;
 }
 
 /**
- * resumes ALL threads
+ * @brief Resumes ALL threads from their stopped state with the given event status.
  *
- * @brief PlatformProcess::resume
  * @param status
  * @return
  */
@@ -886,13 +925,12 @@ Status PlatformProcess::resume(edb::EventStatus status) {
 	}
 
 	qWarning() << errorMessage.toStdString().c_str();
-	return Status("\n" + errorMessage);
+	return Status(QStringLiteral("\n") + errorMessage);
 }
 
 /**
- * steps the currently active thread
+ * @brief Single-steps the current thread with the given event status.
  *
- * @brief PlatformProcess::step
  * @param status
  * @return
  */
@@ -909,7 +947,8 @@ Status PlatformProcess::step(edb::EventStatus status) {
 }
 
 /**
- * @brief PlatformProcess::isPaused
+ * @brief Returns true if all threads of this process are currently stopped.
+ *
  * @return true if ALL threads are currently in the debugger's wait list
  */
 bool PlatformProcess::isPaused() const {
@@ -923,7 +962,8 @@ bool PlatformProcess::isPaused() const {
 }
 
 /**
- * @brief PlatformProcess::patches
+ * @brief Returns the map of all applied byte patches keyed by address.
+ *
  * @return any patches applied to this process
  */
 QMap<edb::address_t, Patch> PlatformProcess::patches() const {
@@ -931,12 +971,13 @@ QMap<edb::address_t, Patch> PlatformProcess::patches() const {
 }
 
 /**
- * @brief PlatformProcess::entry_point
- * @return
+ * @brief Returns the binary entry point address read from the ELF auxiliary vector.
+ *
+ * @return The entry point address of the process, or 0 if not found.
  */
 edb::address_t PlatformProcess::entryPoint() const {
 
-	QFile auxv(QString("/proc/%1/auxv").arg(pid_));
+	QFile auxv(QStringLiteral("/proc/%1/auxv").arg(pid_));
 	if (auxv.open(QIODevice::ReadOnly)) {
 
 		if (edb::v1::debuggeeIs64Bit()) {
@@ -960,57 +1001,13 @@ edb::address_t PlatformProcess::entryPoint() const {
 }
 
 /**
- * @brief get_program_headers
- * @param process
- * @param phdr_memaddr
- * @param num_phdr
- * @return
- */
-bool get_program_headers(const IProcess *process, edb::address_t *phdr_memaddr, int *num_phdr) {
-
-	*phdr_memaddr = edb::address_t{};
-	*num_phdr     = 0;
-
-	QFile auxv(QString("/proc/%1/auxv").arg(process->pid()));
-	if (auxv.open(QIODevice::ReadOnly)) {
-
-		if (edb::v1::debuggeeIs64Bit()) {
-			elf64_auxv_t entry;
-			while (auxv.read(reinterpret_cast<char *>(&entry), sizeof(entry))) {
-				switch (entry.a_type) {
-				case AT_PHDR:
-					*phdr_memaddr = entry.a_un.a_val;
-					break;
-				case AT_PHNUM:
-					*num_phdr = entry.a_un.a_val;
-					break;
-				}
-			}
-		} else if (edb::v1::debuggeeIs32Bit()) {
-			elf32_auxv_t entry;
-			while (auxv.read(reinterpret_cast<char *>(&entry), sizeof(entry))) {
-				switch (entry.a_type) {
-				case AT_PHDR:
-					*phdr_memaddr = entry.a_un.a_val;
-					break;
-				case AT_PHNUM:
-					*num_phdr = entry.a_un.a_val;
-					break;
-				}
-			}
-		}
-	}
-
-	return (*phdr_memaddr != 0 && *num_phdr != 0);
-}
-
-/**
- * @brief get_debug_pointer
- * @param process
- * @param phdr_memaddr
- * @param count
- * @param relocation
- * @return
+ * @brief Returns the address of the r_debug structure by searching the dynamic segment.
+ *
+ * @param process The process to search for the r_debug structure.
+ * @param phdr_memaddr The memory address of the program headers.
+ * @param count The number of program headers.
+ * @param relocation The relocation offset to apply to the program headers.
+ * @return The address of the r_debug structure or 0 if not found.
  */
 template <class Model>
 edb::address_t get_debug_pointer(const IProcess *process, edb::address_t phdr_memaddr, int count, edb::address_t relocation) {
@@ -1021,22 +1018,22 @@ edb::address_t get_debug_pointer(const IProcess *process, edb::address_t phdr_me
 	for (int i = 0; i < count; ++i) {
 		if (process->readBytes(phdr_memaddr + i * sizeof(elf_phdr), &phdr, sizeof(elf_phdr))) {
 			if (phdr.p_type == PT_DYNAMIC) {
-				try {
-
-					auto buf = std::make_unique<uint8_t[]>(phdr.p_memsz);
-
-					if (process->readBytes(phdr.p_vaddr + relocation, &buf[0], phdr.p_memsz)) {
-						auto dynamic = reinterpret_cast<typename Model::elf_dyn *>(&buf[0]);
-						while (dynamic->d_tag != DT_NULL) {
-							if (dynamic->d_tag == DT_DEBUG) {
-								return dynamic->d_un.d_val;
-							}
-							++dynamic;
-						}
-					}
-				} catch (const std::bad_alloc &) {
-					qDebug() << "[get_debug_pointer] no more memory";
+				if (phdr.p_memsz > 0x100000) {
+					qDebug("[get_debug_pointer] p_memsz is too large, skipping");
 					return 0;
+				}
+
+				auto buf = std::make_unique<uint8_t[]>(phdr.p_memsz);
+
+				if (process->readBytes(phdr.p_vaddr + relocation, &buf[0], phdr.p_memsz)) {
+
+					auto dynamic = reinterpret_cast<typename Model::elf_dyn *>(&buf[0]);
+					while (dynamic->d_tag != DT_NULL) {
+						if (dynamic->d_tag == DT_DEBUG) {
+							return dynamic->d_un.d_val;
+						}
+						++dynamic;
+					}
 				}
 			}
 		}
@@ -1046,11 +1043,12 @@ edb::address_t get_debug_pointer(const IProcess *process, edb::address_t phdr_me
 }
 
 /**
- * @brief get_relocation
- * @param process
- * @param phdr_memaddr
- * @param i
- * @return
+ * @brief Returns the relocation offset for the program headers by searching for the PT_PHDR segment.
+ *
+ * @param process The process to search for the PT_PHDR segment.
+ * @param phdr_memaddr The memory address of the program headers.
+ * @param i The index of the program header to check.
+ * @return The relocation offset or -1 if not found.
  */
 template <class Model>
 edb::address_t get_relocation(const IProcess *process, edb::address_t phdr_memaddr, int i) {
@@ -1068,11 +1066,9 @@ edb::address_t get_relocation(const IProcess *process, edb::address_t phdr_memad
 }
 
 /**
- * attempts to locate the ELF debug pointer in the target process and returns
- * it, 0 of not found
+ * @brief Returns the address of the r_debug structure by searching the dynamic segment.
  *
- * @brief PlatformProcess::debug_pointer
- * @return
+ * @return The address of the r_debug structure or 0 if not found.
  */
 edb::address_t PlatformProcess::debugPointer() const {
 
@@ -1087,12 +1083,16 @@ edb::address_t PlatformProcess::debugPointer() const {
 		/* Compute relocation: it is expected to be 0 for "regular" executables,
 		 * non-zero for PIE ones.  */
 		edb::address_t relocation = -1;
-		for (int i = 0; relocation == -1 && i < num_phdr; i++) {
+		for (int i = 0; i < num_phdr; i++) {
 
 			if (edb::v1::debuggeeIs64Bit()) {
 				relocation = get_relocation<elf_model<64>>(this, phdr_memaddr, i);
 			} else if (edb::v1::debuggeeIs32Bit()) {
 				relocation = get_relocation<elf_model<32>>(this, phdr_memaddr, i);
+			}
+
+			if (relocation != -1) {
+				break;
 			}
 		}
 
@@ -1112,7 +1112,9 @@ edb::address_t PlatformProcess::debugPointer() const {
 
 		if (edb::v1::debuggeeIs64Bit()) {
 			return get_debug_pointer<elf_model<64>>(this, phdr_memaddr, num_phdr, relocation);
-		} else if (edb::v1::debuggeeIs32Bit()) {
+		}
+
+		if (edb::v1::debuggeeIs32Bit()) {
 			return get_debug_pointer<elf_model<32>>(this, phdr_memaddr, num_phdr, relocation);
 		}
 	}
@@ -1121,8 +1123,9 @@ edb::address_t PlatformProcess::debugPointer() const {
 }
 
 /**
- * @brief PlatformProcess::calculateMain
- * @return
+ * @brief Attempts to locate the address of main() by following the ELF startup sequence.
+ *
+ * @return The address of main() or 0 if not found.
  */
 edb::address_t PlatformProcess::calculateMain() const {
 	if (edb::v1::debuggeeIs64Bit()) {
@@ -1154,7 +1157,7 @@ edb::address_t PlatformProcess::calculateMain() const {
 
 					if (address) {
 						// TODO: make sure that this address resides in an executable region
-						qDebug() << "No main symbol found, calculated it to be " << edb::v1::format_pointer(address) << " using heuristic";
+						qDebug() << "No main symbol found, calculated it to be" << edb::v1::format_pointer(address) << "using heuristic";
 						return address;
 					}
 				}
@@ -1181,7 +1184,7 @@ edb::address_t PlatformProcess::calculateMain() const {
 						std::memcpy(to, ba.data() + 1, sizeof(uint32_t));
 
 						// TODO: make sure that this address resides in an executable region
-						qDebug() << "No main symbol found, calculated it to be " << edb::v1::format_pointer(address) << " using heuristic";
+						qDebug() << "No main symbol found, calculated it to be" << edb::v1::format_pointer(address) << "using heuristic";
 						return address;
 					}
 				}
@@ -1195,18 +1198,20 @@ edb::address_t PlatformProcess::calculateMain() const {
 }
 
 /**
- * @brief PlatformProcess::stardardInput
- * @return
+ * @brief Returns the path to the standard input file or device for this process.
+ *
+ * @return The path to the standard input file or device.
  */
-QString PlatformProcess::stardardInput() const {
+QString PlatformProcess::standardInput() const {
 	return input_;
 }
 
 /**
- * @brief PlatformProcess::stardardOutput
- * @return
+ * @brief Returns the path to the standard output file or device for this process.
+ *
+ * @return The path to the standard output file or device.
  */
-QString PlatformProcess::stardardOutput() const {
+QString PlatformProcess::standardOutput() const {
 	return output_;
 }
 

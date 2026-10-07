@@ -23,7 +23,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>30</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_help">
@@ -42,6 +42,7 @@
     <addaction name="action_Memory_Regions"/>
     <addaction name="action_Threads"/>
     <addaction name="actionApplication_Arguments"/>
+    <addaction name="action_Breakpoints"/>
     <addaction name="separator"/>
     <addaction name="action_Debug_Logger"/>
    </widget>
@@ -58,6 +59,8 @@
     </property>
     <addaction name="action_Configure_Debugger"/>
     <addaction name="actionApplication_Working_Directory"/>
+    <addaction name="separator"/>
+    <addaction name="action_Reset_UI"/>
    </widget>
    <widget class="QMenu" name="menu_File">
     <property name="title">
@@ -433,6 +436,19 @@
    </property>
    <property name="text">
     <string>Debug Logger</string>
+   </property>
+  </action>
+  <action name="action_Breakpoints">
+   <property name="text">
+    <string>&amp;Breakpoints</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+B</string>
+   </property>
+  </action>
+  <action name="action_Reset_UI">
+   <property name="text">
+    <string>Reset UI</string>
    </property>
   </action>
  </widget>

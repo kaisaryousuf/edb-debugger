@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-						  evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef DEBUGGER_H_20090811_
 #define DEBUGGER_H_20090811_
@@ -32,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <QVector>
 
 #include <memory>
+#include <set>
 
 #include "ui_Debugger.h"
 
@@ -44,8 +33,10 @@ class IBinary;
 class IBreakpoint;
 class IDebugEvent;
 class IPlugin;
+class IProcess;
 class RecentFileManager;
 class TabWidget;
+struct Module;
 
 class QDisassemblyView;
 class QDockWidget;
@@ -97,20 +88,20 @@ private:
 	};
 
 public:
-	std::shared_ptr<DataViewInfo> currentDataViewInfo() const;
+	[[nodiscard]] int currentTab() const;
+	[[nodiscard]] QLabel *statusLabel() const;
+	[[nodiscard]] Register activeRegister() const;
+	[[nodiscard]] std::shared_ptr<DataViewInfo> currentDataViewInfo() const;
 	bool dumpData(edb::address_t address, bool new_tab);
 	bool dumpDataRange(edb::address_t address, edb::address_t end_address, bool new_tab);
 	bool dumpStack(edb::address_t address, bool scroll_to);
 	bool jumpToAddress(edb::address_t address);
-	int currentTab() const;
 	void attach(edb::pid_t pid);
 	void clearData(const std::shared_ptr<DataViewInfo> &v);
-	void execute(const QString &s, const QList<QByteArray> &args, const QString &input, const QString &output);
+	void execute(const QString &program, const QList<QByteArray> &args, const QString &input, const QString &output);
 	void refreshUi();
 	void updateData(const std::shared_ptr<DataViewInfo> &v);
 	void updateUi();
-	QLabel *statusLabel() const;
-	Register activeRegister() const;
 
 Q_SIGNALS:
 	void uiUpdated();
@@ -122,7 +113,7 @@ Q_SIGNALS:
 	void attachEvent();
 
 public Q_SLOTS:
-	// the autoconnected slots
+	// the auto-connected slots
 	void on_actionAbout_QT_triggered();
 	void on_actionApplication_Arguments_triggered();
 	void on_actionApplication_Working_Directory_triggered();
@@ -146,6 +137,8 @@ public Q_SLOTS:
 	void on_action_Step_Over_Pass_Signal_To_Application_triggered();
 	void on_action_Step_Over_triggered();
 	void on_action_Threads_triggered();
+	void on_action_Breakpoints_triggered();
+	void on_action_Reset_UI_triggered();
 
 private:
 	void toggleFlag(int);
@@ -161,7 +154,7 @@ private Q_SLOTS:
 	void mnuCPURemoveComment();
 	void mnuCPURunToThisLine();
 	void mnuCPURunToThisLinePassSignal();
-	void mnuCPUToggleBreakpoint();
+	void mnuCPUToggleBreakpoint() const;
 	void mnuCPUAddConditionalBreakpoint();
 	void mnuCPUFillNop();
 	void mnuCPUFillZero();
@@ -170,8 +163,8 @@ private Q_SLOTS:
 	void mnuCPUFollowInStack();
 	void mnuCPUJumpToAddress();
 	void mnuCPUJumpToEIP();
-	void mnuCPUModify();
-	void mnuCPURemoveBreakpoint();
+	void mnuCPUModify() const;
+	void mnuCPURemoveBreakpoint() const;
 	void mnuCPUSetEIP();
 	void mnuCPULabelAddress();
 	void breakPointToggled_triggered(edb::address_t);
@@ -228,9 +221,9 @@ public:
 
 private:
 	QString createTty();
-	QString sessionFilename() const;
+	[[nodiscard]] QString sessionFilename() const;
 	Result<edb::address_t, QString> getGotoExpression();
-	Result<edb::reg_t, QString> getFollowRegister() const;
+	[[nodiscard]] Result<edb::reg_t, QString> getFollowRegister() const;
 	bool commonOpen(const QString &s, const QList<QByteArray> &args, const QString &input, const QString &output);
 	bool isBreakpointConditionTrue(const QString &condition);
 	edb::EventStatus handleEventExited(const std::shared_ptr<IDebugEvent> &event);
@@ -247,12 +240,10 @@ private:
 	void createDataTab();
 	void deleteDataTab();
 	void detachFromProcess(DetachAction kill);
-	void doJumpToAddress(edb::address_t address, const std::shared_ptr<IRegion> &r, bool scroll_to);
+	void doJumpToAddress(edb::address_t address, const std::shared_ptr<IRegion> &r, bool scroll_to) const;
 	void finishPluginSetup();
 	void followRegisterInDump(bool tabbed);
-	void loadSession(const QString &session_file);
 	void resumeExecution(ExceptionResume pass_exception, DebugMode mode, ResumeFlag flags);
-	void saveSession(const QString &session_file);
 	void setDebuggerCaption(const QString &appname);
 	void setInitialBreakpoint(const QString &s);
 	void setInitialDebuggerState();
@@ -265,11 +256,12 @@ private:
 	void updateDisassembly(edb::address_t address, const std::shared_ptr<IRegion> &r);
 	void updateMenuState(GuiState state);
 	void updateStackView(const State &state);
-	void updateTabCaption(const std::shared_ptr<QHexView> &view, edb::address_t start, edb::address_t end);
+	void updateTabCaption(const std::shared_ptr<QHexView> &view, edb::address_t start, edb::address_t end) const;
+	void setLibraryLoadHook();
 
 private:
 	template <class F>
-	QAction *createAction(const QString &text, const QKeySequence &keySequence, F slotPtr);
+	QAction *createAction(const QString &text, const QKeySequence &keySequence, F func);
 
 	template <class F>
 	void followMemory(edb::address_t address, F follow_func);
@@ -298,6 +290,9 @@ private:
 	template <class F1, class F2>
 	void stepOver(F1 run_func, F2 step_func);
 
+	template <class Addr>
+	void handle_library_event(IProcess *process, [[maybe_unused]] edb::address_t debug_pointer);
+
 public:
 	Ui::Debugger ui;
 	QDisassemblyView *cpuView_ = nullptr;
@@ -320,10 +315,11 @@ private:
 	QToolButton *tabDelete_               = nullptr;
 	RecentFileManager *recentFileManager_ = nullptr;
 	bool stackViewLocked_                 = false;
+	bool ui_reset_                        = false;
 
 #if defined(Q_OS_LINUX)
-	edb::address_t debugtPointer_  = 0;
-	bool dynamicInfoBreakpointSet_ = false;
+	edb::address_t debugPointer_ = 0;
+	std::set<Module> loadedModules_;
 #endif
 
 private:
@@ -339,6 +335,7 @@ private:
 	std::shared_ptr<QHexView> stackView_;
 	std::shared_ptr<const IDebugEvent> lastEvent_;
 	std::unique_ptr<IBinary> binaryInfo_;
+	QPointer<QDialog> breakpointDialog_;
 
 private:
 	QAction *gotoAddressAction_;

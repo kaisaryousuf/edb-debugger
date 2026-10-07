@@ -1,7 +1,12 @@
+/*
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Unix.h"
+#include <csignal>
 #include <cstring>
-#include <signal.h>
 #include <unistd.h>
 
 namespace DebuggerCorePlugin {
@@ -109,7 +114,8 @@ constexpr Exception Exceptions[] = {
 };
 
 /**
- * @brief copyString
+ * @brief Allocates a null-terminated copy of the given QByteArray string on the heap.
+ *
  * @param str
  * @return
  */
@@ -122,20 +128,22 @@ char *copyString(const QByteArray &str) {
 }
 
 /**
- * @brief Unix::exceptions
+ * @brief Returns a map of all known Unix signal numbers and their names.
+ *
  * @return
  */
 QMap<qlonglong, QString> Unix::exceptions() {
 
 	QMap<qlonglong, QString> exceptions;
 	for (Exception e : Exceptions) {
-		exceptions.insert(e.value, e.name);
+		exceptions.insert(e.value, QString::fromLatin1(e.name));
 	}
 	return exceptions;
 }
 
 /**
- * @brief Unix::exception_name
+ * @brief Returns the name string for the Unix signal with the given numeric value.
+ *
  * @param value
  * @return
  */
@@ -145,20 +153,21 @@ QString Unix::exception_name(qlonglong value) {
 	});
 
 	if (it != std::end(Exceptions)) {
-		return it->name;
+		return QString::fromLatin1(it->name);
 	}
 
 	return QString();
 }
 
 /**
- * @brief Unix::exception_value
+ * @brief Returns the numeric value for the Unix signal with the given name, or -1 if not found.
+ *
  * @param name
  * @return
  */
 qlonglong Unix::exception_value(const QString &name) {
 	auto it = std::find_if(std::begin(Exceptions), std::end(Exceptions), [&name](const Exception &ex) {
-		return ex.name == name;
+		return QString::fromLatin1(ex.name) == name;
 	});
 
 	if (it != std::end(Exceptions)) {
@@ -169,7 +178,8 @@ qlonglong Unix::exception_value(const QString &name) {
 }
 
 /**
- * @brief Unix::execute_process
+ * @brief Changes to the given working directory and launches the process via execv with the provided arguments.
+ *
  * @param path
  * @param cwd
  * @param args
@@ -177,7 +187,7 @@ qlonglong Unix::exception_value(const QString &name) {
  */
 Status Unix::execute_process(const QString &path, const QString &cwd, const QList<QByteArray> &args) {
 
-	QString errorString = "internal error";
+	auto errorString = QStringLiteral("internal error");
 
 	// change to the desired working directory
 	if (::chdir(qPrintable(cwd)) == 0) {
@@ -200,17 +210,18 @@ Status Unix::execute_process(const QString &path, const QString &cwd, const QLis
 		// instead appear to launch shell
 		const int ret = execv(argv_pointers[0], argv_pointers);
 
-		// should be no need to cleanup, the process which allocated all that
-		// space no longer exists!
 		// if we get here...execv failed!
-		if (ret == -1) {
-			errorString = QString("execv() failed: %1").arg(strerror(errno));
-			p           = argv_pointers;
-			while (*p) {
-				delete[] * p++;
-			}
-			delete[] argv_pointers;
+		// and the docs say that the return value IS -1. This behavior of execv only
+		// returning on errors confuses linters, so let's just assert what is the case
+		Q_ASSERT(ret == -1);
+
+		errorString = QStringLiteral("execv() failed: %1").arg(QString::fromLocal8Bit(strerror(errno)));
+
+		p = argv_pointers;
+		while (*p) {
+			delete[] *p++;
 		}
+		delete[] argv_pointers;
 	}
 
 	// frankly, any return is technically an error I think

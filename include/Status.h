@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef STATUS_H_20160803_
 #define STATUS_H_20160803_
@@ -32,20 +20,20 @@ public:
 	Status(OkType) {
 	}
 
-	explicit Status(const QString &message)
-		: error_(message) {
+	explicit Status(QString message)
+		: error_(std::move(message)) {
 	}
 
-	Status(const Status &) = default;
+	Status(const Status &)            = default;
 	Status &operator=(const Status &) = default;
 	Status(Status &&)                 = default;
-	Status &operator=(Status &&) = default;
+	Status &operator=(Status &&)      = default;
 
 public:
-	bool success() const { return error_.isEmpty(); }
-	bool failure() const { return !success(); }
-	explicit operator bool() const { return success(); }
-	QString error() const { return error_; }
+	[[nodiscard]] bool failure() const { return !success(); }
+	[[nodiscard]] bool success() const { return error_.isEmpty(); }
+	[[nodiscard]] QString error() const { return error_; }
+	[[nodiscard]] explicit operator bool() const { return success(); }
 
 private:
 	QString error_;
@@ -60,16 +48,16 @@ class Unexpected {
 	friend class Result;
 
 	template <class U>
-	friend Unexpected<typename std::decay<U>::type> make_unexpected(U &&);
+	friend Unexpected<std::decay_t<U>> make_unexpected(U &&);
 
 public:
-	Unexpected(const Unexpected &) = default;
+	Unexpected(const Unexpected &)            = default;
 	Unexpected &operator=(const Unexpected &) = default;
 	Unexpected(Unexpected &&)                 = default;
-	Unexpected &operator=(Unexpected &&) = default;
+	Unexpected &operator=(Unexpected &&)      = default;
 
 private:
-	template <class U>
+	template <class U, class = std::enable_if_t<!std::is_same_v<U, Unexpected> && std::is_convertible_v<U, E>>>
 	Unexpected(U &&error)
 		: error_(std::forward<U>(error)) {
 	}
@@ -81,7 +69,7 @@ private:
 template <class T, class E>
 class Result {
 public:
-	template <class U, class = typename std::enable_if<std::is_convertible<U, T>::value>::type>
+	template <class U, class = std::enable_if_t<!std::is_same_v<U, Result> && std::is_convertible_v<U, T>>>
 	Result(U &&value)
 		: value_(std::forward<U>(value)) {
 	}
@@ -94,10 +82,10 @@ public:
 		: value_(std::move(value)) {
 	}
 
-	Result(const Result &) = default;
+	Result(const Result &)            = default;
 	Result &operator=(const Result &) = default;
 	Result(Result &&)                 = default;
-	Result &operator=(Result &&) = default;
+	Result &operator=(Result &&)      = default;
 
 public:
 	const T *operator->() const {
@@ -105,18 +93,18 @@ public:
 		return &std::get<T>(value_);
 	}
 
-	const T &operator*() const { return value(); }
-	bool succeeded() const { return value_.index() == 0; }
-	bool failed() const { return value_.index() == 1; }
-	explicit operator bool() const { return succeeded(); }
-	bool operator!() const { return failed(); }
+	[[nodiscard]] bool failed() const { return value_.index() == 1; }
+	[[nodiscard]] bool operator!() const { return failed(); }
+	[[nodiscard]] bool succeeded() const { return value_.index() == 0; }
+	[[nodiscard]] const T &operator*() const { return value(); }
+	[[nodiscard]] explicit operator bool() const { return succeeded(); }
 
-	const E &error() const {
+	[[nodiscard]] const E &error() const {
 		Q_ASSERT(failed());
 		return std::get<Unexpected<E>>(value_).error_;
 	}
 
-	const T &value() const {
+	[[nodiscard]] const T &value() const {
 		Q_ASSERT(succeeded());
 		return std::get<T>(value_);
 	}
@@ -128,8 +116,7 @@ private:
 template <class E>
 class Result<void, E> {
 public:
-	Result() {
-	}
+	Result() = default;
 
 	Result(const Unexpected<E> &value)
 		: value_(value) {
@@ -139,18 +126,18 @@ public:
 		: value_(std::move(value)) {
 	}
 
-	Result(const Result &) = default;
+	Result(const Result &)            = default;
 	Result &operator=(const Result &) = default;
 	Result(Result &&)                 = default;
-	Result &operator=(Result &&) = default;
+	Result &operator=(Result &&)      = default;
 
 public:
-	bool succeeded() const { return value_.index() == 0; }
-	bool failed() const { return value_.index() == 1; }
-	explicit operator bool() const { return succeeded(); }
-	bool operator!() const { return failed(); }
+	[[nodiscard]] bool failed() const { return value_.index() == 1; }
+	[[nodiscard]] bool operator!() const { return failed(); }
+	[[nodiscard]] bool succeeded() const { return value_.index() == 0; }
+	[[nodiscard]] explicit operator bool() const { return succeeded(); }
 
-	const E &error() const {
+	[[nodiscard]] const E &error() const {
 		Q_ASSERT(failed());
 		return std::get<Unexpected<E>>(value_).error_;
 	}
@@ -160,8 +147,8 @@ private:
 };
 
 template <class E>
-Unexpected<typename std::decay<E>::type> make_unexpected(E &&e) {
-	return Unexpected<typename std::decay<E>::type>(std::forward<E>(e));
+Unexpected<std::decay_t<E>> make_unexpected(E &&e) {
+	return Unexpected<std::decay_t<E>>(std::forward<E>(e));
 }
 
 #endif

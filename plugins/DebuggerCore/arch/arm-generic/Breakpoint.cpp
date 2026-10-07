@@ -1,20 +1,8 @@
 /*
-Copyright (C) 2006 - 2015 Evan Teran
-                          evan.teran@gmail.com
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2006 - 2025 Evan Teran <evan.teran@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "Breakpoint.h"
 #include "Configuration.h"
@@ -31,7 +19,7 @@ const std::vector<quint8> BreakpointInstructionThumb_LE = {0x01, 0xde};         
 // correctly use it see GDB's thumb_get_next_pcs_raw function and comments
 // around arm_linux_thumb2_le_breakpoint array.
 const std::vector<quint8> BreakpointInstructionThumb2_LE = {0xf0, 0xf7, 0x00, 0xa0}; // udf.w #0
-// This one generates SIGILL both in ARM32 and Thumb mode. In ARM23 mode it's decoded as UDF 0xDDE0, while
+// This one generates SIGILL both in ARM32 and Thumb mode. In ARM32 mode it's decoded as UDF 0xDDE0, while
 // in Thumb it's a sequence `1: UDF 0xF0; B 1b`, which does stop the process even if it lands in the
 // middle (on the second half-word), although the signal still occurs at the first half-word.
 const std::vector<quint8> BreakpointInstructionUniversalThumbARM_LE = {0xf0, 0xde, 0xfd, 0xe7};
@@ -39,18 +27,26 @@ const std::vector<quint8> BreakpointInstructionThumbBKPT_LE         = {0x00, 0xb
 const std::vector<quint8> BreakpointInstructionARM32BKPT_LE         = {0x70, 0x00, 0x20, 0xe1}; // bkpt #0
 }
 
-//------------------------------------------------------------------------------
-// Name: Breakpoint
-// Desc: constructor
-//------------------------------------------------------------------------------
+/**
+ * @brief Constructs a new breakpoint at the specified address.
+ *
+ * @param address The address of the breakpoint.
+ */
 Breakpoint::Breakpoint(edb::address_t address)
 	: address_(address), type_(edb::v1::config().default_breakpoint_type) {
 
 	if (!enable()) {
 		throw BreakpointCreationError();
 	}
+
+	module_ = edb::v2::module_for_address(address);
 }
 
+/**
+ * @brief Returns the list of supported breakpoint types.
+ *
+ * @return A vector of supported breakpoint types.
+ */
 auto Breakpoint::supportedTypes() -> std::vector<BreakpointType> {
 	std::vector<BreakpointType> types = {
 		BreakpointType{Type{TypeId::Automatic}, QObject::tr("Automatic")},
@@ -64,33 +60,32 @@ auto Breakpoint::supportedTypes() -> std::vector<BreakpointType> {
 	return types;
 }
 
-void Breakpoint::setType(TypeId type) {
+void Breakpoint::setType(IBreakpoint::TypeId type) {
 	disable();
+
+	if (Type{type} >= TypeId::TYPE_COUNT) {
+		throw BreakpointCreationError();
+	}
+
 	type_ = type;
+
 	if (!enable()) {
 		throw BreakpointCreationError();
 	}
 }
 
-void Breakpoint::setType(IBreakpoint::TypeId type) {
-	disable();
-	if (Type{type} >= TypeId::TYPE_COUNT)
-		throw BreakpointCreationError();
-	setType(type);
-}
-
-//------------------------------------------------------------------------------
-// Name: ~Breakpoint
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Destructor for the Breakpoint class.
+ */
 Breakpoint::~Breakpoint() {
 	disable();
 }
 
-//------------------------------------------------------------------------------
-// Name: enable
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Enables the breakpoint.
+ *
+ * @return True if the breakpoint was successfully enabled, false otherwise.
+ */
 bool Breakpoint::enable() {
 	if (!enabled()) {
 		if (IProcess *process = edb::v1::debugger_core->process()) {
@@ -143,10 +138,11 @@ bool Breakpoint::enable() {
 	return false;
 }
 
-//------------------------------------------------------------------------------
-// Name: disable
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Disables the breakpoint.
+ *
+ * @return True if the breakpoint was successfully disabled, false otherwise.
+ */
 bool Breakpoint::disable() {
 	if (enabled()) {
 		if (IProcess *process = edb::v1::debugger_core->process()) {
@@ -159,30 +155,36 @@ bool Breakpoint::disable() {
 	return false;
 }
 
-//------------------------------------------------------------------------------
-// Name: hit
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Called when the breakpoint is hit.
+ */
 void Breakpoint::hit() {
 	++hitCount_;
 }
 
-//------------------------------------------------------------------------------
-// Name: setOneTime
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Sets the one-time flag for the breakpoint.
+ *
+ * @param value The value to set the one-time flag to.
+ */
 void Breakpoint::setOneTime(bool value) {
 	oneTime_ = value;
 }
 
-//------------------------------------------------------------------------------
-// Name: setInternal
-// Desc:
-//------------------------------------------------------------------------------
+/**
+ * @brief Sets the internal flag for the breakpoint.
+ *
+ * @param value The value to set the internal flag to.
+ */
 void Breakpoint::setInternal(bool value) {
 	internal_ = value;
 }
 
+/**
+ * @brief Returns the possible rewind sizes for the breakpoint.
+ *
+ * @return A vector of possible rewind sizes.
+ */
 std::vector<size_t> Breakpoint::possibleRewindSizes() {
 	return {0}; // Even BKPT stops before the instruction, let alone UDF
 }
